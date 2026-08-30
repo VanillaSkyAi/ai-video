@@ -1,0 +1,183 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install the locked npm CLI
+        run: npm install --global npm@11.17.0
+      - run: npm ci
+      - run: npm run registry:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run acceptance:replay
+      - run: npm run build
+      - run: npm run verify:package-size
+      - run: npm audit --audit-level=low
+      - run: npm pack --dry-run
+
+  consumer-gate:
+    if: github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        gate: [documented-examples, public-api, packed-package, onboarding]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install the locked npm CLI
+        run: npm install --global npm@11.17.0
+      - run: npm ci
+      # The API surface check is React-free; the other clean-room gates exercise a browser.
+      - run: npx playwright install chromium
+        if: matrix.gate != 'public-api'
+      # Exercise clean copies with the literal commands and dependency specs in their READMEs.
+      - run: npm run examples:verify-documented
+        if: matrix.gate == 'documented-examples'
+      - run: npm run verify:api
+        if: matrix.gate == 'public-api'
+      - run: npm run verify:package
+        if: matrix.gate == 'packed-package'
+      - run: npm run verify:onboarding
+        if: matrix.gate == 'onboarding'
+
+  # Preserve the stable required-check name while the expensive gates fan out.
+  consumer-compatibility:
+    if: always() && github.event_name == 'pull_request'
+    needs: consumer-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every consumer gate
+        env:
+          RESULT: ${{ needs.consumer-gate.result }}
+        run: |
+          if [[ "$RESULT" != "success" ]]; then
+            echo "Consumer compatibility failed: $RESULT" >&2
+            exit 1
+          fi
+
+  provider-gate:
+    if: github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [openai, anthropic, google, openrouter]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install the locked npm CLI
+        run: npm install --global npm@11.17.0
+      - run: npm ci
+      - run: npx playwright install chromium
+      - run: npm run verify:nextjs
+        env:
+          VANILLASKY_PROVIDER: ${{ matrix.provider }}
+
+  # Preserve the stable required-check name while provider fixtures run independently.
+  provider-compatibility:
+    if: always() && github.event_name == 'pull_request'
+    needs: provider-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every provider gate
+        env:
+          RESULT: ${{ needs.provider-gate.result }}
+        run: |
+          if [[ "$RESULT" != "success" ]]; then
+            echo "Provider compatibility failed: $RESULT" >&2
+            exit 1
+          fi
+
+  node-compatibility:
+    if: github.event_name == 'pull_request'
+    strategy:
+      matrix:
+        # The primary verify job covers Node 22.
+        node: [24]
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Install the locked npm CLI
+        run: npm install --global npm@11.17.0
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  react-compatibility:
+    if: github.event_name == 'pull_request'
+    strategy:
+      matrix:
+        # The primary verify job uses the locked React 19 dependency.
+        react: [18]
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install the locked npm CLI
+        run: npm install --global npm@11.17.0
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false react@${{ matrix.react }}.3.1 react-dom@${{ matrix.react }}.3.1 @types/react@18.3.28 @types/react-dom@18.3.7
+      - run: npm run typecheck
+      - run: npm test -- tests/react.test.tsx tests/player.test.tsx tests/template-kit.test.tsx tests/templates.test.tsx
+      - run: npm run build
+
+  browser-compatibility:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.0-noble@sha256:baed2032d533817f3dbe6425de795788430ba345e819a1201337009ba17c9d07
+      options: --ipc=host --user pwuser
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install the locked npm CLI
+        run: npm install --global npm@11.17.0
+      - run: npm ci
+      - run: npm run examples:install-current
+      - run: npx playwright test

@@ -1,0 +1,37 @@
+{
+  "name": "vanillasky-rich-media-poc",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "cross-env VANILLASKY_LOCAL_DEMO=1 next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "browser:test": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "templates:sync": "vanillasky sync",
+    "templates:check": "vanillasky check"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "4.0.46",
+    "@fal-ai/client": "1.10.1",
+    "@lottiefiles/dotlottie-react": "0.19.15",
+    "@vanillaskyai/ai-video": "0.1.0",
+    "ai": "7.0.77",
+    "gifuct-js": "2.1.2",
+    "next": "16.3.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.0",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "cross-env": "10.1.0",
+    "jsdom": "^26.1.0",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

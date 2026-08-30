@@ -1,0 +1,328 @@
+# VanillaSky Video public API
+
+Status: current public beta contract.
+
+This document defines the API that may enter the fresh
+`@vanillaskyai/ai-video` package. An export not listed here is internal. Tests and
+the packed-package verifier must fail if the final package adds or removes an
+export without changing this contract intentionally.
+
+`tests/fixtures/public-api-signatures.json` is the reviewed normalized
+declaration report for this surface. `npm run verify:api` checks the local build's
+public names, complete reachable signatures, and runtime and declaration
+dependency boundaries. `npm run verify:package` applies the same contract to the
+exact packed artifact. Regenerate the report only as part of an intentional
+public API review.
+
+## Compatibility promise
+
+- Patch releases do not make breaking changes to documented APIs or the
+  serialized `Video` schema.
+- A compatible later `0.x` minor needs no migration ceremony. A breaking
+  pre-1.0 minor must document both `### Breaking changes` and `### Adoption` in
+  its changelog section, with concrete fenced before and after code examples
+  respectively.
+- An API prefixed with `experimental_` may change in a patch. Canonical examples
+  must pin an exact package version when they use one.
+- Deprecated APIs remain usable until the next minor release. The `0.1`
+  package starts without undocumented compatibility aliases.
+- The package is ESM-only, targets ES2022, and supports Node.js 22 or newer.
+- React is an optional peer dependency. Only `/react` and renderer definitions
+  under `/templates` may depend on React.
+- Framework adapters are examples, not separate public APIs. The release suite
+  verifies current Next.js and Vite production builds.
+
+The frozen public API surface report is compared on every pull request. It is
+intentionally conservative: every existing normalized declaration and reachable
+support declaration must remain exactly equal because the report cannot safely
+distinguish input and output positions.
+As a result, even optional field additions to an existing public
+type fail a patch gate; use a documented pre-1.0 minor unless a separately
+reviewed, direction-aware compatibility check can prove the change safe. New
+exports, wider supported peer ranges, and new optional peers remain additive.
+
+## Environment boundaries
+
+| Entry point | Environment | May import React | May import Node built-ins |
+|---|---|---:|---:|
+| `@vanillaskyai/ai-video` | Universal | No | No |
+| `@vanillaskyai/ai-video/server` | Server | No | No required runtime built-ins |
+| `@vanillaskyai/ai-video/react` | Browser/React | Yes | No |
+| `@vanillaskyai/ai-video/templates` | Browser/React authoring | Yes | No |
+| `@vanillaskyai/ai-video/templates/catalog` | Universal JSON metadata | No | No |
+| `@vanillaskyai/ai-video/test` | Node test runners | No | Node test helpers allowed |
+
+The CLI is exposed separately as the `vanillasky` binary.
+
+## Root
+
+The root contains serializable protocol types and pure helpers. It never starts
+a request, renders React, imports a provider, or accesses browser globals.
+
+### Values
+
+- `getVideoDuration(video: Video): number`
+- `parseVideo(value: unknown): Video`
+- `resolveVideoBrand(input?: VideoBrandInput): VideoBrand`
+- `VideoValidationError`
+
+### Types
+
+- `Video`
+- `VideoAudio`
+- `VideoBackground`
+- `VideoBrand`
+- `VideoInput`
+- `VideoOrientation`
+- `VideoScene`
+- `VideoStyle`
+- `VideoStyleOptions`
+- `VideoSuppliedMedia`
+- `VideoStatus`
+- `VideoValidationErrorCode`
+
+`VideoState` remains internal protocol reducer state. Browser consumers use the
+normalized fields returned by `useVideo` instead.
+
+## Server
+
+The server entry point creates a customer-owned authenticated route. It accepts
+the result of Vercel AI SDK `streamText()` directly while retaining a small
+provider-neutral text-delta escape hatch.
+
+### Values
+
+- `createVideoHandler(options)`
+- `createServerTemplateRegistry(options)`
+
+### Types
+
+- `VideoHandlerOptions`
+- `MediaResolver`
+- `MediaResolverContext`
+- `ResolvedMedia`
+- `ServerTemplateRegistry`
+- `ServerTemplateMetadata`
+- `VideoFinishReason`
+- `VideoGenerationSummary`
+- `VideoProviderUsage`
+- `VideoWarning`
+- `VideoWarningCategory`
+
+### Handler contract
+
+- `authorize` is required for HTTP handlers. Use `authorize: "none"` only for
+  an intentionally non-public in-process/test handler.
+- `streamText` receives the generated system prompt, grounded user prompt, and
+  the request `AbortSignal`.
+- `resolveMedia` is an optional application-owned resolver. It receives a
+  bounded semantic query only when configured, and returns an approved image
+  or video URL plus an optional poster before the scene is validated or sent
+  to the browser. Provider clients, keys, metadata, and unresolved queries
+  remain server-only.
+- `invalidPartBehavior` is `"drop" | "fail"`. A behavior selector is never
+  named like a callback.
+- `requireCloser` defaults to `true` on `createVideoHandler`. The planner marks
+  one `scene.add` with `placement: "closer"`; the runtime reserves it and emits
+  it last. Specialized deterministic or test handlers may opt out explicitly.
+- `onWarning` receives safe typed warnings.
+- `onComplete` receives one server-only `VideoGenerationSummary` after an
+  actual `response.complete`; errors and aborts do not invoke it.
+- `onError` receives the full internal server error. Client responses remain
+  redacted and typed separately.
+- Provider usage, raw usage, provider metadata, and model identifiers remain
+  server-side unless the host deliberately persists them.
+- Provider-native usage and metadata require the bounded
+  `includeRawProviderData` opt-in.
+- `snapshotRetention` opts into individually bounded source, instructions, or
+  supplied-media URL metadata; all are omitted by default.
+- Provider credentials, provider selection, authentication, rate limiting,
+  provider retries, logging, and tracing remain host-owned.
+- Request cancellation always reaches the provider through `AbortSignal`.
+- Callback failures are isolated and never alter the video response.
+
+## React
+
+### Values
+
+- `useVideo(options?)`
+- `VideoPlayer`
+- `VideoError`
+
+### Types
+
+- `UseVideoOptions`
+- `UseVideoResult`
+- `VideoPlaybackMode`
+- `VideoPlayerProps`
+- `VideoErrorOptions`
+
+`UseVideoResult` has this conceptual shape:
+
+```ts
+interface UseVideoResult {
+  generate(input: VideoInput): Promise<Video>;
+  abort(reason?: string): void;
+  video?: Video;
+  status: VideoStatus;
+  error?: VideoError;
+  warnings: readonly VideoWarning[];
+  playerProps: VideoPlayerProps;
+}
+```
+
+`VideoPlayer` accepts either streaming player props or a completed saved video:
+
+```tsx
+<VideoPlayer {...video.playerProps} />
+<VideoPlayer video={savedVideo} />
+```
+
+Built-in renderers are always available, so a streaming `VideoPlayer` does not
+require a template registry. `playerProps` is a spread-ready player binding; it
+contains the customer registry supplied to `useVideo` when one exists, but it
+does not expose the built-in planning catalog. Import `builtinTemplates` from
+`@vanillaskyai/ai-video/templates/catalog` for labels, schemas, selection guidance,
+and other React-free metadata.
+
+Set `playbackMode="autoplay-after-interaction"` for chat feeds: the first
+soundtrack waits on a visible scene-one poster, and later streams on the same
+mounted player autoplay with sound after the first successful viewer start.
+`manual`, `muted-autoplay`, and `autoplay-with-sound` cover the other browser
+startup policies.
+
+`VideoInput.opening` accepts custom copy, uses the deterministic fallback when
+omitted, and accepts `false` when the application owns transient loading UI and
+wants the completed video to begin with the first generated scene.
+
+Saved-video playback performs no generation request. `VideoPlayerBinding` and
+the internal reducer state are not public types.
+
+`loop` and `onSceneChange` apply to saved-video playback. `loop` restarts a
+completed video from the beginning instead of showing the replay affordance;
+`onSceneChange(scene, index)` fires whenever the scene under the playhead
+changes, including when a loop wraps back to the first scene. Streaming
+playback is unaffected by either.
+
+`resolveVideoBrand` fills a partial brand with the documented defaults and
+preset backgrounds, producing the fully resolved `VideoBrand` that `parseVideo`
+requires. Use it when authoring a `Video` by hand rather than copying default
+values into application code.
+
+## Template authoring
+
+The template entry point owns React render definitions only. React-free server
+metadata registries are created through `/server`.
+
+### Values
+
+- `defineTemplate(definition)`
+- `createTemplateRegistry(options)`
+
+### Types
+
+- `TemplateDefinition`
+- `TemplateExample`
+- `TemplateJsonSchema`
+- `TemplateFamily`
+- `TemplateTimingMetadata`
+- `TemplateTransitionTiming`
+- `TemplateRegistry`
+- `SceneTemplate`
+- `SceneTemplateMetadata`
+- `SceneTemplateProps`
+
+`SceneTemplateProps.progress` is always the raw `0 → 1` scene clock.
+Transition-enabled templates may use the optional `motionProgress` clock for
+presentation motion; the renderer-owned overlap never prevents that clock from
+reaching `1` across the complete template lifecycle. Their metadata must provide
+`transitionTiming.entryReadyProgress` and `transitionTiming.holdProgress`.
+
+Template timing uses `preferredDuration`; `duration` is not part of the
+package. `AuthoringTemplate` is inferred and internal.
+
+## Built-in catalog
+
+The catalog entry point is JSON-safe metadata. It does not contain renderers.
+
+### Values
+
+- `builtinTemplates`
+
+### Types
+
+- `BuiltinTemplateId`
+- `BuiltinTemplateMetadata`
+
+Template family and timing types have one canonical home under `/templates`.
+
+## Test utilities
+
+The test entry point allows deterministic consumer tests without provider
+credentials or model spend.
+
+### Values
+
+- `createMockVideoPlanner(options?)`
+- `simulateVideoStream(parts, options?)`
+- `videoFixtures`
+
+### Types
+
+- `MockVideoPlannerOptions`
+- `SimulatedVideoStreamOptions`
+
+The fixtures cover successful generation, delayed streaming, truncation,
+invalid scenes, provider failure, content filtering, abort, and timeout.
+
+## CLI
+
+The `vanillasky` binary supports:
+
+- `list`
+- `describe`
+- `create`
+- `add`
+- `sync`
+- `check`
+- `add --dry-run`
+- `add --diff`
+
+Generated customer files import only the public entry points in this document.
+Browser registries import `createTemplateRegistry` from `/templates`. Server
+registries import `createServerTemplateRegistry` and `ServerTemplateMetadata`
+from `/server` without crossing a React type boundary.
+
+## Serialized video
+
+- A completed `Video` is JSON-serializable and may be stored by the host.
+- Every completed value carries the required storage field
+  `schemaVersion: "0.1"`; it is independent from streaming protocol `0.5`.
+- `parseVideo(value: unknown)` is the strict universal storage boundary. It
+  validates the full document and returns a detached, deeply frozen `Video`.
+- JSON serialization remains platform-native; the SDK has no redundant public
+  serializer.
+- Patch releases preserve round-trip compatibility.
+- The 0.1 contract supports the current schema only. It has no compatibility
+  aliases or implicit coercions.
+- Invalid documents throw `VideoValidationError` with `invalid_video`.
+  Unsupported future or unknown versions use `unsupported_video_version` and
+  fail before any renderer runs; they are never rendered partially.
+- Raw prompts, provider payloads, and credentials are never retained by
+  default.
+- Raw source, instructions, and the supplied-media URL index are opt-in and
+  bounded. Hosts own the database, storage, tenant policy, deletion, and media
+  URL expiry.
+- Replay through `<VideoPlayer video={savedVideo} />` never calls an LLM.
+- Completion checksums detect accidental drift only; they do not provide
+  authenticity, authorization, or tenancy security.
+
+## Intentionally excluded from 0.1
+
+- Provider-specific OpenAI or Anthropic wrapper clients.
+- Rendering/export infrastructure.
+- Hosted persistence.
+- OpenTelemetry integration.
+- Automatic factual verification or scene repair.
+- `useVideo(initialVideo)`.
+- Undocumented API aliases.

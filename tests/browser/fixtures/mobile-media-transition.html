@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Mobile media transition probe</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #05030d; color: #fff; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      main { min-height: 100svh; display: grid; place-items: start center; gap: 12px; padding: 12px; }
+      [data-probe-stage] { width: min(390px, calc(100vw - 24px)); }
+      pre { width: min(720px, calc(100vw - 24px)); max-height: 28svh; margin: 0; overflow: auto; white-space: pre-wrap; color: #b8f7d4; }
+    </style>
+  </head>
+  <body><div id="root"></div><script type="module" src="./mobile-media-transition.tsx"></script></body>
+</html>

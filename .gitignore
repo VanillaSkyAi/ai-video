@@ -1,0 +1,16 @@
+node_modules
+dist/
+examples/*/node_modules
+examples/*/dist/
+coverage/
+artifacts/
+playwright-report/
+test-results/
+.DS_Store
+.env
+.env.*
+!.env.example
+.worktrees/
+
+# Locally packed tarballs (npm pack output)
+*.tgz
