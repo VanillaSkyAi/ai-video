@@ -317,12 +317,12 @@ describe("release workflow", () => {
     expect(consumerJob.indexOf("npm ci")).toBeLessThan(consumerJob.indexOf("npm run verify:api"));
   });
 
-  it("bounds the default Vitest worker pool instead of hiding load failures behind longer timeouts", () => {
+  it("keeps the Vitest worker pool within the two-core hosted-runner budget", () => {
     const config = readFileSync("vitest.config.ts", "utf8");
     const manifest = JSON.parse(readFileSync("package.json", "utf8"));
 
     expect(manifest.scripts.test).toBe("vitest run");
-    expect(config).toContain("maxWorkers: 4");
+    expect(config).toContain("maxWorkers: 2");
     expect(config).not.toContain("testTimeout");
     expect(config).not.toContain("fileParallelism: false");
   });
