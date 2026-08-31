@@ -4,6 +4,13 @@ These rules apply to every coding agent in this repository. Public behavior of
 `@vanillaskyai/video` is a consumer contract; repository-local success is not
 sufficient evidence.
 
+## Never merge a pull request
+
+Open pull requests, push to them, and wait for CI. The merge is the
+maintainer's decision. When CI is green, say so and stop — do not merge,
+enable auto-merge, or tag a release unless the maintainer asked you to in
+that conversation.
+
 ## Before tests and builds
 
 Print and verify the working directory, repository root, commit, status, Node,
