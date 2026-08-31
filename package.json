@@ -1,6 +1,6 @@
 {
   "name": "@vanillaskyai/video",
-  "version": "0.5.8",
+  "version": "0.6.0",
   "description": "Open-source video response SDK for personalized AI applications.",
   "keywords": [
     "generative-video",

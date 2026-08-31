@@ -4,6 +4,8 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+## 0.6.0
+
 - Adds opt-in native scene-video audio to `VideoPlayer`, mixed with the existing
   continuous soundtrack layer under one master mute control. Applications set
   the embedded clip level with `nativeMediaAudio.volume`; the serialized
