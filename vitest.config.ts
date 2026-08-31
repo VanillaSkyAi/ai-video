@@ -17,8 +17,8 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.{ts,tsx}"],
     // Several integration files launch their own TypeScript and renderer
-    // subprocesses. More file workers oversubscribe contributor machines and
-    // make the default five-second test budget less reliable, not faster.
-    maxWorkers: 4,
+    // subprocesses. Two file workers fit both contributor machines and the
+    // two-core hosted runner without turning fixed test budgets into load races.
+    maxWorkers: 2,
   },
 });
