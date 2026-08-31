@@ -1,4 +1,4 @@
-import { defineTemplate } from "@vanillaskyai/ai-video/templates";
+import { defineTemplate } from "@vanillaskyai/video/templates";
 
 export const activationLift = defineTemplate({
   id: "activationLift",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { VideoPlayer, useVideo } from "@vanillaskyai/ai-video/react";
+import { VideoPlayer, useVideo } from "@vanillaskyai/video/react";
 
 export default function Page() {
   const [input, setInput] = useState(

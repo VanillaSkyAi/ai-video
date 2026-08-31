@@ -1,6 +1,6 @@
 # Test integrations without a model
 
-`@vanillaskyai/ai-video/test` provides deterministic provider streams and in-process
+`@vanillaskyai/video/test` provides deterministic provider streams and in-process
 protocol events. It has no React or provider-SDK dependency, makes no network
 request, and does not require a model key.
 
@@ -12,11 +12,11 @@ HTTP server is involved.
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 import {
   createMockVideoPlanner,
   videoFixtures,
-} from "@vanillaskyai/ai-video/test";
+} from "@vanillaskyai/video/test";
 
 describe("POST /api/video", () => {
   it("returns a completed video stream", async () => {
@@ -57,7 +57,7 @@ import { expect, it } from "vitest";
 import {
   simulateVideoStream,
   videoFixtures,
-} from "@vanillaskyai/ai-video/test";
+} from "@vanillaskyai/video/test";
 
 it("keeps a truncated result playable", async () => {
   const events = [];
@@ -87,7 +87,7 @@ import { expect, it, vi } from "vitest";
 import {
   simulateVideoStream,
   videoFixtures,
-} from "@vanillaskyai/ai-video/test";
+} from "@vanillaskyai/video/test";
 
 it("times out deterministically", async () => {
   vi.useFakeTimers();

@@ -16,7 +16,7 @@ describe("canonical provider onboarding", () => {
 
     expect(manifest.dependencies).toMatchObject({
       "@ai-sdk/anthropic": expect.any(String),
-      "@vanillaskyai/ai-video": packageVersion,
+      "@vanillaskyai/video": packageVersion,
       ai: expect.any(String),
       next: expect.any(String),
       react: expect.any(String),
@@ -39,7 +39,7 @@ describe("canonical provider onboarding", () => {
 
     expect(route).toContain('from "@ai-sdk/anthropic"');
     expect(route).toContain('from "ai"');
-    expect(route).toContain('from "@vanillaskyai/ai-video/server"');
+    expect(route).toContain('from "@vanillaskyai/video/server"');
     expect(route).toContain("createVideoHandler({");
     expect(route).toContain("streamText:");
     expect(route).toContain('process.env.VANILLASKY_LOCAL_DEMO !== "1"');

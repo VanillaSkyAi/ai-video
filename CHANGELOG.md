@@ -1,12 +1,317 @@
 # Changelog
 
-VanillaSky AI Video follows semantic versioning.
+VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+## 0.5.8
+
+- Moved the public source to a fresh repository at
+  `github.com/VanillaSkyAi/video`. No runtime code changed in this release; the
+  package, its public API, and its behaviour are identical to 0.5.7.
+
+## 0.5.7
+
+- Keeps one persistent video backdrop element across consecutive iPhone and
+  iPad scenes, cross-fades through the decoded incoming poster during Safari's
+  source reset, avoids detached iOS preload decoders, and removes the CSS
+  poster workaround introduced in 0.5.6. Desktop retains its decoded
+  video-to-video cross-fade.
+
+## 0.5.6
+
+- Keeps a video's warmed poster painted behind its frame so Mobile Safari
+  cannot expose the brand gradient while transferring its decoder between
+  consecutive media scenes.
+
+## 0.5.5
+
+- Keeps a Mobile Safari video poster visible until the replacement video has
+  presented its first frame, preventing a poster-to-gradient-to-video flash
+  during consecutive media scenes.
+
+## 0.5.4
+
+- Prevents Mobile Safari from holding outgoing and incoming scene video
+  decoders at the same time. Video-to-video cuts use the preloaded matching
+  poster on iPhone and iPad, while desktop media preroll and crossfades remain
+  unchanged.
+
+## 0.5.3
+
+- Makes `crossfade` the default for generated videos and mounts changed media
+  invisibly before every contiguous cut, including templates that own their
+  transition. This extends the existing media warm-up window so the browser can
+  decode the incoming backdrop and replace its stock poster with the real first
+  frame while still hidden, instead of flashing the gradient or visibly swapping
+  crops after the cut. Making camera motion opt-in also removes the scale reset
+  that could look like a quick pullback during the fade.
+
+## 0.5.2
+
+- Refactors composition state transitions into a deterministic, directly
+  tested session engine without changing the public API, event stream,
+  checksums, or runtime behavior.
+
+## 0.5.1
+
+- Removes the redundant README version badge. Package registries and release
+  pages remain the authoritative source for the current version.
+
+## 0.5.0
+
+### Breaking changes
+
+- Simplifies streaming protocol `0.5` to complete immutable `scene.add` parts
+  followed by `plan.complete`. It removes `scene.patch`, `asset.patch`,
+  `plan.error`, and scene revision counters. Provider failures now use thrown
+  errors, while media resolution finishes before its scene is emitted.
+- Raises the supported Node.js floor from 20 to 22. Node 20 reached end of life
+  and is no longer exercised by the SDK's tests, builds, or clean-room package
+  verification.
+- Stops returning the merged built-in template catalog through
+  `useVideo().playerProps.templates`. `playerProps` now carries only the
+  customer registry passed to `useVideo`, while `VideoPlayer` supplies its
+  built-in renderers internally. Existing `<VideoPlayer {...playerProps} />`
+  usage is unchanged. This removes planner-only metadata from the initial
+  React graph, reducing it from 48,197 to 35,649 gzip bytes.
+
+### Adoption
+
+Custom planners that previously emitted a scene and patched it later:
+
+```ts
+yield { type: "scene.add", scene: draftScene };
+yield { type: "asset.patch", sceneId: draftScene.id, variables: resolvedMedia };
+```
+
+should emit one complete scene instead:
+
+```ts
+yield {
+  type: "scene.add",
+  scene: { ...draftScene, variables: { ...draftScene.variables, ...resolvedMedia } },
+};
+```
+
+Throw planner failures instead of emitting `plan.error`. Protocol `0.4` replay
+logs cannot be mixed into a `0.5` run; completed stored `Video` values remain on
+the unchanged `0.1` storage schema.
+
+Update applications that pin Node 20 before installing the next SDK release:
+
+```json
+{
+  "engines": { "node": "20.x" }
+}
+```
+
+becomes:
+
+```json
+{
+  "engines": { "node": "22.x" }
+}
+```
+
+Code that used the player binding to inspect built-in metadata:
+
+```ts
+const templates = video.playerProps.templates.listTemplateMetadata();
+```
+
+should import the explicit React-free catalog instead:
+
+```ts
+import { builtinTemplates } from "@vanillaskyai/video/templates/catalog";
+```
+
+Inspect a customer registry directly when the application created it; it is
+still passed through `playerProps` unchanged.
+
+### Maintenance
+
+- Makes React 19 the primary development and example runtime. CI continues to
+  verify React 18 with its own runtime and type packages, including typecheck,
+  focused component tests, and a production build.
+- Shares the replay buffer and identical JSON-validation primitives across
+  their call sites, removing duplicate implementations without changing the
+  public API.
+- Keeps the first install provider-neutral, removes stale version and model
+  defaults from public guides, and moves the quality-oriented Anthropic/Sonnet
+  choice into the later provider setup step.
+
+## 0.4.1
+
+- Keeps soundtrack audio continuous when a saved `VideoPlayer` uses `loop`.
+  A track shorter than the visual timeline now repeats as soon as it ends,
+  instead of leaving silence until the video itself wraps.
+
+## 0.4.0
+
+- Adds `loop` to `VideoPlayer` for saved videos. A completed video previously
+  painted its replay affordance and stopped, so there was no way to run one
+  continuously; with `loop` it restarts from the beginning and keeps its
+  soundtrack in step. Streaming playback is unchanged.
+- Adds `onSceneChange(scene, index)` to `VideoPlayer`, fired when the scene
+  under the playhead changes and again on index `0` each time a loop wraps.
+  Nothing previously reported playback position to the host: `onComplete`
+  reports the end of a stream, so it never fires for a saved video, and any UI
+  that had to stay in step ran a parallel timer that drifted silently.
+- Exports `resolveVideoBrand` from the root entry. `parseVideo` requires a
+  fully resolved brand, and the resolver already existed internally, so
+  hand-authoring a `Video` meant copying a defaults blob into application code.
+- Documents live channels — continuously playing, self-refreshing video built
+  from your own data rather than generated per viewer — in
+  `docs/live-channels.md`, with an example compiled against the packed package.
+
+## 0.3.4
+
+- Mounts a scene that brings a new photo or video 1.2s before it appears,
+  instead of 0.3s, so the element has time to decode and the scene arrives
+  showing its picture rather than a gradient that pops a beat later. The extra
+  time is invisible: the layer stays fully transparent until the existing
+  0.3s cross-fade begins, so every rendered frame is unchanged, and the mounted
+  element is handed to the incoming scene rather than rebuilt. Scenes that
+  reuse the backdrop already on screen are unaffected.
+
+## 0.3.3
+
+- Keeps a soundtrack audible on iPhone Safari when its audio context cannot be
+  unlocked. Routing a media element into a context that never reaches
+  `running` does not fade it, it silences it, so playback now stays on the
+  element unless the context is confirmed running.
+- Actually preloads scene backdrops. The warm elements were unreferenced the
+  moment they were created, so a browser was free to collect them and cancel
+  the request mid-flight; they are now held until they finish. Video streams
+  are warmed too, not just their posters, which is what left a gradient
+  flashing between two consecutive media scenes. One video warms at a time and
+  is released as soon as its first frame lands.
+
+## 0.3.2
+
+- Rebuilds text legibility over photo and video backdrops. Scrims now ramp off
+  an eased curve instead of a two-stop linear fade, so they no longer leave a
+  visible band across the frame, and they are shaped to where each template's
+  copy actually sits rather than washing the whole picture. Type over media
+  carries its own halo, which lets the scrims stay lighter: the footage keeps
+  its contrast and highlights while the headline stays readable.
+- Stops darkening the brand gradient for media that never arrives. A dead,
+  blocked, or unresolved `mediaUrl` used to leave the full scrim stack over
+  the gradient fallback, so the scene rendered as a muddy, vignetted version
+  of the gradient scenes beside it. The fallback is now the clean gradient it
+  was always documented to be.
+- Holds a media scene's scrim back until the backdrop actually paints, so a
+  photo or video that is still loading shows the clean brand gradient instead
+  of a gradient wearing an overlay meant for footage. The scrim and the
+  picture now arrive on the same frame.
+- Preloads scene backdrops as soon as their URL is known — including the
+  `asset.patch` that carries a resolved stock lookup — so the loading window
+  is usually gone before the scene plays. Video posters are warmed; video
+  streams deliberately are not.
+- Hides playback controls while a video is playing until the viewer hovers,
+  focuses, or taps the player, and keeps paused and completed controls visible.
+- Makes fullscreen usable on mobile browsers through prefixed fullscreen APIs
+  and a viewport-filling fallback when native fullscreen is unavailable.
+- Restores configured soundtrack volume and end-of-video fades on iPhone Safari
+  by using a Web Audio gain stage for same-origin audio when element volume is
+  device-controlled, while preserving direct playback for cross-origin tracks.
+
+## 0.3.1
+
+- Redesigns player controls for each playback state with responsive circular
+  icon controls, a sound-first start action, and a dimmed replay treatment that
+  leaves the completed poster frame visible.
+- Lets applications pass `opening: false` to omit the deterministic opening
+  scene and render their own transient loading UI while the first generated
+  scene is planned. This keeps loading state out of completed video JSON and
+  does not force `media` into the planner's template capabilities.
+
+## 0.3.0
+
+- Documents closer eligibility: a template may close a video only when its
+  `jobs` include `"ask"` or `"payoff"`, with the catalog filter an application
+  can use to constrain how its videos end.
+- Documents provider reasoning and effort controls for planning: models that
+  reason by default add that time directly to the first generated scene, so
+  hosts that want a video to start quickly should disable extended reasoning
+  and tune effort against `timeToFirstSceneMs` and `rejectedSceneCount`.
+- Uses a three-second, gradient-backed `media` opening with
+  `Creating your video...` whenever `VideoInput.opening` is omitted, while
+  preserving supplied opening copy and keeping body-template selection
+  independent from the runtime-owned opening.
+- Adds an explicit `knowledgeMode` input: source-grounded `input-only` remains
+  the default, while `general` lets chat-style video responses use stable model
+  knowledge under bounded safety and factuality rules.
+
+## 0.2.0
+
+- Adds an application-owned `resolveMedia` hook that turns bounded semantic
+  media intent into approved image or video backgrounds without exposing
+  provider credentials, unresolved queries, or untrusted URLs to clients.
+- Requires one grounded closer by default, holds it while body scenes stream,
+  and emits it last so complete videos finish on a payoff or supplied call to
+  action instead of an arbitrary body scene.
+- Improves planning for rich inputs with adaptive scene counts, coherent
+  multi-entry sequencing, reusable best-fit templates, and explicit partial
+  completion warnings when provider or duration limits truncate the plan.
+- Adds `VideoPlaybackMode` with sound-first interaction, repeat-stream
+  autoplay, manual, muted-autoplay, and immediate-autoplay policies.
+- Renders `VideoInput.opening` as a deterministic, asset-free gradient media
+  scene and preserves it as the visible start poster before playback.
+- Resets replacement streams as fresh playback sessions, keeps completed end
+  frames stable, and provides a replay control instead of replaying exit
+  animation at the terminal boundary.
+
+## 0.1.1
+
+No runtime changes: the public API, behavior, and dependencies are identical to
+0.1.0. This release replaces the 0.1.1-beta line and moves `latest` onto a
+single, current version so the repository, npm, and vanillasky.ai agree.
+
+- Simplified the release process to a version bump, an annotated tag on `main`,
+  and an OIDC publish. Changesets, the generated Version Packages branch, and
+  the npm-latest compatibility gate are removed; the tag job now packs a commit
+  CI has already verified instead of re-running the suite.
+
 ## 0.1.0
 
-- Initial beta release of the `@vanillaskyai/ai-video` package.
-- Provides the versioned video schema, streaming planner contract, React player,
-  built-in templates, source-owned template tooling, server adapters, and
-  deterministic rich-media examples.
+Initial beta release for `@vanillaskyai/video`.
+
+- Generates validated, editable videos from grounded application input through
+  provider-neutral Vercel AI SDK streams.
+- Supports OpenAI and Anthropic onboarding, with deterministic compatibility
+  coverage for Google Gemini and OpenRouter.
+- Provides React playback and generation hooks with typed status, warnings,
+  errors, abort behavior, and public duration calculation.
+- Enforces deterministic pacing, readable final calls to action, semantic brand
+  contrast, and browser/server dependency boundaries.
+- Persists versioned video snapshots for safe local replay without another
+  model request.
+- Includes deterministic test utilities and a source-owned template CLI for
+  adding, editing, synchronizing, and checking project templates.
+- Requires every HTTP handler to declare an authorization policy explicitly;
+  the `"none"` escape hatch is reserved for intentionally private or in-process
+  use.
+- Keeps private supplied-media URLs out of model prompts, treats supplied media
+  as an optional approved pool, and validates completed snapshots for replay.
+- Reports proposed, accepted, and rejected scene counts alongside requested and
+  actual duration, and uses `gpt-4.1` as the documented OpenAI planning baseline.
+- Preserves a readable declared poster at the completed-video boundary and can
+  reclaim unused closer reserve when a valid plan intentionally has no closer.
+
+The API is beta. Review the frozen surface in `PUBLIC-API.md` before adopting
+it in production.
+
+### Compatibility
+
+The `0.1.x` line preserves the documented public entry points and serialized
+video round trips across patch releases. Pre-1.0 minor releases may change the
+API with explicit release notes. The complete promise and intentional
+exclusions are in [PUBLIC-API.md](PUBLIC-API.md).
+
+### First release
+
+This is the beginning of the fresh `@vanillaskyai/video` release line. Adopt
+the package through the pinned quickstart and review
+[PUBLIC-API.md](PUBLIC-API.md) before relying on the beta contract.

@@ -104,7 +104,7 @@ scene before emitting it. Without the callback, media intent stays hidden from
 the planner. The first accepted generated scene remains asset-free.
 
 ```ts
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 
 createVideoHandler({
   authorize: checkSession,

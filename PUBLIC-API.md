@@ -3,7 +3,7 @@
 Status: current public beta contract.
 
 This document defines the API that may enter the fresh
-`@vanillaskyai/ai-video` package. An export not listed here is internal. Tests and
+`@vanillaskyai/video` package. An export not listed here is internal. Tests and
 the packed-package verifier must fail if the final package adds or removes an
 export without changing this contract intentionally.
 
@@ -45,12 +45,12 @@ exports, wider supported peer ranges, and new optional peers remain additive.
 
 | Entry point | Environment | May import React | May import Node built-ins |
 |---|---|---:|---:|
-| `@vanillaskyai/ai-video` | Universal | No | No |
-| `@vanillaskyai/ai-video/server` | Server | No | No required runtime built-ins |
-| `@vanillaskyai/ai-video/react` | Browser/React | Yes | No |
-| `@vanillaskyai/ai-video/templates` | Browser/React authoring | Yes | No |
-| `@vanillaskyai/ai-video/templates/catalog` | Universal JSON metadata | No | No |
-| `@vanillaskyai/ai-video/test` | Node test runners | No | Node test helpers allowed |
+| `@vanillaskyai/video` | Universal | No | No |
+| `@vanillaskyai/video/server` | Server | No | No required runtime built-ins |
+| `@vanillaskyai/video/react` | Browser/React | Yes | No |
+| `@vanillaskyai/video/templates` | Browser/React authoring | Yes | No |
+| `@vanillaskyai/video/templates/catalog` | Universal JSON metadata | No | No |
+| `@vanillaskyai/video/test` | Node test runners | No | Node test helpers allowed |
 
 The CLI is exposed separately as the `vanillasky` binary.
 
@@ -182,7 +182,7 @@ Built-in renderers are always available, so a streaming `VideoPlayer` does not
 require a template registry. `playerProps` is a spread-ready player binding; it
 contains the customer registry supplied to `useVideo` when one exists, but it
 does not expose the built-in planning catalog. Import `builtinTemplates` from
-`@vanillaskyai/ai-video/templates/catalog` for labels, schemas, selection guidance,
+`@vanillaskyai/video/templates/catalog` for labels, schemas, selection guidance,
 and other React-free metadata.
 
 Set `playbackMode="autoplay-after-interaction"` for chat feeds: the first

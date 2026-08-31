@@ -1,4 +1,4 @@
-import type { Video } from "@vanillaskyai/ai-video";
+import type { Video } from "@vanillaskyai/video";
 
 export type ManualMediaRoute = "auto" | "gradient" | "stock" | "image" | "video";
 export type MediaRoute = "gradient" | "stock" | "generate-image" | "generate-video";

@@ -5,10 +5,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
-      "@vanillaskyai/ai-video/server": fileURLToPath(
+      "@vanillaskyai/video/server": fileURLToPath(
         new URL("./src/server.ts", import.meta.url),
       ),
-      "@vanillaskyai/ai-video/templates": fileURLToPath(
+      "@vanillaskyai/video/templates": fileURLToPath(
         new URL("./src/templates.ts", import.meta.url),
       ),
     },

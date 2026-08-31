@@ -1,7 +1,7 @@
 import {
   createVideoHandler,
   type VideoHandlerOptions,
-} from "@vanillaskyai/ai-video/server";
+} from "@vanillaskyai/video/server";
 import { templates } from "../../vanillasky/server";
 
 export { DIRECTOR_TEMPLATE_IDS } from "./scene-director-contract";

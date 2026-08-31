@@ -1,4 +1,4 @@
-import { defineTemplate } from "@vanillaskyai/ai-video/templates";
+import { defineTemplate } from "@vanillaskyai/video/templates";
 
 const previewImageUrl = "data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%221200%22%20height=%22720%22%20viewBox=%220%200%201200%20720%22%3E%3Crect%20width=%221200%22%20height=%22720%22%20rx=%2248%22%20fill=%22%23181733%22/%3E%3Crect%20x=%2280%22%20y=%2280%22%20width=%221040%22%20height=%22560%22%20rx=%2232%22%20fill=%22%23f4f1ff%22/%3E%3Ccircle%20cx=%22220%22%20cy=%22230%22%20r=%2270%22%20fill=%22%237867dd%22/%3E%3Cpath%20d=%22M160%20520L380%20360L580%20430L820%20220L1040%20300%22%20fill=%22none%22%20stroke=%22%23287b77%22%20stroke-width=%2232%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E";
 

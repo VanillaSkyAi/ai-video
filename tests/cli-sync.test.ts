@@ -15,7 +15,7 @@ function project(): string {
   fixtures.push(cwd);
   writeFileSync(join(cwd, "package.json"), JSON.stringify({ type: "commonjs" }));
   mkdirSync(join(cwd, "vanillasky/templates"), { recursive: true });
-  const sdkPackage = join(cwd, "node_modules/@vanillaskyai/ai-video");
+  const sdkPackage = join(cwd, "node_modules/@vanillaskyai/video");
   mkdirSync(sdkPackage, { recursive: true });
   writeFileSync(join(sdkPackage, "package.json"), JSON.stringify({
     type: "module",
@@ -35,7 +35,7 @@ function project(): string {
 
 function templateSource(id: string, exportName: string): string {
   return [
-    'import { defineTemplate } from "@vanillaskyai/ai-video/templates";',
+    'import { defineTemplate } from "@vanillaskyai/video/templates";',
     'import { decorate } from "fixture-schema";',
     `export const ${exportName} = defineTemplate({`,
     `  id: "${id}",`,
@@ -56,17 +56,17 @@ describe("vanillasky sync", () => {
     await syncTemplates({ cwd });
 
     const browser = readFileSync(join(cwd, "vanillasky/index.ts"), "utf8");
-    expect(browser).toContain('import { createTemplateRegistry } from "@vanillaskyai/ai-video/templates";');
+    expect(browser).toContain('import { createTemplateRegistry } from "@vanillaskyai/video/templates";');
     expect(browser).toContain('import { alphaTemplate as template0 } from "./templates/alpha";');
     expect(browser).toContain('import { zetaTemplate as template1 } from "./templates/zeta";');
     expect(browser.indexOf("alphaTemplate")).toBeLessThan(browser.indexOf("zetaTemplate"));
     expect(browser).toContain("createTemplateRegistry({ definitions })");
 
     const server = readFileSync(join(cwd, "vanillasky/server.ts"), "utf8");
-    expect(server).toContain('import { createServerTemplateRegistry } from "@vanillaskyai/ai-video/server";');
-    expect(server).toContain('import type { ServerTemplateMetadata } from "@vanillaskyai/ai-video/server";');
+    expect(server).toContain('import { createServerTemplateRegistry } from "@vanillaskyai/video/server";');
+    expect(server).toContain('import type { ServerTemplateMetadata } from "@vanillaskyai/video/server";');
     expect(server).toContain("createServerTemplateRegistry({ templates: templateMetadata })");
-    expect(server).not.toContain('@vanillaskyai/ai-video/templates');
+    expect(server).not.toContain('@vanillaskyai/video/templates');
     expect(server).toContain('"id": "alpha"');
     expect(server).toContain('"useWhen": "fixture:Use alpha"');
     expect(server).toContain('"schema"');
@@ -130,7 +130,7 @@ describe("vanillasky sync", () => {
   it("rejects metadata that JSON serialization would silently discard", async () => {
     const cwd = project();
     writeFileSync(join(cwd, "vanillasky/templates/unsafe.tsx"), [
-      'import { defineTemplate } from "@vanillaskyai/ai-video/templates";',
+      'import { defineTemplate } from "@vanillaskyai/video/templates";',
       "export const unsafe = defineTemplate({",
       '  id: "unsafe", useWhen: "Never",',
       '  schema: { type: "object", properties: { title: { type: "string" } } },',
@@ -144,7 +144,7 @@ describe("vanillasky sync", () => {
   it("keeps named examples out of the React-free server registry", async () => {
     const cwd = project();
     writeFileSync(join(cwd, "vanillasky/templates/card.tsx"), [
-      'import { defineTemplate } from "@vanillaskyai/ai-video/templates";',
+      'import { defineTemplate } from "@vanillaskyai/video/templates";',
       "export const cardTemplate = defineTemplate({",
       '  id: "card", useWhen: "Show a card",',
       '  schema: { type: "object", properties: { title: { type: "string" } }, required: ["title"] },',

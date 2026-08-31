@@ -1,6 +1,6 @@
 "use client";
 
-import { VideoPlayer } from "@vanillaskyai/ai-video/react";
+import { VideoPlayer } from "@vanillaskyai/video/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { templates } from "../../../vanillasky";
 import { warmFirstFrame } from "../../lib/adaptive-channel/media-preload";

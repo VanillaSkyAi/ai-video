@@ -107,7 +107,7 @@ The same rule reads the built-in catalog, so an application that wants to
 constrain how its videos end can compute the eligible IDs instead of guessing:
 
 ```ts
-import { builtinTemplates } from "@vanillaskyai/ai-video/templates/catalog";
+import { builtinTemplates } from "@vanillaskyai/video/templates/catalog";
 
 const closerTemplateIds = builtinTemplates
   .filter((template) => template.jobs.some((job) => job === "ask" || job === "payoff"))
@@ -181,7 +181,7 @@ the whole scene: those must remain recognizable at `entryReadyProgress`.
 The only SDK import an original one-file template needs is public:
 
 ```tsx
-import { defineTemplate } from "@vanillaskyai/ai-video/templates";
+import { defineTemplate } from "@vanillaskyai/video/templates";
 ```
 
 Start from the generated file or one of the packaged references:
@@ -214,7 +214,7 @@ selection, and validator. Import it in the route that connects your model:
 ```ts
 // src/video-route.ts
 import { streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 import { videoModel } from "./video-model";
 import { templates } from "../vanillasky/server";
 
@@ -243,7 +243,7 @@ Use the browser registry for generation and playback:
 
 ```tsx
 // src/video-composer.tsx
-import { VideoPlayer, useVideo } from "@vanillaskyai/ai-video/react";
+import { VideoPlayer, useVideo } from "@vanillaskyai/video/react";
 import { templates } from "../vanillasky";
 
 export function VideoComposer() {
@@ -270,8 +270,8 @@ and browser. This path calls no model and needs no server route:
 
 <!-- verify:custom-template-preview:start -->
 ```tsx
-import type { Video } from "@vanillaskyai/ai-video";
-import { VideoPlayer } from "@vanillaskyai/ai-video/react";
+import type { Video } from "@vanillaskyai/video";
+import { VideoPlayer } from "@vanillaskyai/video/react";
 import { templates } from "../vanillasky";
 
 const savedVideo: Video = {

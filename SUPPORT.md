@@ -6,7 +6,7 @@ VanillaSky Video is a beta open-source project. There is no guaranteed response 
 
 Search the documentation and existing GitHub issues first. If the problem is
 not covered, open a reproducible GitHub issue at
-<https://github.com/VanillaSkyAi/ai-video/issues> with:
+<https://github.com/VanillaSkyAi/video/issues> with:
 
 - the exact package, Node, React, framework, and provider versions;
 - a minimal reproduction or packed-consumer fixture;

@@ -13,8 +13,8 @@
     "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
-      "@vanillaskyai/ai-video/server": ["src/server.ts"],
-      "@vanillaskyai/ai-video/templates": ["src/templates.ts"]
+      "@vanillaskyai/video/server": ["src/server.ts"],
+      "@vanillaskyai/video/templates": ["src/templates.ts"]
     },
     "resolveJsonModule": true,
     "isolatedModules": true,

@@ -15,13 +15,13 @@ the planning prompt, trusted templates, validation, streaming, and player.
 For humans:
 
 ```bash
-npm install @vanillaskyai/ai-video
+npm install @vanillaskyai/video
 ```
 
 For coding agents:
 
 ```bash
-npx skills add VanillaSkyAi/ai-video@vanillasky
+npx skills add VanillaSkyAi/video@vanillasky
 ```
 
 Then prompt: `Use $vanillasky to turn this application's data into a personalized video response.`
@@ -38,7 +38,7 @@ Create one authenticated server route:
 ```ts
 // app/api/video/route.ts
 import { streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 import { videoModel } from "@/lib/video-model";
 
 const handle = createVideoHandler({
@@ -78,7 +78,7 @@ Call the route from React and render the player:
 ```tsx
 "use client";
 
-import { VideoPlayer, useVideo } from "@vanillaskyai/ai-video/react";
+import { VideoPlayer, useVideo } from "@vanillaskyai/video/react";
 
 export function VideoResponse() {
   const video = useVideo();

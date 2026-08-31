@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { VideoPlayer, useVideo } from "@vanillaskyai/ai-video/react";
+import { VideoPlayer, useVideo } from "@vanillaskyai/video/react";
 import { templates } from "./templates";
 import "./styles.css";
 

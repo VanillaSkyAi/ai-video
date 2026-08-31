@@ -1,4 +1,4 @@
-import type { Video } from "@vanillaskyai/ai-video";
+import type { Video } from "@vanillaskyai/video";
 import { resolveLottieAsset, resolveStickerAsset } from "./asset-catalog";
 
 export interface SceneDecision {

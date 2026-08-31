@@ -6,12 +6,12 @@ Use the same public path a human developer uses. The optional repository skill
 packages these instructions for coding agents:
 
 ```bash
-npx skills add VanillaSkyAi/ai-video@vanillasky
+npx skills add VanillaSkyAi/video@vanillasky
 ```
 
 ## Build the first response
 
-1. Install `@vanillaskyai/ai-video`.
+1. Install `@vanillaskyai/video`.
 2. Choose and configure a current model separately; put its provider key in an
    ignored `.env.local` file.
 3. Connect that app-owned model with `createVideoHandler` in an authenticated

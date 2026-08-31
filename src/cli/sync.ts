@@ -45,7 +45,7 @@ function browserSource(templates: readonly DiscoveredTemplate[]): string {
   const names = templates.map((_, index) => `template${index}`);
   return [
     GENERATED_NOTICE.trimEnd(),
-    'import { createTemplateRegistry } from "@vanillaskyai/ai-video/templates";',
+    'import { createTemplateRegistry } from "@vanillaskyai/video/templates";',
     ...imports,
     "",
     `export const definitions = [${names.join(", ")}];`,
@@ -58,8 +58,8 @@ function serverSource(templates: readonly DiscoveredTemplate[]): string {
   const metadata = JSON.stringify(templates.map(({ metadata: value }) => value), null, 2);
   return [
     GENERATED_NOTICE.trimEnd(),
-    'import { createServerTemplateRegistry } from "@vanillaskyai/ai-video/server";',
-    'import type { ServerTemplateMetadata } from "@vanillaskyai/ai-video/server";',
+    'import { createServerTemplateRegistry } from "@vanillaskyai/video/server";',
+    'import type { ServerTemplateMetadata } from "@vanillaskyai/video/server";',
     "",
     `const templateMetadata: ServerTemplateMetadata[] = ${metadata};`,
     "export const templates = createServerTemplateRegistry({ templates: templateMetadata });",

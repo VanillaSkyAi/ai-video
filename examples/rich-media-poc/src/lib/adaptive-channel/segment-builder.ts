@@ -1,4 +1,4 @@
-import { parseVideo, resolveVideoBrand } from "@vanillaskyai/ai-video";
+import { parseVideo, resolveVideoBrand } from "@vanillaskyai/video";
 import { advanceMediaContinuity } from "./media-continuity";
 import type {
   ChannelSegment,

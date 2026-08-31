@@ -79,7 +79,7 @@ describe("release artifact integrity", () => {
     if (typeof releaseIntegrity.createDeterministicReleaseManifest !== "function") return;
 
     const input = {
-      packageIdentity: { name: "@vanillaskyai/ai-video", version: "0.1.0" },
+      packageIdentity: { name: "@vanillaskyai/video", version: "0.1.0" },
       sourceIdentity: { commit: "a".repeat(40), tag: "v0.1.0", tagType: "pending-annotated" },
       artifact: { filename: "vanillaskyai-video-0.1.0.tgz", sha512: "sha512-candidate", sha256: "b".repeat(64) },
       coherence: { packageLock: true, changelog: true },

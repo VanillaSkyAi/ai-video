@@ -100,7 +100,7 @@ describe("customer-owned template registry", () => {
     const nodeModules = join(cwd, "node_modules");
     mkdirSync(nodeModules, { recursive: true });
     symlinkSync(dirname(require.resolve("react/package.json")), join(nodeModules, "react"));
-    const sdkPackage = join(nodeModules, "@vanillaskyai/ai-video");
+    const sdkPackage = join(nodeModules, "@vanillaskyai/video");
     mkdirSync(sdkPackage, { recursive: true });
     writeFileSync(join(sdkPackage, "package.json"), JSON.stringify({
       type: "module",
@@ -185,7 +185,7 @@ describe("customer-owned template registry", () => {
     const cwd = mkdtempSync(join(tmpdir(), "vanillasky-cli-"));
     mkdirSync(join(cwd, "node_modules"));
     symlinkSync(dirname(createRequire(import.meta.url).resolve("react/package.json")), join(cwd, "node_modules/react"));
-    const sdkPackage = join(cwd, "node_modules/@vanillaskyai/ai-video");
+    const sdkPackage = join(cwd, "node_modules/@vanillaskyai/video");
     mkdirSync(sdkPackage, { recursive: true });
     writeFileSync(join(sdkPackage, "package.json"), JSON.stringify({
       type: "module",
@@ -263,7 +263,7 @@ describe("customer-owned template registry", () => {
         skipLibCheck: false,
         baseUrl: ".",
         paths: {
-          "@vanillaskyai/ai-video/templates": [join(process.cwd(), "src/templates.ts")],
+          "@vanillaskyai/video/templates": [join(process.cwd(), "src/templates.ts")],
         },
       },
       include: ["vanillasky/**/*.ts", "vanillasky/**/*.tsx"],
@@ -355,7 +355,7 @@ describe("customer-owned template registry", () => {
     const nodeModules = join(cwd, "node_modules");
     mkdirSync(nodeModules, { recursive: true });
     symlinkSync(dirname(require.resolve("react/package.json")), join(nodeModules, "react"));
-    const sdkPackage = join(nodeModules, "@vanillaskyai/ai-video");
+    const sdkPackage = join(nodeModules, "@vanillaskyai/video");
     mkdirSync(sdkPackage, { recursive: true });
     writeFileSync(join(sdkPackage, "package.json"), JSON.stringify({
       type: "module",

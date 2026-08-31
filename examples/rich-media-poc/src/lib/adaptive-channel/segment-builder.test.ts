@@ -1,4 +1,4 @@
-import { parseVideo } from "@vanillaskyai/ai-video";
+import { parseVideo } from "@vanillaskyai/video";
 import { describe, expect, it } from "vitest";
 import { planChannelSegment } from "./channel-plan";
 import { buildChannelSegment } from "./segment-builder";

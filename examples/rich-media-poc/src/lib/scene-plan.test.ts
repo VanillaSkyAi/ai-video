@@ -1,4 +1,4 @@
-import type { Video } from "@vanillaskyai/ai-video";
+import type { Video } from "@vanillaskyai/video";
 import { describe, expect, it } from "vitest";
 import { describeScenePlan, hydrateGeneratedScenes } from "./scene-plan";
 

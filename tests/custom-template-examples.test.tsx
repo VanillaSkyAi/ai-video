@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ComponentType } from "react";
-import type { SceneTemplateProps } from "@vanillaskyai/ai-video/templates";
+import type { SceneTemplateProps } from "@vanillaskyai/video/templates";
 import { describe, expect, it } from "vitest";
 import { TEST_VIDEO_STYLE } from "./semantic-brand-fixture";
 
@@ -18,7 +18,7 @@ describe("custom template reference journey", () => {
     expect(existsSync(join(exampleRoot, "README.md"))).toBe(true);
     for (const file of exampleFiles) {
       const source = readFileSync(join(exampleRoot, file), "utf8");
-      expect(source).toContain('from "@vanillaskyai/ai-video/templates"');
+      expect(source).toContain('from "@vanillaskyai/video/templates"');
       expect(source).not.toMatch(/src\/|visual-system|@vanillaskyai\/video\/internal/);
       expect(source).toContain("defineTemplate({");
       expect(source).toContain("useWhen:");

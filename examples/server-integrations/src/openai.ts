@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 import { securityOptions } from "./server.js";
 
 const apiKey = process.env.OPENAI_API_KEY;

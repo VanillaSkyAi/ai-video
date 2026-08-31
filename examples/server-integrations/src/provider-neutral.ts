@@ -1,4 +1,4 @@
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 import { securityOptions } from "./server.js";
 
 export const handle = createVideoHandler({

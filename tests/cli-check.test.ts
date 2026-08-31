@@ -22,7 +22,7 @@ function emptyProject(): string {
 
 function project(source: string): string {
   const cwd = emptyProject();
-  const sdk = join(cwd, "node_modules/@vanillaskyai/ai-video");
+  const sdk = join(cwd, "node_modules/@vanillaskyai/video");
   mkdirSync(sdk, { recursive: true });
   writeFileSync(join(sdk, "package.json"), JSON.stringify({
     type: "module",
@@ -55,7 +55,7 @@ function project(source: string): string {
 
 function template(): string {
   return [
-    'import { defineTemplate } from "@vanillaskyai/ai-video/templates";',
+    'import { defineTemplate } from "@vanillaskyai/video/templates";',
     "let renders = 0;",
     "export const card = defineTemplate({",
     '  id: "card", label: "Card", useWhen: "Show a concise card.",',
@@ -115,7 +115,7 @@ describe("vanillasky check", () => {
   it("rejects generated browser/server registry fingerprint mismatches", async () => {
     const cwd = project(template());
     await syncTemplates({ cwd });
-    const sdkTemplates = join(cwd, "node_modules/@vanillaskyai/ai-video/templates.js");
+    const sdkTemplates = join(cwd, "node_modules/@vanillaskyai/video/templates.js");
     writeFileSync(sdkTemplates, readFileSync(sdkTemplates, "utf8").replace(
       "const values = definitions.map(metadata);",
       'const values = definitions.map((definition) => ({ ...metadata(definition), label: "tampered" }));',

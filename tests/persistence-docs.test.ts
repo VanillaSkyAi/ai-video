@@ -13,8 +13,8 @@ describe("persistence documentation contract", () => {
     expect(api).toContain('`schemaVersion: "0.1"`');
     expect(guide).toContain("JSON.parse");
     expect(guide).toContain("parseVideo");
-    expect(guide).toContain('from "@vanillaskyai/ai-video"');
-    expect(guide).toContain('from "@vanillaskyai/ai-video/react"');
+    expect(guide).toContain('from "@vanillaskyai/video"');
+    expect(guide).toContain('from "@vanillaskyai/video/react"');
     expect(guide).not.toContain(["@vanillaskyai", "sdk"].join("/"));
     expect(guide).toContain("unsupported_video_version");
     expect(guide).toContain("16,384");

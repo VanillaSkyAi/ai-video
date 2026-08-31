@@ -197,7 +197,7 @@ export const GENERATED_BUILTIN_PLAYER_TEMPLATES = [
     "id": "codeEditor",
     "defaults": {
       "texts": "Simple as this.",
-      "code": "import { getVideoDuration } from \"@vanillaskyai/ai-video\";\nimport type { Video } from \"@vanillaskyai/ai-video\";\n\nexport function duration(video: Video) {\n  return getVideoDuration(video);\n}",
+      "code": "import { getVideoDuration } from \"@vanillaskyai/video\";\nimport type { Video } from \"@vanillaskyai/video\";\n\nexport function duration(video: Video) {\n  return getVideoDuration(video);\n}",
       "filename": "app.ts",
       "mediaUrl": "",
       "mediaKeyword": "",

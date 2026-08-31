@@ -6,7 +6,7 @@ import {
   createVideoHandler,
   type VideoGenerationSummary,
   type VideoHandlerOptions,
-} from "@vanillaskyai/ai-video/server";
+} from "@vanillaskyai/video/server";
 
 const usage = {
   inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 },

@@ -197,7 +197,7 @@ function templateSource(item: RegistryItem): string {
   }
 
   return [
-    `import { defineTemplate } from "@vanillaskyai/ai-video/templates";`,
+    `import { defineTemplate } from "@vanillaskyai/video/templates";`,
     "",
     componentSource.trim(),
     "",

@@ -11,7 +11,7 @@ sync` and `npx vanillasky check`.
 | [Supplied media](supplied-media.tsx) | An image already supplied by the application is the strongest evidence. |
 
 All three use only `defineTemplate` from the public
-`@vanillaskyai/ai-video/templates` entry point. They include selection guidance,
+`@vanillaskyai/video/templates` entry point. They include selection guidance,
 JSON Schema defaults, a named example, deterministic progress-based motion,
 safe-zone layout, and portrait/landscape handling. The media reference uses
 `format: "supplied-image"` for an image that must appear in

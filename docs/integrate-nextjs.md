@@ -7,7 +7,7 @@ complete example uses Anthropic and asks you to select a current Claude Sonnet
 model explicitly instead of baking a model ID into the SDK docs:
 
 ```bash
-npm install @vanillaskyai/ai-video ai @ai-sdk/anthropic
+npm install @vanillaskyai/video ai @ai-sdk/anthropic
 ```
 
 Create an ignored `.env.local`:
@@ -22,7 +22,7 @@ Create `app/api/video/route.ts`:
 ```ts
 import { anthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 
 const modelId = process.env.ANTHROPIC_MODEL;
 if (!modelId) throw new Error("Set ANTHROPIC_MODEL in the server environment");
@@ -55,7 +55,7 @@ Create a Client Component:
 ```tsx
 "use client";
 
-import { VideoPlayer, useVideo } from "@vanillaskyai/ai-video/react";
+import { VideoPlayer, useVideo } from "@vanillaskyai/video/react";
 
 export function Video() {
   const video = useVideo();

@@ -18,8 +18,8 @@ Parse them before using them in application code:
 
 <!-- verify:persistence-example:start -->
 ```tsx
-import { getVideoDuration, parseVideo } from "@vanillaskyai/ai-video";
-import { VideoPlayer } from "@vanillaskyai/ai-video/react";
+import { getVideoDuration, parseVideo } from "@vanillaskyai/video";
+import { VideoPlayer } from "@vanillaskyai/video/react";
 
 export function SavedVideo({ storedJson }: { storedJson: string }) {
   const savedVideo = parseVideo(JSON.parse(storedJson));

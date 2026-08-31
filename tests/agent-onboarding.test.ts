@@ -9,8 +9,8 @@ describe("human and agent onboarding", () => {
   it("offers one obvious package command and one optional agent command", () => {
     const readme = read("README.md");
     const product = readme.indexOf("VanillaSky is the open-source video response layer");
-    const install = readme.indexOf("npm install @vanillaskyai/ai-video");
-    const skill = readme.indexOf("npx skills add VanillaSkyAi/ai-video@vanillasky");
+    const install = readme.indexOf("npm install @vanillaskyai/video");
+    const skill = readme.indexOf("npx skills add VanillaSkyAi/video@vanillasky");
 
     expect(product).toBeGreaterThanOrEqual(0);
     expect(install).toBeGreaterThan(product);
@@ -28,9 +28,9 @@ describe("human and agent onboarding", () => {
     const metadata = source.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
 
     expect(metadata).toContain("name: vanillasky");
-    expect(metadata).toContain("@vanillaskyai/ai-video");
+    expect(metadata).toContain("@vanillaskyai/video");
     expect(metadata).not.toMatch(/POC|101|cold-start|evaluation|HyperFrames|Remotion/i);
-    expect(source).toContain("npm install @vanillaskyai/ai-video");
+    expect(source).toContain("npm install @vanillaskyai/video");
     expect(source).not.toMatch(/npm install @vanillaskyai\/video[^\n]*(?:\bai\b|@ai-sdk)/);
     expect(source).toContain("createVideoHandler");
     expect(source).toContain("useVideo");

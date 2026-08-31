@@ -14,7 +14,7 @@ Render errors in normal application UI outside the video. Never show stack trace
 | Resume | `invalid_cursor`, `resume_unavailable` | Restart only before visible output or from valid storage |
 
 ```tsx
-import { VideoError } from "@vanillaskyai/ai-video/react";
+import { VideoError } from "@vanillaskyai/video/react";
 
 try {
   const completed = await video.generate({ input });

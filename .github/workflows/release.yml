@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Verify release repository identity
         env:
-          EXPECTED_REPOSITORY: VanillaSkyAi/ai-video
+          EXPECTED_REPOSITORY: VanillaSkyAi/video
         run: |
           if [[ "$GITHUB_REPOSITORY" != "$EXPECTED_REPOSITORY" ]]; then
             echo "Release tags are accepted only in $EXPECTED_REPOSITORY; received $GITHUB_REPOSITORY" >&2

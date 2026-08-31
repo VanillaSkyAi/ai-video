@@ -40,8 +40,8 @@ timeline wraps, the soundtrack restarts from the beginning with it.
 <!-- verify:live-channel-example:start -->
 ```tsx
 import { useEffect, useState } from "react";
-import { parseVideo, type Video, type VideoScene } from "@vanillaskyai/ai-video";
-import { VideoPlayer } from "@vanillaskyai/ai-video/react";
+import { parseVideo, type Video, type VideoScene } from "@vanillaskyai/video";
+import { VideoPlayer } from "@vanillaskyai/video/react";
 
 export function Channel({ endpoint }: { endpoint: string }) {
   const [video, setVideo] = useState<Video | undefined>(undefined);
@@ -99,7 +99,7 @@ hand-authored `Video` satisfies `parseVideo` without copying a defaults blob
 into your application:
 
 ```ts
-import { parseVideo, resolveVideoBrand } from "@vanillaskyai/ai-video";
+import { parseVideo, resolveVideoBrand } from "@vanillaskyai/video";
 
 const channel = parseVideo({
   schemaVersion: "0.1",

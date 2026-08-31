@@ -1,4 +1,4 @@
-import { createTemplateRegistry, defineTemplate } from "@vanillaskyai/ai-video/templates";
+import { createTemplateRegistry, defineTemplate } from "@vanillaskyai/video/templates";
 
 const metric = defineTemplate({
   id: "metric",

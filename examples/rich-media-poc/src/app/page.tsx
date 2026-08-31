@@ -1,7 +1,7 @@
 "use client";
 
-import type { Video } from "@vanillaskyai/ai-video";
-import { VideoPlayer, useVideo } from "@vanillaskyai/ai-video/react";
+import type { Video } from "@vanillaskyai/video";
+import { VideoPlayer, useVideo } from "@vanillaskyai/video/react";
 import { useMemo, useState } from "react";
 import { templates } from "../../vanillasky";
 import { DIRECTOR_TEMPLATE_IDS } from "../lib/scene-director-contract";

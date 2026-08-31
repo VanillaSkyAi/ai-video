@@ -631,7 +631,7 @@ async function verifyProvider({ provider, tarball, packed, browser }) {
 
   const manifestPath = join(app, "package.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  manifest.dependencies["@vanillaskyai/ai-video"] = tarball;
+  manifest.dependencies["@vanillaskyai/video"] = tarball;
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   installDeterministicProviders(app);
 
@@ -645,7 +645,7 @@ async function verifyProvider({ provider, tarball, packed, browser }) {
   run("npm", ["install", "--no-audit", "--no-fund"], app, environment);
   const installTimeMs = Math.round(performance.now() - installStarted);
   const installedVersion = execFileSync(process.execPath, [
-    "-p", "require('./node_modules/@vanillaskyai/ai-video/package.json').version",
+    "-p", "require('./node_modules/@vanillaskyai/video/package.json').version",
   ], { cwd: app, encoding: "utf8", env: childEnvironment(environment) }).trim();
   if (installedVersion !== packed.version) {
     throw new Error(`${provider} installed SDK ${installedVersion}, expected ${packed.version}`);
@@ -842,7 +842,7 @@ async function verifyCompatibilityProvider({ expectation, tarball, packed, brows
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   delete manifest.dependencies["@ai-sdk/openai"];
   delete manifest.dependencies["@ai-sdk/anthropic"];
-  manifest.dependencies["@vanillaskyai/ai-video"] = tarball;
+  manifest.dependencies["@vanillaskyai/video"] = tarball;
   manifest.dependencies.ai = aiVersion;
   manifest.dependencies[expectation.packageName] = expectation.version;
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -856,7 +856,7 @@ async function verifyCompatibilityProvider({ expectation, tarball, packed, brows
   run("npm", ["install", "--no-audit", "--no-fund"], app);
   const installTimeMs = Math.round(performance.now() - installStarted);
   const installedVersion = execFileSync(process.execPath, [
-    "-p", "require('./node_modules/@vanillaskyai/ai-video/package.json').version",
+    "-p", "require('./node_modules/@vanillaskyai/video/package.json').version",
   ], { cwd: app, encoding: "utf8", env: childEnvironment() }).trim();
   if (installedVersion !== packed.version) {
     throw new Error(`${provider} installed SDK ${installedVersion}, expected ${packed.version}`);
@@ -864,7 +864,7 @@ async function verifyCompatibilityProvider({ expectation, tarball, packed, brows
   const lock = JSON.parse(readFileSync(join(app, "package-lock.json"), "utf8"));
   assertLockedPackage(lock, expectation.packageName, expectation.version, expectation.integrity, provider);
   assertLockedPackage(lock, "ai", aiVersion, aiIntegrity, provider);
-  if (lock.packages?.["node_modules/@vanillaskyai/ai-video"]?.integrity !== packed.integrity) {
+  if (lock.packages?.["node_modules/@vanillaskyai/video"]?.integrity !== packed.integrity) {
     throw new Error(`${provider} package lock does not identify exact SDK integrity ${packed.integrity}`);
   }
   run("npx", ["--no-install", "vanillasky", "sync", "--check"], app);
