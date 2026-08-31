@@ -23,7 +23,6 @@ import {
 } from "../visual-system/scene-templates/media-source.js";
 import { ExternalVideoBackdropProvider } from "../visual-system/scene-templates/external-video-backdrop.js";
 import { supportsExternalVideoBackdrop } from "../visual-system/catalog/video-backdrop-capability.js";
-import { MediaAudioProvider } from "../visual-system/scene-templates/media-audio-context.js";
 
 const SCENE_TRANSITION_SECONDS = 0.3;
 const SceneVideoBackdrop = lazy(() => import(
@@ -176,11 +175,11 @@ function SceneLayer({
   const duration = range.end - range.start;
 
   return (
-    <MediaAudioProvider
-      muted={mediaAudioMuted || !playing}
-      volume={mediaAudioVolume}
+    <ExternalVideoBackdropProvider
+      mode={externalVideoBackdrop}
+      audioMuted={mediaAudioMuted || !playing}
+      audioVolume={mediaAudioVolume}
     >
-      <ExternalVideoBackdropProvider mode={externalVideoBackdrop}>
       <div
         data-scene-layer={layer}
         data-layer-scene-id={range.scene.id}
@@ -238,8 +237,7 @@ function SceneLayer({
           </div>
         )}
       </div>
-      </ExternalVideoBackdropProvider>
-    </MediaAudioProvider>
+    </ExternalVideoBackdropProvider>
   );
 }
 

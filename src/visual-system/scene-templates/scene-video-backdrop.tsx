@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { getBackgroundTransform } from "../backgrounds";
-import { useMediaAudio } from "./media-audio-context";
+import { useMediaAudio } from "./external-video-backdrop";
 import { resolveMediaPosition } from "./media-position";
 
 export interface SceneVideoBackdropProps {
