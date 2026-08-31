@@ -2,6 +2,7 @@ import type {
   VideoInput,
   VideoPlanner,
   VideoPlanPart,
+  VideoScene,
 } from "../protocol/types.js";
 import type { ServerTemplateRegistry } from "../visual-system/catalog/server-kit.js";
 import {
@@ -21,6 +22,8 @@ export interface ResolvedMedia {
 
 export interface MediaResolverContext {
   input: VideoInput;
+  requestId: string;
+  scene: Readonly<VideoScene>;
   templateId: string;
   preferredType: "image" | "video" | "any";
   signal: AbortSignal;
@@ -68,6 +71,8 @@ function isAbortError(error: unknown): boolean {
 
 async function resolveVariables(options: {
   variables: Record<string, unknown>;
+  requestId: string;
+  scene: VideoScene;
   contract?: StandardMediaResolverContract;
   input: VideoInput;
   templateId: string;
@@ -92,6 +97,8 @@ async function resolveVariables(options: {
   try {
     resolved = await options.resolveMedia(rawQuery, {
       input: options.input,
+      requestId: options.requestId,
+      scene: { ...options.scene, variables },
       templateId: options.templateId,
       preferredType: preferredType(variables.mediaType),
       signal: options.signal,
@@ -148,6 +155,7 @@ function sanitizeUnknownTemplatePart(part: VideoPlanPart): VideoPlanPart {
 
 async function resolvePartVariables(options: {
   part: VideoPlanPart;
+  requestId: string;
   templateId?: string;
   input: VideoInput;
   signal: AbortSignal;
@@ -169,6 +177,8 @@ async function resolvePartVariables(options: {
   if (options.part.type === "scene.add") {
     const variables = await resolveVariables({
       ...shared,
+      requestId: options.requestId,
+      scene: options.part.scene,
       variables: options.part.scene.variables,
     });
     return { ...options.part, scene: { ...options.part.scene, variables } };
@@ -187,6 +197,7 @@ export function createMediaResolvingPlanner(options: {
     for await (const part of options.planner(context)) {
       yield await resolvePartVariables({
         part,
+        requestId: context.request.requestId,
         templateId: part.type === "scene.add" ? part.scene.templateId : undefined,
         input: context.request.input,
         signal: context.signal,

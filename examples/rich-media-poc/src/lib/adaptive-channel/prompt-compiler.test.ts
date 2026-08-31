@@ -47,10 +47,11 @@ describe("provider-neutral prompt compilation", () => {
   it("writes H3-style temporal direction as one prompt", () => {
     const prompt = compileVideoPrompt(world, scene);
 
+    expect(prompt).toContain(world.premise);
     expect(prompt).toContain("0-2s: Static pulses with the lightning.");
     expect(prompt).toContain("2-5s: Mara slowly reaches for the dial.");
     expect(prompt).toContain("Camera: slow handheld push toward the receiver");
-    expect(prompt).not.toContain("Sound:");
+    expect(prompt).toContain("Sound: distant thunder, analog static, one clear electronic tone");
   });
 
   it.each(["scene", "none"] as const)("does not inject the character bible into a %s-continuity shot", (continuityRole) => {

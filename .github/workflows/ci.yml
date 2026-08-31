@@ -31,6 +31,10 @@ jobs:
       - run: npm test
       - run: npm run acceptance:replay
       - run: npm run build
+      # The documented server examples are only grepped as text by the test
+      # suite. Compile them against this build so a broken example cannot ship.
+      - run: npm run examples:install-current
+      - run: npm run server-examples:typecheck
       - run: npm run verify:package-size
       - run: npm audit --audit-level=low
       - run: npm pack --dry-run

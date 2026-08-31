@@ -9,6 +9,8 @@ const require = createRequire(import.meta.url);
 const rootPackage = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")) as {
   version: string;
   scripts: Record<string, string>;
+  dependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
 };
 
 function examplePackage(name: string): {
@@ -68,6 +70,26 @@ describe("documented examples", () => {
 
     expect(guide).toContain("soundtrack");
     expect(guide).toContain("does not provide narration, TTS, or speech synchronization");
+  });
+
+  it("documents app-owned AI SDK media generation without adding it to the core install", () => {
+    const guide = readFileSync(resolve(root, "docs/media-and-audio.md"), "utf8");
+    const example = readFileSync(
+      resolve(root, "examples/server-integrations/src/ai-sdk-media.ts"),
+      "utf8",
+    );
+
+    expect(guide).toContain("npm install ai @ai-sdk/fal");
+    expect(guide).toContain("requestId");
+    expect(guide).toContain("scene");
+    expect(example).toContain("generateImage");
+    expect(example).toContain("experimental_generateVideo");
+    expect(example).toContain("maxRetries: 0");
+    expect(example).toContain("store");
+    // Generation must stay app-owned: neither a runtime nor a peer requirement.
+    const coreInstall = { ...rootPackage.dependencies, ...rootPackage.peerDependencies };
+    expect(coreInstall).not.toHaveProperty("ai");
+    expect(coreInstall).not.toHaveProperty("@ai-sdk/fal");
   });
 
   it("documents Vitest, route-handler, fake-timer, abort, and timeout testing", () => {

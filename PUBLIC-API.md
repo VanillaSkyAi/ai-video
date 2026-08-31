@@ -191,6 +191,12 @@ mounted player autoplay with sound after the first successful viewer start.
 `manual`, `muted-autoplay`, and `autoplay-with-sound` cover the other browser
 startup policies.
 
+Set `nativeMediaAudio={{ volume: 0.85 }}` when scene video files contain an
+embedded audio track. The active clip's audio becomes a second layer alongside
+the video's continuous `audio` soundtrack. Both follow the player's master
+mute control; `nativeMediaAudio.volume` and serialized `audio.volume` set their
+independent mix levels. Incoming preroll videos remain muted until active.
+
 `VideoInput.opening` accepts custom copy, uses the deterministic fallback when
 omitted, and accepts `false` when the application owns transient loading UI and
 wants the completed video to begin with the first generated scene.

@@ -83,6 +83,31 @@ describe("adaptive media resolver", () => {
     }));
   });
 
+  it("reuses an existing continuity frame instead of generating a blocking low-buffer fallback", async () => {
+    const image: MediaAdapter = {
+      route: "generate-image",
+      resolve: vi.fn(),
+    };
+
+    const resolved = await resolvePlannedScene({
+      world,
+      scene: { ...scene, continuityRole: "character" },
+      bufferSeconds: 0,
+      characterReferenceImageUrl: "https://media.example/mara-character.webp",
+      adapters: [image],
+    });
+
+    expect(image.resolve).not.toHaveBeenCalled();
+    expect(resolved.decision.route).toBe("generate-image");
+    expect(resolved.media).toMatchObject({
+      type: "image",
+      url: "https://media.example/mara-character.webp",
+      provider: "continuity-cache",
+      characterReferenceImageUrl: "https://media.example/mara-character.webp",
+      generationTiming: { requestMs: 0 },
+    });
+  });
+
   it("never fabricates a fallback when factual stock media is unavailable", async () => {
     const stock: MediaAdapter = {
       route: "stock",

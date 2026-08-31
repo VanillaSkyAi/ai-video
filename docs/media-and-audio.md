@@ -94,6 +94,65 @@ timeline wraps. This does not bypass browser autoplay policy: use muted autoplay
 for unattended playback and let a viewer unmute, or start audible playback from
 a user interaction.
 
+## Mix native clip audio with a soundtrack
+
+Some generated or supplied scene videos contain their own synchronized
+dialogue, effects, or ambience. Opt into that embedded track at the player:
+
+```tsx
+<VideoPlayer
+  video={video}
+  nativeMediaAudio={{ volume: 0.85 }}
+  playbackMode="muted-autoplay"
+/>
+```
+
+This produces two independent layers: the active scene video's native audio
+at `nativeMediaAudio.volume`, and the continuous soundtrack at the serialized
+`video.audio.volume`. The existing sound button is their shared master mute.
+Incoming videos may preroll visually, but remain muted until their scene is
+active. Native media audio is off by default so existing players keep their
+current soundtrack-only behavior.
+
+## Generate media instead of searching for it
+
+`resolveMedia` does not have to search a catalog. The same callback can
+generate the asset, because it receives the `requestId` and the `scene` being
+resolved alongside the query:
+
+```ts
+resolveMedia: async (query, { requestId, scene, preferredType, signal }) => {
+  const asset = await generateAndStore({ prompt: query, requestId, scene, preferredType, signal });
+  return asset ? { url: asset.url, type: asset.type } : null;
+}
+```
+
+Generation stays outside the SDK install. VanillaSky depends on no image or
+video model, and never selects a provider: the application supplies the model
+and owns the key, the spend, and where bytes are stored.
+
+[`examples/server-integrations/src/ai-sdk-media.ts`](../examples/server-integrations/src/ai-sdk-media.ts)
+is a provider-neutral adapter built on the AI SDK. It takes `ImageModel` and
+`VideoModel` instances rather than naming a vendor, so it runs against any
+model the AI SDK supports. Install the AI SDK and whichever provider you
+chose — for example:
+
+```bash
+npm install ai @ai-sdk/fal
+```
+
+Two rules that example encodes, both about money:
+
+- **`maxRetries: 0`.** A generated asset is billable, so a silent retry can
+  charge twice for one scene. Retrying stays an explicit, budget-aware
+  decision in the application.
+- **A per-scene idempotency key** built from `requestId` and `scene.id`, so a
+  retried request reuses the stored object instead of generating a second one.
+
+Generation is slower than a catalog lookup. Honour `signal`, keep a deadline,
+and return `null` when it passes: a scene that falls back to the brand
+gradient is better than one that never arrives.
+
 ## Media providers
 
 VanillaSky is provider-independent. When `resolveMedia` is configured, the

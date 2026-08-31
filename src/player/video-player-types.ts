@@ -6,12 +6,19 @@ import type { TemplateRegistry } from "../visual-system/catalog/kit.js";
 import type { PlayerTemplateRegistry } from "../visual-system/catalog/player-kit.js";
 import type { VideoPlaybackMode } from "./playback-policy.js";
 
+export interface NativeMediaAudioOptions {
+  /** Volume of the active scene video's embedded audio, from 0 to 1. */
+  volume?: number;
+}
+
 interface VideoPlayerSharedProps {
   /** High-level startup policy. When set, this overrides autoPlay and startMuted. */
   playbackMode?: VideoPlaybackMode;
   /** Initial playback state. Reduced-motion preferences take precedence. */
   autoPlay?: boolean;
   startMuted?: boolean;
+  /** Play embedded audio from active scene videos as a layer beneath the master mute control. */
+  nativeMediaAudio?: NativeMediaAudioOptions;
   /** Fixed display width. Omit to observe and fill the parent width. */
   width?: number;
   /** Override the streamed orientation, or switch at the container breakpoint. */

@@ -1,31 +1,65 @@
-import { createFalClient } from "@fal-ai/client";
+import { createFal } from "@ai-sdk/fal";
+import {
+  createDownload,
+  experimental_generateVideo,
+  generateImage,
+} from "ai";
 import type {
   MediaAdapter,
   ResolvedMedia,
 } from "./types";
 
-export type FalSubscribe = (
-  model: string,
-  options: { input: Record<string, unknown>; abortSignal?: AbortSignal },
-) => Promise<{ data: unknown }>;
-
-interface FalAdapterOptions {
-  subscribe: FalSubscribe;
-  model?: string;
-  referenceModel?: string;
+interface AiSdkGeneratedFile {
+  readonly uint8Array: Uint8Array;
+  readonly mediaType: string;
 }
 
-function imageUrlFromResult(result: unknown): string {
-  const images = (result as { images?: Array<{ url?: unknown }> } | undefined)?.images;
-  const url = images?.[0]?.url;
-  if (typeof url !== "string" || !url) throw new Error("Image provider returned no image URL.");
-  return url;
+interface AiSdkImageGenerateOptions {
+  model: unknown;
+  prompt: string | { text: string; images: string[] };
+  aspectRatio: `${number}:${number}`;
+  n: number;
+  maxRetries: number;
+  abortSignal?: AbortSignal;
+  providerOptions: Record<string, Record<string, unknown>>;
 }
 
-function videoUrlFromResult(result: unknown): string {
-  const url = (result as { video?: { url?: unknown } } | undefined)?.video?.url;
-  if (typeof url !== "string" || !url) throw new Error("Video provider returned no video URL.");
-  return url;
+interface AiSdkVideoGenerateOptions {
+  model: unknown;
+  prompt: string | { text: string; image: string };
+  aspectRatio: `${number}:${number}` | "adaptive";
+  duration: number;
+  generateAudio: boolean;
+  maxRetries: number;
+  abortSignal?: AbortSignal;
+  providerOptions: Record<string, Record<string, unknown>>;
+}
+
+export type StoreGeneratedMedia = (input: {
+  data: Uint8Array;
+  mediaType: string;
+  kind: "image" | "video";
+  idempotencyKey: string;
+}) => Promise<{ url: string }>;
+
+interface AiSdkImageAdapterOptions {
+  generate(options: AiSdkImageGenerateOptions): Promise<{ image: AiSdkGeneratedFile }>;
+  model: unknown;
+  referenceModel?: unknown;
+  providerLabel: string;
+  store: StoreGeneratedMedia;
+}
+
+interface AiSdkVideoAdapterOptions {
+  generate(options: AiSdkVideoGenerateOptions): Promise<{ video: AiSdkGeneratedFile }>;
+  model: unknown;
+  referenceModel?: unknown;
+  providerLabel: string;
+  store: StoreGeneratedMedia;
+}
+
+function now(): number {
+  return typeof performance === "undefined" ? Date.now() : performance.now();
 }
 
 function continuityReference(request: Parameters<MediaAdapter["resolve"]>[0]): string | undefined {
@@ -34,63 +68,102 @@ function continuityReference(request: Parameters<MediaAdapter["resolve"]>[0]): s
   return undefined;
 }
 
-export function createFalImageAdapter(options: FalAdapterOptions): MediaAdapter {
+function modelLabel(model: unknown): string {
+  if (typeof model === "string") return model;
+  const modelId = (model as { modelId?: unknown } | null)?.modelId;
+  return typeof modelId === "string" && modelId ? modelId : "configured-model";
+}
+
+export function createAiSdkImageAdapter(options: AiSdkImageAdapterOptions): MediaAdapter {
   return {
     route: "generate-image",
     async resolve(request) {
+      const startedAt = now();
       const referenceImageUrl = continuityReference(request);
-      const model = referenceImageUrl
-        ? options.referenceModel || "fal-ai/flux-general"
-        : options.model || "fal-ai/flux/dev";
-      const input: Record<string, unknown> = {
-        prompt: request.prompt,
-        image_size: request.orientation === "portrait" ? "portrait_16_9" : "landscape_16_9",
-        output_format: "jpeg",
-      };
-      if (referenceImageUrl) {
-        input.reference_image_url = referenceImageUrl;
-        input.reference_strength = 0.68;
-      } else {
-        input.num_images = 1;
-        input.enable_safety_checker = true;
-      }
-      const result = await options.subscribe(model, { input, abortSignal: request.signal });
-      const url = imageUrlFromResult(result.data);
+      const model = referenceImageUrl && options.referenceModel
+        ? options.referenceModel
+        : options.model;
+      const result = await options.generate({
+        model,
+        prompt: referenceImageUrl
+          ? { text: request.prompt, images: [referenceImageUrl] }
+          : request.prompt,
+        aspectRatio: request.orientation === "portrait" ? "9:16" : "16:9",
+        n: 1,
+        // Paid media calls are never retried invisibly. The orchestration layer
+        // owns an explicit retry decision and its associated budget.
+        maxRetries: 0,
+        abortSignal: request.signal,
+        providerOptions: {
+          fal: {
+            enableSafetyChecker: true,
+            outputFormat: "jpeg",
+          },
+        },
+      });
+      const stored = await options.store({
+        data: result.image.uint8Array,
+        mediaType: result.image.mediaType,
+        kind: "image",
+        idempotencyKey: request.scene.id,
+      });
       return {
         type: "image",
-        url,
-        provider: `fal · ${model}`,
-        keyframeImageUrl: url,
-        ...(request.scene.continuityRole === "character" ? { characterReferenceImageUrl: url } : {}),
+        url: stored.url,
+        provider: `${options.providerLabel} · ${modelLabel(model)}`,
+        generationTiming: { requestMs: Math.max(0, now() - startedAt) },
+        keyframeImageUrl: stored.url,
+        ...(request.scene.continuityRole === "character"
+          ? { characterReferenceImageUrl: stored.url }
+          : {}),
       };
     },
   };
 }
 
-export function createFalVideoAdapter(options: FalAdapterOptions): MediaAdapter {
+export function createAiSdkVideoAdapter(options: AiSdkVideoAdapterOptions): MediaAdapter {
   return {
     route: "generate-video",
     async resolve(request) {
+      const startedAt = now();
       const startFrameImageUrl = continuityReference(request);
-      const hasReference = Boolean(startFrameImageUrl);
-      const model = hasReference
-        ? options.referenceModel || "minimax/h3-max/image-to-video"
-        : options.model || "minimax/h3-max/text-to-video";
-      const input: Record<string, unknown> = {
-        prompt: request.prompt,
+      const model = startFrameImageUrl && options.referenceModel
+        ? options.referenceModel
+        : options.model;
+      const result = await options.generate({
+        model,
+        prompt: startFrameImageUrl
+          ? { text: request.prompt, image: startFrameImageUrl }
+          : request.prompt,
+        aspectRatio: startFrameImageUrl
+          ? "adaptive"
+          : request.orientation === "portrait" ? "9:16" : "16:9",
         duration: Math.max(1, Math.min(10, Math.round(request.scene.durationSec))),
-        resolution: "768P",
-        prompt_expansion_mode: "balanced",
-        enable_safety_checker: true,
-      };
-      if (startFrameImageUrl) input.image_url = startFrameImageUrl;
-      else input.aspect_ratio = request.orientation === "portrait" ? "9:16" : "16:9";
-      const result = await options.subscribe(model, { input, abortSignal: request.signal });
+        generateAudio: true,
+        // A retry can create a second billable video. Keep it an explicit,
+        // budget-aware orchestration decision instead of an SDK default.
+        maxRetries: 0,
+        abortSignal: request.signal,
+        providerOptions: {
+          fal: {
+            enable_safety_checker: true,
+            prompt_expansion_mode: "balanced",
+            resolution: "768P",
+          },
+        },
+      });
+      const stored = await options.store({
+        data: result.video.uint8Array,
+        mediaType: result.video.mediaType,
+        kind: "video",
+        idempotencyKey: request.scene.id,
+      });
       return {
         type: "video",
-        url: videoUrlFromResult(result.data),
+        url: stored.url,
         posterUrl: startFrameImageUrl,
-        provider: `fal · ${model}`,
+        provider: `${options.providerLabel} · ${modelLabel(model)}`,
+        generationTiming: { requestMs: Math.max(0, now() - startedAt) },
       };
     },
   };
@@ -120,6 +193,7 @@ export function createPexelsAdapter(options: {
   return {
     route: "stock",
     async resolve(request) {
+      const startedAt = now();
       if (!options.apiKey.trim()) throw new Error("PEXELS_API_KEY is not configured.");
       const fetcher = options.fetcher || fetch;
       const wantsVideo = request.scene.motion !== "none";
@@ -159,6 +233,7 @@ export function createPexelsAdapter(options: {
           url: file.link,
           posterUrl: item.image,
           provider: "pexels",
+          generationTiming: { requestMs: Math.max(0, now() - startedAt) },
           credit: {
             label: `Video by ${item.user?.name || "a Pexels creator"} on Pexels`,
             url: item.url,
@@ -173,6 +248,7 @@ export function createPexelsAdapter(options: {
         type: "image",
         url: imageUrl || item.src?.large2x || "",
         provider: "pexels",
+        generationTiming: { requestMs: Math.max(0, now() - startedAt) },
         credit: {
           label: `Photo by ${item.photographer || "a Pexels creator"} on Pexels`,
           url: item.url,
@@ -187,12 +263,13 @@ export function createFixtureAdapters(): MediaAdapter[] {
     {
       route: "stock",
       resolve: async (request) => request.scene.motion === "none"
-        ? { type: "image", url: "/ai-scene.webp", provider: "fixture-stock" }
+        ? { type: "image", url: "/ai-scene.webp", provider: "fixture-stock", generationTiming: { requestMs: 0 } }
         : {
             type: "video",
             url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
             posterUrl: "/ai-scene.webp",
             provider: "fixture-stock",
+            generationTiming: { requestMs: 0 },
           },
     },
     {
@@ -201,6 +278,7 @@ export function createFixtureAdapters(): MediaAdapter[] {
         type: "image",
         url: "/ai-scene.webp",
         provider: "fixture-image",
+        generationTiming: { requestMs: 0 },
         keyframeImageUrl: "/ai-scene.webp",
         ...(request.scene.continuityRole === "character"
           ? { characterReferenceImageUrl: "/ai-scene.webp" }
@@ -214,6 +292,7 @@ export function createFixtureAdapters(): MediaAdapter[] {
         url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
         posterUrl: continuityReference(request) || "/ai-scene.webp",
         provider: "fixture-video",
+        generationTiming: { requestMs: 0 },
       }),
     },
   ];
@@ -225,22 +304,33 @@ export function createFalProviderAdapters(options: {
   imageReferenceModel?: string;
   videoModel?: string;
   videoReferenceModel?: string;
+  store: StoreGeneratedMedia;
 }): MediaAdapter[] {
-  const client = createFalClient({ credentials: options.apiKey });
-  const subscribe: FalSubscribe = (model, request) => client.subscribe(
-    model as Parameters<typeof client.subscribe>[0],
-    request as Parameters<typeof client.subscribe>[1],
-  ) as Promise<{ data: unknown }>;
+  const fal = createFal({ apiKey: options.apiKey });
+  const imageModel = fal.image(options.imageModel || "fal-ai/flux/schnell");
+  const imageReferenceModel = fal.image(options.imageReferenceModel || "fal-ai/flux-kontext/dev");
+  const videoModel = fal.video(options.videoModel || "minimax/h3-max/text-to-video");
+  const videoReferenceModel = fal.video(options.videoReferenceModel || "minimax/h3-max/image-to-video");
+  const downloadVideo = createDownload({ maxBytes: 100 * 1024 * 1024 });
   return [
-    createFalImageAdapter({
-      subscribe,
-      model: options.imageModel,
-      referenceModel: options.imageReferenceModel,
+    createAiSdkImageAdapter({
+      generate: (request) => generateImage(
+        request as Parameters<typeof generateImage>[0],
+      ),
+      model: imageModel,
+      referenceModel: imageReferenceModel,
+      providerLabel: "fal",
+      store: options.store,
     }),
-    createFalVideoAdapter({
-      subscribe,
-      model: options.videoModel,
-      referenceModel: options.videoReferenceModel,
+    createAiSdkVideoAdapter({
+      generate: (request) => experimental_generateVideo({
+        ...request as Parameters<typeof experimental_generateVideo>[0],
+        download: downloadVideo,
+      }),
+      model: videoModel,
+      referenceModel: videoReferenceModel,
+      providerLabel: "fal",
+      store: options.store,
     }),
   ];
 }

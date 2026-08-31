@@ -14,7 +14,11 @@ export default defineConfig({
   webServer: {
     command: "npm run dev -- --hostname 127.0.0.1 --port 3027",
     url: "http://127.0.0.1:3027",
-    env: { OPENAI_API_KEY: "" },
+    env: {
+      OPENAI_API_KEY: "",
+      ADAPTIVE_CHANNEL_LIVE_MEDIA: "0",
+      ADAPTIVE_CHANNEL_ALLOW_FIXTURE_FALLBACK: "0",
+    },
     reuseExistingServer: true,
     timeout: 60_000,
   },

@@ -47,6 +47,45 @@ describe("VideoPlayer", () => {
     expect(view.container.querySelector('[data-template-id="bigNumber"]')).not.toBeNull();
   });
 
+  it("exposes an opt-in sound control for native scene video audio", async () => {
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    const { VideoPlayer } = await import("../src/react");
+    const video: Video = {
+      schemaVersion: "0.1",
+      orientation: "portrait",
+      scenes: [{
+        id: "native-audio",
+        templateId: "media",
+        variables: {
+          texts: "A storm answers.",
+          mediaUrl: "https://media.example.test/h3-with-audio.mp4",
+          mediaType: "video",
+        },
+        timing: { fixedDuration: 5 },
+      }],
+      style: TEST_VIDEO_STYLE,
+    };
+
+    const view = render(createElement(VideoPlayer, {
+      video,
+      autoPlay: true,
+      startMuted: true,
+      nativeMediaAudio: { volume: 0.35 },
+    }));
+
+    const sceneVideo = await waitFor(() => {
+      const element = view.container.querySelector("video");
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    expect(sceneVideo.muted).toBe(true);
+    expect(sceneVideo.volume).toBe(0.35);
+    fireEvent.click(view.getByRole("button", { name: "Unmute video response" }));
+    await waitFor(() => expect(sceneVideo.muted).toBe(false));
+  });
+
   it("overlays customer templates onto built-ins when replaying a mixed saved video", async () => {
     let nextFrame: FrameRequestCallback | undefined;
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {

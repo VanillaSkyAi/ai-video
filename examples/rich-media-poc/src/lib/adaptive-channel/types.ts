@@ -12,6 +12,27 @@ export interface ChannelWorld {
   continuityRules: readonly string[];
 }
 
+export type ChannelContentType = "how-to" | "explainer" | "showcase" | "fictional-narrative";
+
+export interface ChannelStoryOutlineScene {
+  headline: string;
+  description: string;
+  framing: string;
+  camera: string;
+  action: string;
+  lighting: string;
+  sound: string;
+}
+
+export interface ChannelStoryOutline {
+  contentType: ChannelContentType;
+  visualStyle: string;
+  setting: string;
+  characterBible: string;
+  continuityRules: readonly string[];
+  scenes: readonly ChannelStoryOutlineScene[];
+}
+
 export interface TemporalBeat {
   fromSec: number;
   toSec: number;
@@ -52,12 +73,20 @@ export interface MediaCredit {
   url: string;
 }
 
+export interface MediaGenerationTiming {
+  /** End-to-end provider request time measured by the adapter. */
+  requestMs: number;
+  /** Provider-reported model inference time, when the provider exposes it. */
+  inferenceMs?: number;
+}
+
 export interface ResolvedMedia {
   type: "gradient" | "image" | "video";
   url: string;
   posterUrl?: string;
   provider: string;
   credit?: MediaCredit;
+  generationTiming?: MediaGenerationTiming;
   /** Canonical identity reference; only intentional character generation may update it. */
   characterReferenceImageUrl?: string;
   /** A generated first/last frame suitable for the immediately following shot. */
@@ -112,4 +141,11 @@ export interface ChannelSegment {
   video: Video;
   scenes: ResolvedChannelScene[];
   continuation: ChannelContinuation;
+}
+
+export interface ScheduledChannelScene {
+  index: number;
+  result: ResolvedChannelScene;
+  queuedMs: number;
+  generationMs: number;
 }

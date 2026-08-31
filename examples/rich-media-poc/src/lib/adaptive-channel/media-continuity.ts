@@ -5,7 +5,7 @@ export interface MediaContinuity {
   previousKeyframeImageUrl?: string;
 }
 
-function adjacentSceneReference(media: ResolvedMedia): string | undefined {
+export function adjacentSceneReference(media: ResolvedMedia): string | undefined {
   if (media.keyframeImageUrl) return media.keyframeImageUrl;
   if (media.type === "image") return media.url || undefined;
   if (media.type === "video") return media.posterUrl;
