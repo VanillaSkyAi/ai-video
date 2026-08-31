@@ -1,4 +1,4 @@
-import { defineTemplate } from "@vanillaskyai/ai-video/templates";
+import { defineTemplate } from "@vanillaskyai/video/templates";
 import { ProgressLottie } from "../../src/components/progress-lottie";
 import { resolveLottieAsset } from "../../src/lib/asset-catalog";
 

@@ -1,5 +1,5 @@
 {
-  "@vanillaskyai/ai-video": {
+  "@vanillaskyai/video": {
     "exports": {
       "getVideoDuration": {
         "kinds": [
@@ -155,7 +155,7 @@
       "type VideoBackgroundPreset = \"cosmic\" | \"horizon\" | \"twilight\" | \"meadow\" | \"velvet\" | \"flamingo\" | \"peach\" | \"saffron\" | \"black\" | \"midnight\" | \"aubergine\" | \"coal\" | \"navy\";"
     ]
   },
-  "@vanillaskyai/ai-video/server": {
+  "@vanillaskyai/video/server": {
     "exports": {
       "createServerTemplateRegistry": {
         "kinds": [
@@ -315,7 +315,7 @@
       "type VideoWarningCode = \"scene_duration_adjusted\" | \"scene_omitted_unreadable\" | \"scene_omitted_for_closer\" | \"chart_scale_imbalance\" | \"plan_incomplete\" | \"plan_missing_closer\" | \"provider_warning\" | \"provider_diagnostics_unavailable\";"
     ]
   },
-  "@vanillaskyai/ai-video/react": {
+  "@vanillaskyai/video/react": {
     "exports": {
       "useVideo": {
         "kinds": [
@@ -430,7 +430,7 @@
       "type VideoWarningCode = \"scene_duration_adjusted\" | \"scene_omitted_unreadable\" | \"scene_omitted_for_closer\" | \"chart_scale_imbalance\" | \"plan_incomplete\" | \"plan_missing_closer\" | \"provider_warning\" | \"provider_diagnostics_unavailable\";"
     ]
   },
-  "@vanillaskyai/ai-video/templates": {
+  "@vanillaskyai/video/templates": {
     "exports": {
       "createTemplateRegistry": {
         "kinds": [
@@ -548,7 +548,7 @@
       "type VideoBackground = {\n    type: \"solid\";\n    color: string;\n} | {\n    type: \"gradient\";\n    colors: [\n        string,\n        string\n    ];\n};"
     ]
   },
-  "@vanillaskyai/ai-video/templates/catalog": {
+  "@vanillaskyai/video/templates/catalog": {
     "exports": {
       "BuiltinTemplateId": {
         "kinds": [
@@ -586,7 +586,7 @@
       "type TemplateRegister = \"motion-led\" | \"typography-led\" | \"device-led\" | \"card-led\" | \"mockup-led\";"
     ]
   },
-  "@vanillaskyai/ai-video/test": {
+  "@vanillaskyai/video/test": {
     "exports": {
       "createMockVideoPlanner": {
         "kinds": [

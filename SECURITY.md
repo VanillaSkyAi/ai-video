@@ -2,13 +2,13 @@
 
 ## Supported versions
 
-Security fixes target the latest published version of `@vanillaskyai/ai-video`.
+Security fixes target the latest published version of `@vanillaskyai/video`.
 Upgrade to the current release before reporting behavior that may already have
 been corrected.
 
 ## Report a vulnerability
 
-Use [GitHub private vulnerability reporting](https://github.com/VanillaSkyAi/ai-video/security/advisories/new)
+Use [GitHub private vulnerability reporting](https://github.com/VanillaSkyAi/video/security/advisories/new)
 to report a suspected vulnerability. Do not open a public issue, discussion,
 or pull request containing exploit details, credentials, customer data, or an
 unannounced vulnerability.

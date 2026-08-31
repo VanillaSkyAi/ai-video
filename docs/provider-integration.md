@@ -16,7 +16,7 @@ import "server-only";
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 
 const provider = process.env.VIDEO_PROVIDER;
 const modelId = process.env.VIDEO_MODEL;

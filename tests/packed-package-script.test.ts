@@ -72,7 +72,7 @@ describe("packed package verification", () => {
     expect(script).toContain('data-template-id="bigNumber"');
     expect(script).toContain("new VideoError");
     expect(script).toContain("provider secret");
-    expect(script).toContain('from "@vanillaskyai/ai-video/templates/catalog"');
+    expect(script).toContain('from "@vanillaskyai/video/templates/catalog"');
     expect(script).toContain("builtinTemplates.length !== 28");
     expect(script).toContain("Packed template API accepted the removed duration alias");
     expect(script).toContain('style.brand.background.type !== "gradient"');
@@ -134,7 +134,7 @@ describe("packed package verification", () => {
   it("installs and runs the exact packed test kit in the React-free NodeNext consumer", () => {
     const script = readFileSync(new URL("../scripts/verify-packed-package.mjs", import.meta.url), "utf8");
 
-    expect(script).toContain('from "@vanillaskyai/ai-video/test"');
+    expect(script).toContain('from "@vanillaskyai/video/test"');
     expect(script).toContain("createMockVideoPlanner");
     expect(script).toContain("simulateVideoStream");
     expect(script).toContain("videoFixtures");

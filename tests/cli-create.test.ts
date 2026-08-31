@@ -32,7 +32,7 @@ function project(): string {
   const cwd = mkdtempSync(join(tmpdir(), "vanillasky-create-"));
   fixtures.push(cwd);
   writeFileSync(join(cwd, "package.json"), JSON.stringify({ type: "module" }));
-  const sdk = join(cwd, "node_modules/@vanillaskyai/ai-video");
+  const sdk = join(cwd, "node_modules/@vanillaskyai/video");
   mkdirSync(sdk, { recursive: true });
   writeFileSync(join(sdk, "package.json"), JSON.stringify({
     type: "module",
@@ -168,7 +168,7 @@ describe("vanillasky create", () => {
     const firstSource = readFileSync(join(first, "vanillasky/templates/customerHealth.tsx"), "utf8");
     const secondSource = readFileSync(join(second, "vanillasky/templates/customerHealth.tsx"), "utf8");
     expect(firstSource).toBe(secondSource);
-    expect(firstSource).toContain('import { defineTemplate } from "@vanillaskyai/ai-video/templates";');
+    expect(firstSource).toContain('import { defineTemplate } from "@vanillaskyai/video/templates";');
     expect(firstSource).not.toMatch(/src\/|visual-system|internal|createElement/);
     expect(firstSource.match(/\bexport\s+(?:default\s+)?(?:const|function|class)\b/g)).toHaveLength(1);
     expect(firstSource).toContain("useWhen:");
@@ -205,7 +205,7 @@ describe("vanillasky create", () => {
     const original = join(cwd, "vanillasky/templates/original.tsx");
     mkdirSync(dirname(original), { recursive: true });
     writeFileSync(original, [
-      'import { defineTemplate } from "@vanillaskyai/ai-video/templates";',
+      'import { defineTemplate } from "@vanillaskyai/video/templates";',
       'export const original = defineTemplate({ id: "original", useWhen: "Original",',
       'schema: { type: "object", properties: {} }, component: () => null });',
     ].join("\n"));
@@ -243,7 +243,7 @@ describe("vanillasky create", () => {
     const original = join(cwd, "vanillasky/templates/original.tsx");
     mkdirSync(dirname(original), { recursive: true });
     writeFileSync(original, [
-      'import { defineTemplate } from "@vanillaskyai/ai-video/templates";',
+      'import { defineTemplate } from "@vanillaskyai/video/templates";',
       'export const original = defineTemplate({ id: "original", useWhen: "Original",',
       'schema: { type: "object", properties: {} }, component: () => null });',
     ].join("\n"));
@@ -291,7 +291,7 @@ describe("vanillasky create", () => {
         moduleResolution: "Bundler",
         skipLibCheck: false,
         baseUrl: cwd,
-        paths: { "@vanillaskyai/ai-video/templates": [join(repositoryRoot, "src/templates.ts")] },
+        paths: { "@vanillaskyai/video/templates": [join(repositoryRoot, "src/templates.ts")] },
       },
       include: [source],
     }));

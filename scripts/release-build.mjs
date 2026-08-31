@@ -20,8 +20,8 @@ import {
 import { assertReleaseToolchain } from "./lib/release-toolchain.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const expectedRepository = "VanillaSkyAi/ai-video";
-const expectedPackage = "@vanillaskyai/ai-video";
+const expectedRepository = "VanillaSkyAi/video";
+const expectedPackage = "@vanillaskyai/video";
 const expectedNpm = "11.17.0";
 const ciMode = process.argv.includes("--ci");
 

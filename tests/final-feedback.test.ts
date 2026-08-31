@@ -33,7 +33,7 @@ describe("final candidate feedback regressions", () => {
     const schema = BUILTIN_TEMPLATE_SCHEMAS.codeEditor;
     const code = schema.properties.code.default;
 
-    expect(code).toContain('from "@vanillaskyai/ai-video"');
+    expect(code).toContain('from "@vanillaskyai/video"');
     expect(code).toContain("getVideoDuration");
     expect(code).toContain("import type { Video }");
     expect(code).not.toContain('from "vanillasky"');

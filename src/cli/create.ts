@@ -33,7 +33,7 @@ function titleFor(id: string): string {
 function sourceFor(id: string): string {
   const title = titleFor(id);
   const titleLiteral = JSON.stringify(title);
-  return `import { defineTemplate } from "@vanillaskyai/ai-video/templates";
+  return `import { defineTemplate } from "@vanillaskyai/video/templates";
 
 export const template = defineTemplate({
   id: ${JSON.stringify(id)},

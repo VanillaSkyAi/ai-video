@@ -25,7 +25,7 @@ On a branch off current `main`:
    and fails if it is missing or empty.
 2. Set the version in `package.json`, then run `npm install --package-lock-only`
    to match `package-lock.json`.
-3. Update the exact `@vanillaskyai/ai-video` dependency in each executable
+3. Update the exact `@vanillaskyai/video` dependency in each executable
    `examples/*/package.json`. Tests and the release builder assert these pins,
    so the reviewed examples and packed artifact cannot drift apart. Public
    human and agent guides intentionally keep an unversioned install command and
@@ -35,7 +35,7 @@ On a branch off current `main`:
    outside `CHANGELOG.md`, which keeps its history:
 
    ```bash
-   grep -rn '"@vanillaskyai/ai-video": "'$PREVIOUS_VERSION'"' \
+   grep -rn '"@vanillaskyai/video": "'$PREVIOUS_VERSION'"' \
      --exclude-dir=node_modules --exclude-dir=.git .
    ```
 
@@ -43,7 +43,7 @@ Open a pull request and merge it once CI is green, like any other change.
 
 ## Tag and publish
 
-`VanillaSkyAi/ai-video` is the canonical repository. npm publishing uses the
+`VanillaSkyAi/video` is the canonical repository. npm publishing uses the
 trusted publisher bound to `.github/workflows/release.yml`, this repository,
 and the `npm` GitHub environment.
 
@@ -96,12 +96,12 @@ release, or site change.
 ### Verify from outside the repository
 
 ```bash
-npm view @vanillaskyai/ai-video version dist.integrity dist.tarball
+npm view @vanillaskyai/video version dist.integrity dist.tarball
 mkdir /tmp/vanillasky-consumer && cd /tmp/vanillasky-consumer
 npm init -y
-npm install @vanillaskyai/ai-video@latest
-npm ls @vanillaskyai/ai-video --depth=0
-node -e "import('@vanillaskyai/ai-video/react').then(m => { if (!m.useVideo || !m.VideoPlayer) process.exit(1); console.log('React runtime exports verified') })"
+npm install @vanillaskyai/video@latest
+npm ls @vanillaskyai/video --depth=0
+node -e "import('@vanillaskyai/video/react').then(m => { if (!m.useVideo || !m.VideoPlayer) process.exit(1); console.log('React runtime exports verified') })"
 ```
 
 Confirm the installed artifact contains its reviewed README, public API,

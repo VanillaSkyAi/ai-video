@@ -1,4 +1,4 @@
-import { defineTemplate } from "@vanillaskyai/ai-video/templates";
+import { defineTemplate } from "@vanillaskyai/video/templates";
 import { ProgressGif } from "../../src/components/progress-gif";
 import { resolveStickerAsset } from "../../src/lib/asset-catalog";
 

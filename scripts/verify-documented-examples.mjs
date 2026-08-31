@@ -101,11 +101,11 @@ async function runExample(example) {
 
   const manifestPath = join(app, "package.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  const pinnedVersion = manifest.dependencies?.["@vanillaskyai/ai-video"];
+  const pinnedVersion = manifest.dependencies?.["@vanillaskyai/video"];
   if (pinnedVersion !== candidateVersion) {
     throw new Error(`${example.name} pins ${pinnedVersion ?? "no SDK"}, expected candidate ${candidateVersion}`);
   }
-  manifest.dependencies["@vanillaskyai/ai-video"] = `file:${candidateTarball}`;
+  manifest.dependencies["@vanillaskyai/video"] = `file:${candidateTarball}`;
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
   let server;
@@ -149,7 +149,7 @@ async function runExample(example) {
       run(executable, parts, app);
     }
     const installedVersion = execFileSync(process.execPath, [
-      "-p", "require('./node_modules/@vanillaskyai/ai-video/package.json').version",
+      "-p", "require('./node_modules/@vanillaskyai/video/package.json').version",
     ], { cwd: app, encoding: "utf8" }).trim();
     if (installedVersion !== candidateVersion) {
       throw new Error(`${example.name} installed ${installedVersion}, expected packed candidate ${candidateVersion}`);

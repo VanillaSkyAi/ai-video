@@ -1,7 +1,7 @@
 # VanillaSky Video agent instructions
 
 These rules apply to every coding agent in this repository. Public behavior of
-`@vanillaskyai/ai-video` is a consumer contract; repository-local success is not
+`@vanillaskyai/video` is a consumer contract; repository-local success is not
 sufficient evidence.
 
 ## Before tests and builds

@@ -31,11 +31,11 @@ describe("documented examples", () => {
     ].map((path) => [path, readFileSync(resolve(root, path), "utf8")] as const);
     const readme = publicFiles[0][1];
 
-    expect(readme).toContain("npm install @vanillaskyai/ai-video");
+    expect(readme).toContain("npm install @vanillaskyai/video");
     expect(readme).not.toMatch(/shields\.io|!\[[^\]]*version[^\]]*\]/i);
     expect(readme).not.toMatch(/npm install @vanillaskyai\/video[^\n]*(?:\bai\b|@ai-sdk)/);
     for (const [path, contents] of publicFiles) {
-      expect(contents, path).not.toContain("@vanillaskyai/ai-video@0.4.1");
+      expect(contents, path).not.toContain("@vanillaskyai/video@0.4.1");
       expect(contents, path).not.toContain("tree/v0.4.1");
       expect(contents, path).not.toContain("gpt-4.1");
     }
@@ -74,7 +74,7 @@ describe("documented examples", () => {
     const guide = readFileSync(new URL("../docs/testing.md", import.meta.url), "utf8");
     const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
 
-    expect(guide).toContain('from "@vanillaskyai/ai-video/test"');
+    expect(guide).toContain('from "@vanillaskyai/video/test"');
     expect(guide).toContain("createMockVideoPlanner");
     expect(guide).toContain("simulateVideoStream");
     expect(guide).toContain("vi.useFakeTimers()");
@@ -141,7 +141,7 @@ describe("documented examples", () => {
   it.each(["react-vite", "server-integrations", "nextjs-quickstart"])(
     "%s pins the repository's current public protocol version",
     (name) => {
-      expect(examplePackage(name).dependencies["@vanillaskyai/ai-video"]).toBe(rootPackage.version);
+      expect(examplePackage(name).dependencies["@vanillaskyai/video"]).toBe(rootPackage.version);
     },
   );
 
@@ -167,7 +167,7 @@ describe("documented examples", () => {
   it("runs documented commands against the unpublished packed candidate", () => {
     const verifier = readFileSync(resolve(root, "scripts/verify-documented-examples.mjs"), "utf8");
     expect(verifier).toContain('"pack", "--silent", "--json", "--pack-destination", workspace');
-    expect(verifier).toContain('manifest.dependencies["@vanillaskyai/ai-video"] = `file:${candidateTarball}`');
+    expect(verifier).toContain('manifest.dependencies["@vanillaskyai/video"] = `file:${candidateTarball}`');
     expect(verifier).toContain("installedVersion !== candidateVersion");
   });
 });

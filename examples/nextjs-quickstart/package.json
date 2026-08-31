@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.41",
-    "@vanillaskyai/ai-video": "0.1.0",
+    "@vanillaskyai/video": "0.5.8",
     "ai": "^7.0.77",
     "next": "16.3.2",
     "react": "19.2.8",

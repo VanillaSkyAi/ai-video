@@ -79,7 +79,7 @@ describe("release workflow", () => {
 
     expect(workflow).toContain("npm@11.17.0");
     expect(workflow).toContain("repository-identity:");
-    expect(workflow).toContain('EXPECTED_REPOSITORY: VanillaSkyAi/ai-video');
+    expect(workflow).toContain('EXPECTED_REPOSITORY: VanillaSkyAi/video');
     expect(workflow).toContain('if [[ "$GITHUB_REPOSITORY" != "$EXPECTED_REPOSITORY" ]]');
     expect(workflow).toContain("needs: repository-identity");
     expect(workflow).not.toMatch(/^\s+if:\s+github\.repository\s*==/m);
@@ -133,7 +133,7 @@ describe("release workflow", () => {
   it("documents a repeatable path for every new release tag", () => {
     const guide = readFileSync("docs/maintainers/releasing.md", "utf8");
 
-    expect(guide).toContain("VanillaSkyAi/ai-video");
+    expect(guide).toContain("VanillaSkyAi/video");
     expect(guide).toMatch(/before creating.*tag/is);
     expect(guide).not.toContain("VanillaSkyAi/vanillasky-sdk");
     expect(guide).not.toMatch(/fresh repository|first[- ]release/i);
@@ -152,14 +152,14 @@ describe("release workflow", () => {
 
     for (const path of publicGuides) {
       const guide = readFileSync(path, "utf8");
-      expect(guide, path).toContain("npm install @vanillaskyai/ai-video");
-      expect(guide, path).not.toContain(`@vanillaskyai/ai-video@${manifest.version}`);
+      expect(guide, path).toContain("npm install @vanillaskyai/video");
+      expect(guide, path).not.toContain(`@vanillaskyai/video@${manifest.version}`);
     }
     expect(releaseBuild).not.toContain("must pin the install command");
     expect(releaseBuild).not.toContain("must link examples at");
     for (const example of ["react-vite", "server-integrations", "nextjs-quickstart"]) {
       const exampleManifest = JSON.parse(readFileSync(`examples/${example}/package.json`, "utf8"));
-      expect(exampleManifest.dependencies["@vanillaskyai/ai-video"], example).toBe(manifest.version);
+      expect(exampleManifest.dependencies["@vanillaskyai/video"], example).toBe(manifest.version);
     }
   });
 

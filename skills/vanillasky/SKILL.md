@@ -1,6 +1,6 @@
 ---
 name: vanillasky
-description: Integrate @vanillaskyai/ai-video in React applications that turn text or structured data into LLM-planned video responses.
+description: Integrate @vanillaskyai/video in React applications that turn text or structured data into LLM-planned video responses.
 ---
 
 # VanillaSky
@@ -13,7 +13,7 @@ documentation.
 1. Install the SDK:
 
    ```bash
-   npm install @vanillaskyai/ai-video
+   npm install @vanillaskyai/video
    ```
 
 2. Choose and configure a current model separately. Add its provider key to an

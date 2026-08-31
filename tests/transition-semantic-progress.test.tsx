@@ -246,11 +246,11 @@ describe("transition semantic progress", () => {
   it("keeps terminal output and code lines authored after the old hold point exact", () => {
     const terminal = outgoingMarkup("terminal", {
       texts: "Install the SDK",
-      command: "npm install @vanillaskyai/ai-video",
+      command: "npm install @vanillaskyai/video",
       output: ["Checking package", "FINAL_TERMINAL_OUTPUT"],
       promptPrefix: "$",
     });
-    expect(terminal).toContain("npm install @vanillaskyai/ai-video");
+    expect(terminal).toContain("npm install @vanillaskyai/video");
     expect(terminal).toContain("FINAL_TERMINAL_OUTPUT");
 
     const code = outgoingMarkup("codeEditor", {

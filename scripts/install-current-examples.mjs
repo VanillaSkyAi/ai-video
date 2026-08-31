@@ -34,7 +34,7 @@ try {
       "install", "--package-lock=false", "--ignore-scripts", "--no-audit", "--no-fund", "--no-save", tarball,
     ], { cwd, stdio: "inherit" });
     const installedVersion = execFileSync(process.execPath, [
-      "-p", "require('./node_modules/@vanillaskyai/ai-video/package.json').version",
+      "-p", "require('./node_modules/@vanillaskyai/video/package.json').version",
     ], { cwd, encoding: "utf8" }).trim();
     if (installedVersion !== candidateVersion) {
       throw new Error(`${example} installed ${installedVersion}, expected packed ${candidateVersion}`);

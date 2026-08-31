@@ -45,14 +45,14 @@ describe("fresh 0.1 candidate cleanup", () => {
   it("uses one new package, repository, and toolchain identity", () => {
     const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
-    expect(manifest.name).toBe("@vanillaskyai/ai-video");
+    expect(manifest.name).toBe("@vanillaskyai/video");
     expect(manifest.version).toMatch(/^0\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
     expect(manifest.packageManager).toBe("npm@11.17.0");
     expect(manifest.repository).toEqual({
       type: "git",
-      url: "git+https://github.com/VanillaSkyAi/ai-video.git",
+      url: "git+https://github.com/VanillaSkyAi/video.git",
     });
-    expect(manifest.bugs).toEqual({ url: "https://github.com/VanillaSkyAi/ai-video/issues" });
+    expect(manifest.bugs).toEqual({ url: "https://github.com/VanillaSkyAi/video/issues" });
     expect(manifest.homepage).toBe("https://vanillasky.ai");
   });
 

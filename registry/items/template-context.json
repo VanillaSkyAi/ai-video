@@ -25,7 +25,7 @@
       ],
       "dependencies": [],
       "useWhen": "Use it when a scene or primitive needs the shared template style, brand, or safe-zone contract.",
-      "avoidWhen": "Do not use it as the public Video data contract; import that from @vanillaskyai/ai-video."
+      "avoidWhen": "Do not use it as the public Video data contract; import that from @vanillaskyai/video."
     }
   }
 }

@@ -1,4 +1,4 @@
-import { createMockVideoPlanner } from "@vanillaskyai/ai-video/test";
+import { createMockVideoPlanner } from "@vanillaskyai/video/test";
 import { describe, expect, it } from "vitest";
 import {
   DIRECTOR_TEMPLATE_IDS,

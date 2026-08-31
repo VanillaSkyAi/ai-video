@@ -5,7 +5,7 @@
 Install VanillaSky:
 
 ```bash
-npm install @vanillaskyai/ai-video
+npm install @vanillaskyai/video
 ```
 
 VanillaSky does not select a provider or model during installation. Configure
@@ -19,7 +19,7 @@ limits, and media policy on the server:
 
 ```ts
 import { streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 import { videoModel } from "@/lib/video-model";
 
 const handle = createVideoHandler({
@@ -56,7 +56,7 @@ Call that route from React and render the player:
 ```tsx
 "use client";
 
-import { VideoPlayer, useVideo } from "@vanillaskyai/ai-video/react";
+import { VideoPlayer, useVideo } from "@vanillaskyai/video/react";
 
 export function GeneratedVideo({ input }: { input: string }) {
   const video = useVideo();

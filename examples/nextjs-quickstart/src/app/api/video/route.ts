@@ -1,6 +1,6 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 
 const modelId = process.env.ANTHROPIC_MODEL;
 if (!modelId) throw new Error("Set ANTHROPIC_MODEL in the server environment");

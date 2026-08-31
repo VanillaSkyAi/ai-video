@@ -20,7 +20,7 @@ npm install ai @ai-sdk/anthropic
 ```ts
 import { anthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 
 const modelId = process.env.ANTHROPIC_MODEL;
 if (!modelId) throw new Error("Set ANTHROPIC_MODEL in the server environment");
@@ -85,7 +85,7 @@ has validated durable resume storage.
 
 ```ts
 import OpenAI from "openai";
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 
 const apiKey = process.env.OPENAI_API_KEY;
 const model = process.env.OPENAI_MODEL;
@@ -119,7 +119,7 @@ OpenAI documents the typed `response.output_text.delta` event in its
 
 ```ts
 import Anthropic from "@anthropic-ai/sdk";
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 const model = process.env.ANTHROPIC_MODEL;

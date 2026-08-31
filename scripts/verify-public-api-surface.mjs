@@ -40,7 +40,7 @@ try {
       "install", "--ignore-scripts", "--no-audit", "--no-fund",
       tarball, "react@18", "react-dom@18", "@types/react@18", "@types/react-dom@18",
     ], { cwd: workspace, stdio: "inherit" });
-    packageRoot = join(workspace, "node_modules", "@vanillaskyai", "ai-video");
+    packageRoot = join(workspace, "node_modules", "@vanillaskyai", "video");
   }
   const report = await verifyPublicApiSurface({ packageRoot, manifestPath, signaturePath });
   console.log(`Verified ${Object.keys(report).length} frozen public API entry points.`);

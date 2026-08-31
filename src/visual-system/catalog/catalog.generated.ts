@@ -1165,7 +1165,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
           "type": "string",
           "title": "Code",
           "description": "Code snippet — use \\n for line breaks",
-          "default": "import { getVideoDuration } from \"@vanillaskyai/ai-video\";\nimport type { Video } from \"@vanillaskyai/ai-video\";\n\nexport function duration(video: Video) {\n  return getVideoDuration(video);\n}"
+          "default": "import { getVideoDuration } from \"@vanillaskyai/video\";\nimport type { Video } from \"@vanillaskyai/video\";\n\nexport function duration(video: Video) {\n  return getVideoDuration(video);\n}"
         },
         "filename": {
           "type": "string",

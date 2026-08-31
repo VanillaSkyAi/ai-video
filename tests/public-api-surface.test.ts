@@ -73,7 +73,7 @@ describe("frozen public API surface", () => {
     expect(verifier).toContain('"install", "--ignore-scripts"');
     expect(verifier).toContain('"react@18"');
     expect(verifier).toContain('"@types/react@18"');
-    expect(verifier).toContain('"node_modules", "@vanillaskyai", "ai-video"');
+    expect(verifier).toContain('"node_modules", "@vanillaskyai", "video"');
   });
 
   it("documents the conservative limit of normalized signature comparison", () => {

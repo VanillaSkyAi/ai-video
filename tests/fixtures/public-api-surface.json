@@ -1,5 +1,5 @@
 {
-  "@vanillaskyai/ai-video": {
+  "@vanillaskyai/video": {
     "source": "src/index.ts",
     "declaration": "dist/index.d.ts",
     "runtime": "dist/index.js",
@@ -28,7 +28,7 @@
       "VideoValidationErrorCode"
     ]
   },
-  "@vanillaskyai/ai-video/server": {
+  "@vanillaskyai/video/server": {
     "source": "src/server.ts",
     "declaration": "dist/server.d.ts",
     "runtime": "dist/server.js",
@@ -51,7 +51,7 @@
       "VideoWarningCategory"
     ]
   },
-  "@vanillaskyai/ai-video/react": {
+  "@vanillaskyai/video/react": {
     "source": "src/react.ts",
     "declaration": "dist/react.d.ts",
     "runtime": "dist/react.js",
@@ -70,7 +70,7 @@
       "VideoPlayerProps"
     ]
   },
-  "@vanillaskyai/ai-video/templates": {
+  "@vanillaskyai/video/templates": {
     "source": "src/templates.ts",
     "declaration": "dist/templates.d.ts",
     "runtime": "dist/templates.js",
@@ -92,7 +92,7 @@
       "TemplateTimingMetadata"
     ]
   },
-  "@vanillaskyai/ai-video/templates/catalog": {
+  "@vanillaskyai/video/templates/catalog": {
     "source": "src/template-catalog.ts",
     "declaration": "dist/template-catalog.d.ts",
     "runtime": "dist/template-catalog.js",
@@ -105,7 +105,7 @@
       "BuiltinTemplateMetadata"
     ]
   },
-  "@vanillaskyai/ai-video/test": {
+  "@vanillaskyai/video/test": {
     "source": "src/test.ts",
     "declaration": "dist/test.d.ts",
     "runtime": "dist/test.js",

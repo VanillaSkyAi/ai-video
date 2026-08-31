@@ -24,8 +24,8 @@ describe("live channel documentation contract", () => {
     expect(guide).toContain("resolveVideoBrand");
     expect(guide).toContain("parseVideo");
     expect(guide).toContain('playbackMode="muted-autoplay"');
-    expect(guide).toContain('from "@vanillaskyai/ai-video"');
-    expect(guide).toContain('from "@vanillaskyai/ai-video/react"');
+    expect(guide).toContain('from "@vanillaskyai/video"');
+    expect(guide).toContain('from "@vanillaskyai/video/react"');
     expect(guide).not.toContain(["@vanillaskyai", "sdk"].join("/"));
 
     // The cost argument is the reason this shape works at all, and the reason a

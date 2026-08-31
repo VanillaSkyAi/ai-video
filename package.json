@@ -1,6 +1,6 @@
 {
-  "name": "@vanillaskyai/ai-video",
-  "version": "0.1.0",
+  "name": "@vanillaskyai/video",
+  "version": "0.5.8",
   "description": "Open-source video response SDK for personalized AI applications.",
   "keywords": [
     "generative-video",
@@ -18,10 +18,10 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/VanillaSkyAi/ai-video.git"
+    "url": "git+https://github.com/VanillaSkyAi/video.git"
   },
   "bugs": {
-    "url": "https://github.com/VanillaSkyAi/ai-video/issues"
+    "url": "https://github.com/VanillaSkyAi/video/issues"
   },
   "homepage": "https://vanillasky.ai",
   "files": [

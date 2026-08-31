@@ -87,7 +87,7 @@ function parseCreatedPreviewDiff(output) {
 
 function assertProjectImports() {
   const sourceRoot = join(app, "vanillasky");
-  const allowedSdkImports = new Set(["@vanillaskyai/ai-video/templates", "@vanillaskyai/ai-video/server"]);
+  const allowedSdkImports = new Set(["@vanillaskyai/video/templates", "@vanillaskyai/video/server"]);
   const allowedExternalImports = new Set(["react", "react/jsx-runtime"]);
   const sourceFiles = readdirSync(sourceRoot, { recursive: true })
     .filter((path) => typeof path === "string" && /\.(?:ts|tsx)$/.test(path))
@@ -110,7 +110,7 @@ function assertProjectImports() {
     for (const specifier of specifiers) {
       if (specifier.startsWith(".")) {
         resolveRelativeImport(source, specifier);
-      } else if (specifier.startsWith("@vanillaskyai/ai-video")) {
+      } else if (specifier.startsWith("@vanillaskyai/video")) {
         if (!allowedSdkImports.has(specifier)) {
           throw new Error(`Generated source uses an undocumented SDK import: ${relative(app, source)} -> ${specifier}`);
         }
@@ -146,7 +146,7 @@ try {
     installSpec = candidateArtifact.path;
   }
   run("npm", ["install", "--no-audit", "--no-fund", installSpec, "tsx@4.23.12"], app);
-  cli = join(app, "node_modules", "@vanillaskyai", "ai-video", "bin", "vanillasky.js");
+  cli = join(app, "node_modules", "@vanillaskyai", "video", "bin", "vanillasky.js");
   if (existsSync(join(app, "vanillasky"))) throw new Error("Default onboarding unexpectedly copied templates");
   const tsconfigPaths = ["tsconfig.json", "tsconfig.app.json", "tsconfig.node.json"]
     .filter((path) => existsSync(join(app, path)));
@@ -185,7 +185,7 @@ try {
   }
 
   writeFileSync(join(app, "src", "App.tsx"), `import { useEffect, useState } from "react";
-import { VideoPlayer, useVideo } from "@vanillaskyai/ai-video/react";
+import { VideoPlayer, useVideo } from "@vanillaskyai/video/react";
 
 const stable = (value: unknown): string => Array.isArray(value) ? "[" + value.map(stable).join(",") + "]" : value && typeof value === "object" ? "{" + Object.keys(value).sort().map((key) => JSON.stringify(key) + ":" + stable((value as Record<string, unknown>)[key])).join(",") + "}" : JSON.stringify(value);
 const checksum = (value: unknown) => { let hash = 0x811c9dc5; for (const character of stable(value)) { hash ^= character.charCodeAt(0); hash = Math.imul(hash, 0x01000193) >>> 0; } return "fnv1a32:" + hash.toString(16).padStart(8, "0"); };

@@ -53,27 +53,27 @@ try {
   if (existsSync(join(playbackOnlyConsumer, "node_modules", "tsx")) || existsSync(join(playbackOnlyConsumer, "node_modules", "esbuild"))) {
     throw new Error("Default playback install unexpectedly included the optional template compiler");
   }
-  execFileSync(process.execPath, ["--input-type=module", "--eval", 'await import("@vanillaskyai/ai-video")'], {
+  execFileSync(process.execPath, ["--input-type=module", "--eval", 'await import("@vanillaskyai/video")'], {
     cwd: playbackOnlyConsumer,
     stdio: "inherit",
   });
   writeFileSync(join(serverConsumer, "package.json"), JSON.stringify({ private: true, type: "module" }));
   execFileSync("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", tarball, "typescript@5.9.3"], { cwd: serverConsumer, stdio: "inherit" });
   writeFileSync(join(serverConsumer, "server.ts"), `
-import { createVideoHandler, createServerTemplateRegistry } from "@vanillaskyai/ai-video/server";
-import type { VideoGenerationSummary, VideoHandlerOptions, VideoProviderUsage, VideoWarning } from "@vanillaskyai/ai-video/server";
-import { createMockVideoPlanner, simulateVideoStream, videoFixtures } from "@vanillaskyai/ai-video/test";
-import type { MockVideoPlannerOptions, SimulatedVideoStreamOptions } from "@vanillaskyai/ai-video/test";
+import { createVideoHandler, createServerTemplateRegistry } from "@vanillaskyai/video/server";
+import type { VideoGenerationSummary, VideoHandlerOptions, VideoProviderUsage, VideoWarning } from "@vanillaskyai/video/server";
+import { createMockVideoPlanner, simulateVideoStream, videoFixtures } from "@vanillaskyai/video/test";
+import type { MockVideoPlannerOptions, SimulatedVideoStreamOptions } from "@vanillaskyai/video/test";
 // @ts-expect-error VideoPlanner is internal and must not be exported from the test entry.
-import type { VideoPlanner } from "@vanillaskyai/ai-video/test";
+import type { VideoPlanner } from "@vanillaskyai/video/test";
 // @ts-expect-error VideoPlanPart is internal and must not be exported from the test entry.
-import type { VideoPlanPart } from "@vanillaskyai/ai-video/test";
+import type { VideoPlanPart } from "@vanillaskyai/video/test";
 // @ts-expect-error VideoEvent is internal and must not be exported from the test entry.
-import type { VideoEvent } from "@vanillaskyai/ai-video/test";
+import type { VideoEvent } from "@vanillaskyai/video/test";
 // @ts-expect-error VideoGenerationContext is internal and must not be exported from the test entry.
-import type { VideoGenerationContext } from "@vanillaskyai/ai-video/test";
+import type { VideoGenerationContext } from "@vanillaskyai/video/test";
 // @ts-expect-error VideoState is internal to the test entry and must not be exported.
-import type { VideoState } from "@vanillaskyai/ai-video/test";
+import type { VideoState } from "@vanillaskyai/video/test";
 declare const options: VideoHandlerOptions;
 declare const summary: VideoGenerationSummary;
 declare const usage: VideoProviderUsage;
@@ -87,7 +87,7 @@ void [createVideoHandler, createServerTemplateRegistry, options, summary, usage,
   writeFileSync(join(serverConsumer, "tsconfig.json"), JSON.stringify({ compilerOptions: { strict: true, noEmit: true, target: "ES2022", module: "NodeNext", moduleResolution: "NodeNext", skipLibCheck: false, types: [] }, include: ["server.ts"] }));
   execFileSync(process.execPath, [join(serverConsumer, "node_modules", "typescript", "bin", "tsc")], { cwd: serverConsumer, stdio: "inherit" });
   if (existsSync(join(serverConsumer, "node_modules", "react")) || existsSync(join(serverConsumer, "node_modules", "@types", "react"))) throw new Error("Test kit packed consumer unexpectedly installed React");
-  const testDeclaration = readFileSync(join(serverConsumer, "node_modules", "@vanillaskyai", "ai-video", "dist", "test.d.ts"), "utf8");
+  const testDeclaration = readFileSync(join(serverConsumer, "node_modules", "@vanillaskyai", "video", "dist", "test.d.ts"), "utf8");
   for (const privateType of ["VideoPlanner", "VideoPlanPart", "VideoEvent", "VideoGenerationContext", "VideoState"]) {
     if (new RegExp(`\\b${privateType}\\b`).test(testDeclaration)) throw new Error(`Packed test declaration leaked ${privateType}`);
   }
@@ -95,8 +95,8 @@ void [createVideoHandler, createServerTemplateRegistry, options, summary, usage,
     throw new Error("Packed test declaration leaked an internal module path");
   }
   writeFileSync(join(serverConsumer, "root.mjs"), `
-import { VideoValidationError, getVideoDuration, parseVideo } from "@vanillaskyai/ai-video";
-import * as root from "@vanillaskyai/ai-video";
+import { VideoValidationError, getVideoDuration, parseVideo } from "@vanillaskyai/video";
+import * as root from "@vanillaskyai/video";
 if (Object.keys(root).join() !== "VideoValidationError,getVideoDuration,parseVideo,resolveVideoBrand") throw new Error("Unexpected React-free root API");
 const stored = {
   schemaVersion: "0.1",
@@ -127,7 +127,7 @@ try {
     env: { ...process.env, VANILLASKY_PERSISTED_VIDEO_FIXTURE: persistedVideoFixture },
   });
   writeFileSync(join(serverConsumer, "server.mjs"), `
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
+import { createVideoHandler } from "@vanillaskyai/video/server";
 let completed;
 const handler = createVideoHandler({
   authorize: "none",
@@ -161,10 +161,10 @@ if (complete.data.snapshot.scenes[0]?.id !== "supplied-opening") throw new Error
   execFileSync(process.execPath, [join(serverConsumer, "server.mjs")], { cwd: serverConsumer, stdio: "inherit" });
 
   writeFileSync(join(serverConsumer, "test-kit.mjs"), `
-import { createVideoHandler } from "@vanillaskyai/ai-video/server";
-import { createMockVideoPlanner, simulateVideoStream, videoFixtures } from "@vanillaskyai/ai-video/test";
+import { createVideoHandler } from "@vanillaskyai/video/server";
+import { createMockVideoPlanner, simulateVideoStream, videoFixtures } from "@vanillaskyai/video/test";
 
-if (Object.keys(await import("@vanillaskyai/ai-video/test")).sort().join() !== "createMockVideoPlanner,simulateVideoStream,videoFixtures") {
+if (Object.keys(await import("@vanillaskyai/video/test")).sort().join() !== "createMockVideoPlanner,simulateVideoStream,videoFixtures") {
   throw new Error("Unexpected packed test API");
 }
 if (!Object.isFrozen(videoFixtures.portrait.input) || !Object.isFrozen(videoFixtures.scenarios.success)) {
@@ -231,13 +231,13 @@ if (!failureBody.includes('"type":"response.error"') || failureBody.includes("fi
   writeFileSync(join(consumer, "package.json"), JSON.stringify({ private: true, type: "module" }));
   execFileSync("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", tarball, "react@18.3.1", "react-dom@18.3.1", "@types/react@18.3.28", "@types/react-dom@18.3.7", "typescript@5.9.3", "tsx@4.23.12", "vite@8.2.2"], { cwd: consumer, stdio: "inherit" });
 
-  const packageRoot = join(consumer, "node_modules", "@vanillaskyai", "ai-video");
+  const packageRoot = join(consumer, "node_modules", "@vanillaskyai", "video");
   await verifyPublicApiSurface({
     packageRoot,
     manifestPath: join(root, "tests", "fixtures", "public-api-surface.json"),
     signaturePath: join(root, "tests", "fixtures", "public-api-signatures.json"),
   });
-  const packedCli = join(consumer, "node_modules", "@vanillaskyai", "ai-video", "bin", "vanillasky.js");
+  const packedCli = join(consumer, "node_modules", "@vanillaskyai", "video", "bin", "vanillasky.js");
   const persistenceGuide = readFileSync(join(packageRoot, "docs", "persistence.md"), "utf8");
   const persistenceExample = persistenceGuide.match(
     /<!-- verify:persistence-example:start -->\s*```tsx\r?\n([\s\S]*?)\r?\n```\s*<!-- verify:persistence-example:end -->/,
@@ -310,7 +310,7 @@ if (!failureBody.includes('"type":"response.error"') || failureBody.includes("fi
   writeFileSync(join(consumer, "src", "custom-template-preview.tsx"), customTemplatePreview);
   writeFileSync(join(consumer, "src", "transition-semantic-value.tsx"), transitionSemanticValue);
   writeFileSync(join(consumer, "vanillasky", "index.ts"), `
-import { createTemplateRegistry } from "@vanillaskyai/ai-video/templates";
+import { createTemplateRegistry } from "@vanillaskyai/video/templates";
 export const templates = createTemplateRegistry({ definitions: [] });
 `);
   writeFileSync(join(consumer, "custom-template-preview-tsconfig.json"), JSON.stringify({
@@ -402,11 +402,11 @@ export const templates = createTemplateRegistry({ definitions: [] });
   execFileSync(process.execPath, [join(consumer, "node_modules", "typescript", "bin", "tsc"), "-p", "tsconfig.json"], { cwd: consumer, stdio: "inherit" });
 
   writeFileSync(join(consumer, "api.mjs"), `
-import * as root from "@vanillaskyai/ai-video";
-import * as server from "@vanillaskyai/ai-video/server";
-import * as react from "@vanillaskyai/ai-video/react";
-import * as templates from "@vanillaskyai/ai-video/templates";
-import { builtinTemplates } from "@vanillaskyai/ai-video/templates/catalog";
+import * as root from "@vanillaskyai/video";
+import * as server from "@vanillaskyai/video/server";
+import * as react from "@vanillaskyai/video/react";
+import * as templates from "@vanillaskyai/video/templates";
+import { builtinTemplates } from "@vanillaskyai/video/templates/catalog";
 if (Object.keys(root).join() !== "VideoValidationError,getVideoDuration,parseVideo,resolveVideoBrand") throw new Error("Unexpected root API");
 const resolvedStyle = { brand: { font: "Inter", scriptFont: "Caveat", background: { type: "gradient", colors: ["#8711C1", "#2167E3"] }, colors: { primary: "#00E5A0", secondary: "#006BE5", foreground: "#FFFFFF", surface: "#0A0A14", surfaceElevated: "#14152A", muted: "#A7A6B0" } } };
 const rootVideo = root.parseVideo({ schemaVersion: "0.1", scenes: [{ id: "one", templateId: "notification", variables: {}, timing: { fixedDuration: 4 } }], style: resolvedStyle });
@@ -493,31 +493,31 @@ if (pacingEvents.filter(({ type }) => type === "response.warning").length !== 2)
 
   writeFileSync(join(consumer, "types.ts"), `
 import { createElement } from "react";
-import { VideoValidationError, parseVideo } from "@vanillaskyai/ai-video";
-import type { Video, VideoBackground, VideoBrand, VideoInput, VideoValidationErrorCode } from "@vanillaskyai/ai-video";
+import { VideoValidationError, parseVideo } from "@vanillaskyai/video";
+import type { Video, VideoBackground, VideoBrand, VideoInput, VideoValidationErrorCode } from "@vanillaskyai/video";
 // @ts-expect-error VideoState is internal and must not be exported from the root.
-import type { VideoState } from "@vanillaskyai/ai-video";
-import { VideoError, VideoPlayer } from "@vanillaskyai/ai-video/react";
-import type { UseVideoResult } from "@vanillaskyai/ai-video/react";
+import type { VideoState } from "@vanillaskyai/video";
+import { VideoError, VideoPlayer } from "@vanillaskyai/video/react";
+import type { UseVideoResult } from "@vanillaskyai/video/react";
 // @ts-expect-error VideoPlayerBinding is internal and must not be exported from React.
-import type { VideoPlayerBinding } from "@vanillaskyai/ai-video/react";
-import type { VideoGenerationSummary, VideoHandlerOptions, VideoProviderUsage, VideoWarning } from "@vanillaskyai/ai-video/server";
-import type { BuiltinTemplateId, BuiltinTemplateMetadata } from "@vanillaskyai/ai-video/templates/catalog";
-import type { SceneTemplate, SceneTemplateMetadata, SceneTemplateProps, TemplateFamily, TemplateRegistry, TemplateTimingMetadata, TemplateTransitionTiming } from "@vanillaskyai/ai-video/templates";
+import type { VideoPlayerBinding } from "@vanillaskyai/video/react";
+import type { VideoGenerationSummary, VideoHandlerOptions, VideoProviderUsage, VideoWarning } from "@vanillaskyai/video/server";
+import type { BuiltinTemplateId, BuiltinTemplateMetadata } from "@vanillaskyai/video/templates/catalog";
+import type { SceneTemplate, SceneTemplateMetadata, SceneTemplateProps, TemplateFamily, TemplateRegistry, TemplateTimingMetadata, TemplateTransitionTiming } from "@vanillaskyai/video/templates";
 // @ts-expect-error Undocumented Template alias is not part of 0.1.
-import type { Template } from "@vanillaskyai/ai-video/templates";
+import type { Template } from "@vanillaskyai/video/templates";
 // @ts-expect-error Undocumented TemplateMetadata alias is not part of 0.1.
-import type { TemplateMetadata } from "@vanillaskyai/ai-video/templates";
+import type { TemplateMetadata } from "@vanillaskyai/video/templates";
 // @ts-expect-error Undocumented TemplateProps alias is not part of 0.1.
-import type { TemplateProps } from "@vanillaskyai/ai-video/templates";
+import type { TemplateProps } from "@vanillaskyai/video/templates";
 // @ts-expect-error AuthoringTemplate is inferred and internal.
-import type { AuthoringTemplate } from "@vanillaskyai/ai-video/templates";
+import type { AuthoringTemplate } from "@vanillaskyai/video/templates";
 // @ts-expect-error TemplateFamily has one canonical home under templates.
-import type { TemplateFamily as CatalogTemplateFamily } from "@vanillaskyai/ai-video/templates/catalog";
+import type { TemplateFamily as CatalogTemplateFamily } from "@vanillaskyai/video/templates/catalog";
 // @ts-expect-error TemplateTimingMetadata has one canonical home under templates.
-import type { TemplateTimingMetadata as CatalogTemplateTimingMetadata } from "@vanillaskyai/ai-video/templates/catalog";
+import type { TemplateTimingMetadata as CatalogTemplateTimingMetadata } from "@vanillaskyai/video/templates/catalog";
 // @ts-expect-error Undocumented manifest-entry name is not part of 0.1.
-import type { BuiltinTemplateManifestEntry } from "@vanillaskyai/ai-video/templates/catalog";
+import type { BuiltinTemplateManifestEntry } from "@vanillaskyai/video/templates/catalog";
 const input: VideoInput = { input: "Grounded source" };
 const resolvedBackground: VideoBackground = { type: "gradient", colors: ["#112233", "#334455"] };
 const semanticBrand: VideoBrand = { font: "Inter", scriptFont: "Caveat", background: resolvedBackground, colors: { primary: "#FF3366", secondary: "#006BE5", foreground: "#FFFFFF", surface: "#0A0A14", surfaceElevated: "#14152A", muted: "#A7A6B0" } };
@@ -560,7 +560,7 @@ void [input, brandedInput, resolvedBackground, semanticBrand, video.schemaVersio
   writeFileSync(join(consumer, "main.jsx"), `
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { VideoError, VideoPlayer } from "@vanillaskyai/ai-video/react";
+import { VideoError, VideoPlayer } from "@vanillaskyai/video/react";
 import { templates } from "./vanillasky/index.ts";
 const mediaProbe = new URLSearchParams(window.location.search).has("media-probe");
 const video = {
@@ -702,8 +702,8 @@ createRoot(document.getElementById("root")).render(mediaProbe
   writeFileSync(join(react19Consumer, "main.jsx"), `
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { VideoPlayer } from "@vanillaskyai/ai-video/react";
-import { createTemplateRegistry, defineTemplate } from "@vanillaskyai/ai-video/templates";
+import { VideoPlayer } from "@vanillaskyai/video/react";
+import { createTemplateRegistry, defineTemplate } from "@vanillaskyai/video/templates";
 
 const schema = { type: "object", properties: {}, additionalProperties: false };
 const probe = (id) => defineTemplate({

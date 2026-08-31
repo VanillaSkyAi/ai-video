@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getVideoDuration, parseVideo, type Video } from "@vanillaskyai/ai-video";
-import { VideoError, VideoPlayer, useVideo } from "@vanillaskyai/ai-video/react";
+import { getVideoDuration, parseVideo, type Video } from "@vanillaskyai/video";
+import { VideoError, VideoPlayer, useVideo } from "@vanillaskyai/video/react";
 import { templates } from "../../vanillasky";
 
 const SAVED_VIDEO_KEY = "vanillasky-quickstart-video";

@@ -5,7 +5,7 @@
 `VideoInput` is the small boundary between application truth and creative planning.
 
 ```ts
-import type { VideoInput } from "@vanillaskyai/ai-video";
+import type { VideoInput } from "@vanillaskyai/video";
 
 const input: VideoInput = {
   input: "Maya completed 142 customer conversations in Q2.",
