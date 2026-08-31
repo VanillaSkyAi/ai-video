@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { getBackgroundTransform } from "../backgrounds";
+import { useMediaAudio } from "./external-video-backdrop";
 import { resolveMediaPosition } from "./media-position";
 
 export interface SceneVideoBackdropProps {
@@ -10,6 +11,8 @@ export interface SceneVideoBackdropProps {
   progress: number;
   beatIntensity?: number;
   isPlaying: boolean;
+  muted?: boolean;
+  volume?: number;
   playbackId?: string;
   retainPoster?: boolean;
   persistent?: boolean;
@@ -35,6 +38,8 @@ export const SceneVideoBackdrop: React.FC<SceneVideoBackdropProps> = ({
   progress,
   beatIntensity = 0,
   isPlaying,
+  muted,
+  volume,
   playbackId = mediaUrl,
   retainPoster = false,
   persistent = false,
@@ -42,6 +47,9 @@ export const SceneVideoBackdrop: React.FC<SceneVideoBackdropProps> = ({
   onReady,
   onError,
 }) => {
+  const inheritedAudio = useMediaAudio();
+  const resolvedMuted = muted ?? inheritedAudio.muted;
+  const resolvedVolume = volume ?? inheritedAudio.volume;
   const resolvedPosition = resolveMediaPosition(mediaPosition);
   const bgTransform = getBackgroundTransform(backgroundEffect, progress, beatIntensity);
   const [decodedVideoUrl, setDecodedVideoUrl] = useState<string>();
@@ -49,6 +57,30 @@ export const SceneVideoBackdrop: React.FC<SceneVideoBackdropProps> = ({
   const startedVideoUrl = useRef<string | undefined>(undefined);
   const startedPlaybackId = useRef<string | undefined>(undefined);
   const videoPresentationKey = `${playbackId}\0${mediaUrl}`;
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    // React Strict Mode rehearses setup → cleanup → setup in development.
+    // The cleanup deliberately releases the decoder, so the repeated setup
+    // must restore the declarative source before the playback effect runs.
+    if (video.getAttribute("src") !== mediaUrl) {
+      video.setAttribute("src", mediaUrl);
+      video.load();
+    }
+    return () => {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+      startedVideoUrl.current = undefined;
+      startedPlaybackId.current = undefined;
+    };
+  }, [mediaUrl]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) video.volume = resolvedVolume;
+  }, [resolvedVolume]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -67,16 +99,6 @@ export const SceneVideoBackdrop: React.FC<SceneVideoBackdropProps> = ({
     startedVideoUrl.current = mediaUrl;
     startedPlaybackId.current = playbackId;
   }, [isPlaying, mediaUrl, playbackId]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    return () => {
-      if (!video) return;
-      video.pause();
-      video.removeAttribute("src");
-      video.load();
-    };
-  }, []);
 
   const mediaStyle: React.CSSProperties = {
     position: "absolute",
@@ -146,7 +168,7 @@ export const SceneVideoBackdrop: React.FC<SceneVideoBackdropProps> = ({
         ref={videoRef}
         src={mediaUrl}
         poster={retainPoster || decodedVideoUrl !== mediaUrl ? mediaPoster || undefined : undefined}
-        muted
+        muted={resolvedMuted}
         loop
         playsInline
         preload="auto"

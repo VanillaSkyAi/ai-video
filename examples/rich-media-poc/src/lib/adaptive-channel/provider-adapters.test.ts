@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  createFalImageAdapter,
-  createFalVideoAdapter,
+  createAiSdkImageAdapter,
+  createAiSdkVideoAdapter,
   createFixtureAdapters,
   createPexelsAdapter,
 } from "./provider-adapters";
@@ -39,121 +39,154 @@ const request: MediaResolveRequest = {
   orientation: "portrait",
 };
 
-describe("adaptive channel provider adapters", () => {
-  it("maps a generated image into provider-neutral media", async () => {
-    const subscribe = vi.fn().mockResolvedValue({
-      data: { images: [{ url: "https://fal.media/mara.webp" }] },
-    });
-    const media = await createFalImageAdapter({ subscribe }).resolve(request);
-
-    expect(subscribe).toHaveBeenCalledWith("fal-ai/flux/dev", expect.objectContaining({
-      input: expect.objectContaining({
-        prompt: request.prompt,
-        image_size: "portrait_16_9",
-      }),
-    }));
-    expect(media).toEqual({
-      type: "image",
-      url: "https://fal.media/mara.webp",
-      provider: "fal · fal-ai/flux/dev",
-      characterReferenceImageUrl: "https://fal.media/mara.webp",
-      keyframeImageUrl: "https://fal.media/mara.webp",
-    });
-  });
-
-  it("uses the Flux reference-only endpoint without an img2img-only field", async () => {
-    const subscribe = vi.fn().mockResolvedValue({
-      data: { images: [{ url: "https://fal.media/mara-next.webp" }] },
-    });
-    await createFalImageAdapter({ subscribe }).resolve({
-      ...request,
-      characterReferenceImageUrl: "https://cdn.example/mara.webp",
-    });
-
-    expect(subscribe).toHaveBeenCalledWith("fal-ai/flux-general", expect.objectContaining({
-      input: expect.objectContaining({
-        reference_image_url: "https://cdn.example/mara.webp",
-      }),
-    }));
-    expect(subscribe.mock.calls[0]?.[1].input).not.toHaveProperty("image_url");
-  });
-
-  it.each([
-    ["character", "https://cdn.example/mara.webp"],
-    ["scene", "https://cdn.example/observatory.webp"],
-    ["none", undefined],
-  ] as const)("conditions generated images on the %s continuity reference", async (continuityRole, expectedReference) => {
-    const subscribe = vi.fn().mockResolvedValue({
-      data: { images: [{ url: "https://fal.media/next.webp" }] },
-    });
-    await createFalImageAdapter({ subscribe }).resolve({
-      ...request,
-      scene: { ...request.scene, continuityRole },
-      characterReferenceImageUrl: "https://cdn.example/mara.webp",
-      previousKeyframeImageUrl: "https://cdn.example/observatory.webp",
-    });
-
-    const input = subscribe.mock.calls[0]?.[1].input;
-    expect(input.reference_image_url).toBe(expectedReference);
-  });
-
-  it("uses H3 image-to-video when a continuity frame exists", async () => {
-    const subscribe = vi.fn().mockResolvedValue({
-      data: { video: { url: "https://fal.media/mara.mp4" } },
-    });
-    const adapter = createFalVideoAdapter({ subscribe });
-    const media = await adapter.resolve({
-      ...request,
-      characterReferenceImageUrl: "https://cdn.example/mara-character.webp",
-      previousKeyframeImageUrl: "https://cdn.example/mara.webp",
-    });
-
-    expect(subscribe).toHaveBeenCalledWith("minimax/h3-max/image-to-video", expect.objectContaining({
-      input: expect.objectContaining({
-        prompt: request.prompt,
-        image_url: "https://cdn.example/mara-character.webp",
-        duration: 5,
-        resolution: "768P",
-      }),
-    }));
-    expect(media.type).toBe("video");
-  });
-
-  it.each([
-    ["character", "https://cdn.example/mara-character.webp"],
-    ["scene", "https://cdn.example/previous-scene.webp"],
-    ["none", undefined],
-  ] as const)("conditions generated video on the %s continuity reference", async (continuityRole, expectedReference) => {
-    const subscribe = vi.fn().mockResolvedValue({
-      data: { video: { url: "https://fal.media/next.mp4" } },
-    });
-    await createFalVideoAdapter({ subscribe }).resolve({
-      ...request,
-      scene: { ...request.scene, continuityRole },
-      characterReferenceImageUrl: "https://cdn.example/mara-character.webp",
-      previousKeyframeImageUrl: "https://cdn.example/previous-scene.webp",
-    });
-
-    const [model, options] = subscribe.mock.calls[0] || [];
-    expect(model).toBe(expectedReference ? "minimax/h3-max/image-to-video" : "minimax/h3-max/text-to-video");
-    expect(options.input.image_url).toBe(expectedReference);
-  });
-
-  it("passes cancellation through the fal client's abortSignal option", async () => {
+describe("AI SDK media adapters", () => {
+  it("maps generated image bytes through application-owned storage", async () => {
+    const image = {
+      uint8Array: new Uint8Array([1, 2, 3]),
+      mediaType: "image/jpeg",
+    };
+    const generate = vi.fn().mockResolvedValue({ image });
+    const store = vi.fn().mockResolvedValue({ url: "/api/channel-media/image-1.jpg" });
     const controller = new AbortController();
-    const subscribe = vi.fn().mockResolvedValue({
-      data: { video: { url: "https://fal.media/next.mp4" } },
+
+    const media = await createAiSdkImageAdapter({
+      generate,
+      model: "fal-image-model",
+      referenceModel: "fal-reference-image-model",
+      providerLabel: "fal",
+      store,
+    }).resolve({ ...request, signal: controller.signal });
+
+    expect(generate).toHaveBeenCalledWith({
+      model: "fal-image-model",
+      prompt: request.prompt,
+      aspectRatio: "9:16",
+      n: 1,
+      maxRetries: 0,
+      abortSignal: controller.signal,
+      providerOptions: {
+        fal: {
+          enableSafetyChecker: true,
+          outputFormat: "jpeg",
+        },
+      },
     });
-    await createFalVideoAdapter({ subscribe }).resolve({
+    expect(store).toHaveBeenCalledWith({
+      data: image.uint8Array,
+      mediaType: image.mediaType,
+      kind: "image",
+      idempotencyKey: scene.id,
+    });
+    expect(media).toMatchObject({
+      type: "image",
+      url: "/api/channel-media/image-1.jpg",
+      provider: "fal · fal-image-model",
+      keyframeImageUrl: "/api/channel-media/image-1.jpg",
+    });
+  });
+
+  it("uses an AI SDK image prompt when a continuity reference exists", async () => {
+    const generate = vi.fn().mockResolvedValue({
+      image: { uint8Array: new Uint8Array([4]), mediaType: "image/png" },
+    });
+    const store = vi.fn().mockResolvedValue({ url: "https://cdn.example/generated.png" });
+
+    await createAiSdkImageAdapter({
+      generate,
+      model: "fal-image-model",
+      referenceModel: "fal-reference-image-model",
+      providerLabel: "fal",
+      store,
+    }).resolve({
       ...request,
-      signal: controller.signal,
+      characterReferenceImageUrl: "https://cdn.example/mara.webp",
     });
 
-    expect(subscribe).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-      abortSignal: controller.signal,
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({
+      model: "fal-reference-image-model",
+      prompt: {
+        text: request.prompt,
+        images: ["https://cdn.example/mara.webp"],
+      },
     }));
   });
 
+  it("maps text-to-video through AI SDK with native audio and no automatic paid retry", async () => {
+    const video = {
+      uint8Array: new Uint8Array([5, 6, 7]),
+      mediaType: "video/mp4",
+    };
+    const generate = vi.fn().mockResolvedValue({ video });
+    const store = vi.fn().mockResolvedValue({ url: "/api/channel-media/video-1.mp4" });
+    const controller = new AbortController();
+
+    const media = await createAiSdkVideoAdapter({
+      generate,
+      model: "fal-video-model",
+      referenceModel: "fal-reference-video-model",
+      providerLabel: "fal",
+      store,
+    }).resolve({ ...request, signal: controller.signal });
+
+    expect(generate).toHaveBeenCalledWith({
+      model: "fal-video-model",
+      prompt: request.prompt,
+      aspectRatio: "9:16",
+      duration: 5,
+      generateAudio: true,
+      maxRetries: 0,
+      abortSignal: controller.signal,
+      providerOptions: {
+        fal: {
+          enable_safety_checker: true,
+          prompt_expansion_mode: "balanced",
+          resolution: "768P",
+        },
+      },
+    });
+    expect(store).toHaveBeenCalledWith({
+      data: video.uint8Array,
+      mediaType: video.mediaType,
+      kind: "video",
+      idempotencyKey: scene.id,
+    });
+    expect(media).toMatchObject({
+      type: "video",
+      url: "/api/channel-media/video-1.mp4",
+      provider: "fal · fal-video-model",
+    });
+  });
+
+  it("uses an AI SDK image-to-video prompt for a custom continuity frame", async () => {
+    const generate = vi.fn().mockResolvedValue({
+      video: { uint8Array: new Uint8Array([8]), mediaType: "video/mp4" },
+    });
+    const store = vi.fn().mockResolvedValue({ url: "https://cdn.example/animated.mp4" });
+
+    await createAiSdkVideoAdapter({
+      generate,
+      model: "fal-video-model",
+      referenceModel: "fal-reference-video-model",
+      providerLabel: "fal",
+      store,
+    }).resolve({
+      ...request,
+      previousKeyframeImageUrl: "https://cdn.example/previous.webp",
+      scene: { ...scene, continuityRole: "scene" },
+    });
+
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({
+      model: "fal-reference-video-model",
+      prompt: {
+        image: "https://cdn.example/previous.webp",
+        text: request.prompt,
+      },
+      aspectRatio: "adaptive",
+    }));
+  });
+});
+
+describe("adaptive channel provider adapters", () => {
   it("uses the current Pexels video endpoint and preserves attribution", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       videos: [{

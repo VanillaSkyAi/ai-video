@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
-import { createElement, lazy, useEffect } from "react";
+import { createElement, lazy, StrictMode, useEffect } from "react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -19,6 +19,111 @@ import {
 import { TEST_VIDEO_STYLE } from "./semantic-brand-fixture";
 
 describe("VideoFrame transition ownership", () => {
+  it("restores a video source after the Strict Mode effect rehearsal", () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+    const load = vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+
+    try {
+      const view = render(createElement(
+        StrictMode,
+        null,
+        createElement(SceneVideoBackdrop, {
+          mediaUrl: "https://media.example/generated.mp4",
+          mediaPoster: "https://media.example/generated.jpg",
+          progress: 0,
+          isPlaying: true,
+        }),
+      ));
+
+      expect(view.container.querySelector("video")?.getAttribute("src"))
+        .toBe("https://media.example/generated.mp4");
+      expect(play).toHaveBeenCalledTimes(2);
+      view.unmount();
+    } finally {
+      play.mockRestore();
+      pause.mockRestore();
+      load.mockRestore();
+    }
+  });
+
+  it("unmutes only the active scene while the next native-audio video prerolls", async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+    const load = vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+    const media = defineTemplate({
+      id: "native-audio-media",
+      usesGlobalTransition: true,
+      transitionTiming: { entryReadyProgress: 0.2, holdProgress: 0.7 },
+      schema: {
+        type: "object",
+        properties: {
+          mediaUrl: { type: "string" },
+          mediaType: { type: "string", enum: ["video"] },
+        },
+        required: ["mediaUrl", "mediaType"],
+        additionalProperties: false,
+      },
+      component: ({ variables, style, progress, width, height, isPlaying }) => createElement(
+        SceneBackground,
+        {
+          style,
+          progress,
+          width,
+          height,
+          mediaUrl: String(variables.mediaUrl),
+          mediaType: "video",
+          backgroundEffect: "static",
+          isPlaying,
+        },
+      ),
+    });
+    const kit = createRenderTemplateRegistry({ templates: [media] });
+    const config: Video = {
+      schemaVersion: "0.1",
+      orientation: "portrait",
+      style: { ...TEST_VIDEO_STYLE, defaultTransition: "crossfade" },
+      scenes: [
+        {
+          id: "outgoing",
+          templateId: media.id,
+          variables: { mediaUrl: "outgoing.mp4", mediaType: "video" },
+          timing: { fixedDuration: 5 },
+        },
+        {
+          id: "incoming",
+          templateId: media.id,
+          variables: { mediaUrl: "incoming.mp4", mediaType: "video" },
+          timing: { fixedDuration: 5 },
+        },
+      ],
+    };
+
+    try {
+      const view = render(createElement(VideoFrame, {
+        kit,
+        config,
+        time: 4.85,
+        width: 540,
+        height: 960,
+        playing: true,
+        mediaAudioMuted: false,
+        mediaAudioVolume: 0.35,
+      }));
+      await waitFor(() => expect(view.container.querySelectorAll("video")).toHaveLength(2));
+      expect(view.container.querySelector<HTMLVideoElement>('[data-scene-layer="outgoing"] video')?.muted)
+        .toBe(false);
+      expect(view.container.querySelector<HTMLVideoElement>('[data-scene-layer="incoming"] video')?.muted)
+        .toBe(true);
+      expect(Array.from(view.container.querySelectorAll("video"), (video) => video.volume))
+        .toEqual([0.35, 0.35]);
+    } finally {
+      play.mockRestore();
+      pause.mockRestore();
+      load.mockRestore();
+    }
+  });
+
   it("hydrates the desktop server snapshot before applying the iPhone decoder policy", async () => {
     const userAgent = vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.6 Safari/605.1.15",

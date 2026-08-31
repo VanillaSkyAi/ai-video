@@ -61,6 +61,33 @@ export async function resolvePlannedScene(options: {
     };
   }
 
+  const continuityStill = options.scene.continuityRole === "character"
+    ? options.characterReferenceImageUrl
+    : options.scene.continuityRole === "scene" ? options.previousKeyframeImageUrl : undefined;
+  if (
+    decision.route === "generate-image"
+    && options.scene.manualRoute === "auto"
+    && options.scene.motion === "essential"
+    && continuityStill
+  ) {
+    return {
+      plan: options.scene,
+      decision,
+      resolvedRoute: "generate-image",
+      media: {
+        type: "image",
+        url: continuityStill,
+        provider: "continuity-cache",
+        generationTiming: { requestMs: 0 },
+        keyframeImageUrl: continuityStill,
+        ...(options.scene.continuityRole === "character"
+          ? { characterReferenceImageUrl: continuityStill }
+          : {}),
+      },
+      fallbacks: [],
+    };
+  }
+
   const routes = [decision.route, ...fallbackRoutes(options.scene, decision.route)];
   const fallbacks: MediaRoute[] = [];
   for (const route of routes) {

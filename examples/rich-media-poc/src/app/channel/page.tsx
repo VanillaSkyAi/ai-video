@@ -1,176 +1,132 @@
 "use client";
 
+import type { VideoScene } from "@vanillaskyai/video";
 import { VideoPlayer } from "@vanillaskyai/video/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { templates } from "../../../vanillasky";
-import { warmFirstFrame } from "../../lib/adaptive-channel/media-preload";
-import type {
-  ChannelContinuation,
-  ChannelSegment,
-  ManualMediaRoute,
-} from "../../lib/adaptive-channel/types";
+import {
+  createChannelPlayerStream,
+  type ChannelPlayerStream,
+  type ChannelStreamMessage,
+} from "../../lib/adaptive-channel/channel-stream";
+import type { ResolvedChannelScene } from "../../lib/adaptive-channel/types";
 
 const STARTER_PREMISE = "A late-night radio operator receives tomorrow's weather report from space—and the final forecast mentions her name.";
-const ROUTE_OPTIONS: Array<{ value: ManualMediaRoute; label: string }> = [
-  { value: "auto", label: "Auto" },
-  { value: "stock", label: "Stock" },
-  { value: "image", label: "AI image" },
-  { value: "video", label: "AI video" },
-  { value: "gradient", label: "Title card" },
-];
 
-interface ChannelResponse {
-  segment: ChannelSegment;
-  mode: "fixture" | "live" | "live-with-fixture-fallback";
+interface StreamedScene {
+  chapterSequence: number;
+  resolved: ResolvedChannelScene;
+  scheduling: { queuedMs: number; generationMs: number; clientWarmMs?: number };
 }
 
-async function requestSegment(body: Record<string, unknown>, signal: AbortSignal): Promise<ChannelResponse> {
-  const response = await fetch("/api/channel", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  const result = await response.json() as ChannelResponse & { error?: string };
-  if (!response.ok || !result.segment) throw new Error(result.error || "The next chapter could not be built.");
-  return result;
-}
-
-function segmentDuration(segment: ChannelSegment): number {
-  return segment.video.scenes.reduce((total, scene) => total + (scene.timing.fixedDuration ?? 0), 0);
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
+function seconds(milliseconds: number): string {
+  return `${(milliseconds / 1_000).toFixed(2)}s`;
 }
 
 export default function AdaptiveChannelPage() {
   const [premise, setPremise] = useState(STARTER_PREMISE);
-  const [sceneCount, setSceneCount] = useState(3);
-  const [referenceImageUrl, setReferenceImageUrl] = useState("");
-  const [overrides, setOverrides] = useState<Partial<Record<number, ManualMediaRoute>>>({});
-  const [current, setCurrent] = useState<ChannelSegment>();
-  const [next, setNext] = useState<ChannelSegment>();
-  const [mode, setMode] = useState<ChannelResponse["mode"]>("fixture");
+  const [stream, setStream] = useState<ChannelPlayerStream>();
+  const [scenes, setScenes] = useState<StreamedScene[]>([]);
+  const [activeSceneId, setActiveSceneId] = useState<string>();
+  const [mode, setMode] = useState<"fixture" | "live" | "live-with-fixture-fallback">("fixture");
   const [status, setStatus] = useState("Ready for a story premise.");
   const [error, setError] = useState<string>();
-  const [isStarting, setIsStarting] = useState(false);
-  const runId = useRef(0);
-  const prefetchingRun = useRef<number | undefined>(undefined);
-  const activeRequest = useRef<AbortController | undefined>(undefined);
-  const previousSceneIndex = useRef(-1);
+  const [isRunning, setIsRunning] = useState(false);
+  const [bufferSeconds, setBufferSeconds] = useState(0);
+  const [peakConcurrency, setPeakConcurrency] = useState(0);
+  const [targetBufferSeconds, setTargetBufferSeconds] = useState(15);
+  const streamRef = useRef<ChannelPlayerStream | undefined>(undefined);
 
-  useEffect(() => () => activeRequest.current?.abort(), []);
+  useEffect(() => () => streamRef.current?.cancel("Page closed"), []);
 
-  const prefetch = useCallback(async (
-    continuation: ChannelContinuation,
-    activeRun: number,
-    activeSceneCount: number,
-    activeOverrides: Partial<Record<number, ManualMediaRoute>>,
-    bufferSeconds: number,
-  ) => {
-    if (prefetchingRun.current === activeRun) return;
-    prefetchingRun.current = activeRun;
-    const signal = activeRequest.current?.signal;
-    if (!signal) return;
-    try {
-      const response = await requestSegment({
-        continuation,
-        sceneCount: activeSceneCount,
-        overrides: activeOverrides,
-        bufferSeconds,
-      }, signal);
-      if (runId.current !== activeRun) return;
-      await warmFirstFrame(response.segment, signal);
-      if (runId.current !== activeRun) return;
-      setNext(response.segment);
-      setMode(response.mode);
-    } catch (caught) {
-      if (runId.current === activeRun && !isAbortError(caught)) {
-        setError(caught instanceof Error ? caught.message : "The next chapter could not be prefetched.");
-      }
-    } finally {
-      if (prefetchingRun.current === activeRun) prefetchingRun.current = undefined;
+  const handleMessage = useCallback((message: ChannelStreamMessage) => {
+    if (message.kind === "mode") {
+      setMode(message.mode);
+      setTargetBufferSeconds(message.targetBufferSeconds);
+      setStatus("The progressive stream is open · resolving the first playable scene.");
+      return;
+    }
+    if (message.kind === "chapter-start") {
+      setStatus(`Producing ${message.sceneCount} independent text-to-video scenes in parallel.`);
+      return;
+    }
+    if (message.kind === "scene") {
+      setScenes((existing) => [...existing, {
+        chapterSequence: message.chapterSequence,
+        resolved: message.resolved,
+        scheduling: message.scheduling,
+      }].slice(-24));
+      setBufferSeconds(message.bufferSeconds);
+      setStatus(`Playback is live · ${message.bufferSeconds.toFixed(1)}s currently buffered.`);
+      return;
+    }
+    if (message.kind === "buffer") {
+      setBufferSeconds(message.bufferSeconds);
+      setStatus(`Buffer healthy at ${message.bufferSeconds.toFixed(1)}s · producer is pacing new work.`);
+      return;
+    }
+    if (message.kind === "chapter") {
+      setPeakConcurrency((current) => Math.max(current, message.peakConcurrency));
+      setBufferSeconds(message.bufferSeconds);
+      setStatus(`Chapter ${message.sequence + 1} resolved · peak ${message.peakConcurrency} concurrent scene jobs.`);
+      return;
+    }
+    if (message.kind === "playback-ready") {
+      setStatus(`Playback opened with ${message.startupBufferSeconds}s of browser-ready media.`);
+      return;
+    }
+    if (message.kind === "complete") {
+      setIsRunning(false);
+      setStatus("Five scenes generated · the finished POC now loops.");
+      return;
+    }
+    if (message.kind === "error") {
+      setError(message.error);
+      setIsRunning(false);
+      setStatus("The channel stream stopped.");
     }
   }, []);
 
-  const startChannel = async () => {
-    if (premise.trim().length < 8 || isStarting) return;
-    activeRequest.current?.abort();
-    const controller = new AbortController();
-    activeRequest.current = controller;
-    const activeRun = runId.current + 1;
-    runId.current = activeRun;
-    prefetchingRun.current = undefined;
-    previousSceneIndex.current = -1;
-    setIsStarting(true);
-    setCurrent(undefined);
-    setNext(undefined);
+  const startChannel = () => {
+    if (premise.trim().length < 8) return;
+    streamRef.current?.cancel("Channel restarted");
+    setScenes([]);
+    setActiveSceneId(undefined);
+    setBufferSeconds(0);
+    setPeakConcurrency(0);
     setError(undefined);
-    setStatus("Planning and resolving chapter 1…");
-    try {
-      const response = await requestSegment({
-        premise: premise.trim(),
-        sceneCount,
-        characterReferenceImageUrl: referenceImageUrl.trim() || undefined,
-        overrides,
-      }, controller.signal);
-      if (runId.current !== activeRun) return;
-      setCurrent(response.segment);
-      setMode(response.mode);
-      setStatus("Chapter 1 is playing · preparing chapter 2.");
-      void prefetch(
-        response.segment.continuation,
-        activeRun,
-        sceneCount,
-        overrides,
-        segmentDuration(response.segment),
-      );
-    } catch (caught) {
-      if (runId.current === activeRun && !isAbortError(caught)) {
-        setError(caught instanceof Error ? caught.message : "The channel could not start.");
-        setStatus("The channel did not start.");
-      }
-    } finally {
-      if (runId.current === activeRun) setIsStarting(false);
-    }
+    setIsRunning(true);
+    setStatus("Opening the progressive scene stream…");
+    const nextStream = createChannelPlayerStream({
+      prompt: premise.trim(),
+    }, handleMessage);
+    streamRef.current = nextStream;
+    setStream(nextStream);
   };
 
-  const advance = useCallback(() => {
-    if (!next) {
-      setStatus(`Chapter ${(current?.sequence || 0) + 1} is looping while the next chapter finishes.`);
-      return;
-    }
-    const activeRun = runId.current;
-    previousSceneIndex.current = -1;
-    setCurrent(next);
-    setNext(undefined);
-    setStatus(`Chapter ${next.sequence + 1} is playing · preparing chapter ${next.sequence + 2}.`);
-    void prefetch(next.continuation, activeRun, sceneCount, overrides, segmentDuration(next));
-  }, [current?.sequence, next, overrides, prefetch, sceneCount]);
-
-  const onSceneChange = useCallback((_scene: unknown, index: number) => {
-    if (!current) return;
-    const previous = previousSceneIndex.current;
-    previousSceneIndex.current = index;
-    if (index === 0 && previous === current.video.scenes.length - 1) advance();
-  }, [advance, current]);
-
-  const setOverride = (index: number, value: ManualMediaRoute) => {
-    setOverrides((existing) => {
-      const nextOverrides = { ...existing };
-      if (value === "auto") delete nextOverrides[index];
-      else nextOverrides[index] = value;
-      return nextOverrides;
-    });
+  const stopChannel = () => {
+    streamRef.current?.cancel("Channel stopped by the user");
+    streamRef.current = undefined;
+    setStream(undefined);
+    setIsRunning(false);
+    setStatus("Channel stopped. Pending provider work was cancelled.");
   };
+
+  const onSceneChange = useCallback((scene: VideoScene) => {
+    setActiveSceneId(scene.id);
+  }, []);
+
+  const activeIndex = scenes.findIndex(({ resolved }) => resolved.plan.id === activeSceneId);
+  const activeScene = activeIndex >= 0 ? scenes[activeIndex] : scenes[0];
+  const readyAhead = activeIndex >= 0 ? Math.max(0, scenes.length - activeIndex - 1) : Math.max(0, scenes.length - 1);
+  const visibleScenes = useMemo(() => scenes.slice(-12), [scenes]);
 
   return <main className="app-shell channel-shell">
     <header className="masthead channel-masthead">
       <div>
-        <p className="eyebrow">VANILLASKY · ADAPTIVE CHANNEL POC</p>
-        <h1>An infinite story, made from finite scenes.</h1>
-        <p className="intro">The planner expresses visual intent. A deterministic policy chooses stock, generated image, generated video, or a title card. The current chapter plays while the next one is made.</p>
+        <p className="eyebrow">VANILLASKY · GENERATIVE VIDEO POC</p>
+        <h1>Prompt in. Five videos out.</h1>
+        <p className="intro">One story prompt becomes five independently generated H3 clips. No image generation or reference frames—VanillaSky streams each browser-ready scene into one continuous player.</p>
       </div>
       <a href="/">Scene director ↩</a>
     </header>
@@ -178,51 +134,30 @@ export default function AdaptiveChannelPage() {
     <section className="channel-grid">
       <aside className="panel channel-brief-panel">
         <div className="panel-heading">
-          <div><span>Story bible</span><h2>Define the recurring world</h2></div>
-          <i>one prompt · bounded scenes</i>
+          <div><span>Video prompt</span><h2>What should happen?</h2></div>
+          <i>one prompt · five text-to-video jobs</i>
         </div>
-        <label htmlFor="channel-premise">What is the channel about?</label>
+        <label htmlFor="channel-premise">Describe a short visual story</label>
         <textarea
           id="channel-premise"
           value={premise}
           rows={6}
           maxLength={800}
+          placeholder="Write a prompt…"
           onChange={(event) => setPremise(event.target.value)}
         />
 
-        <div className="channel-field-row">
-          <label htmlFor="scene-count">Scenes per chapter</label>
-          <select id="scene-count" value={sceneCount} onChange={(event) => setSceneCount(Number(event.target.value))}>
-            {[2, 3, 4, 5].map((count) => <option key={count} value={count}>{count}</option>)}
-          </select>
+        <div className="boundary">
+          <span>Five-scene recipe</span>
+          <p>01 AI video · 02 AI video · 03 AI video · 04 AI video · 05 AI video</p>
         </div>
 
-        <label htmlFor="reference-image">Character reference image <small>optional public URL</small></label>
-        <input
-          id="reference-image"
-          type="url"
-          placeholder="https://…/character-reference.webp"
-          value={referenceImageUrl}
-          onChange={(event) => setReferenceImageUrl(event.target.value)}
-        />
-
-        <fieldset className="route-overrides">
-          <legend>Human override <small>Auto is the default</small></legend>
-          {Array.from({ length: sceneCount }, (_, index) => <label key={index}>
-            <span>Scene {index + 1}</span>
-            <select
-              aria-label={`Scene ${index + 1} media override`}
-              value={overrides[index] || "auto"}
-              onChange={(event) => setOverride(index, event.target.value as ManualMediaRoute)}
-            >
-              {ROUTE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          </label>)}
-        </fieldset>
-
-        <button type="button" disabled={isStarting || premise.trim().length < 8} onClick={() => void startChannel()}>
-          {isStarting ? "Building chapter 1…" : current ? "Restart the channel" : "Start the channel"}
-        </button>
+        <div className="channel-actions">
+          <button type="button" disabled={premise.trim().length < 8} onClick={startChannel}>
+            {stream ? "Create another video" : "Create video"}
+          </button>
+          {isRunning && <button type="button" className="secondary-button" onClick={stopChannel}>Stop and cancel</button>}
+        </div>
         <p className="status-line" data-testid="channel-status">{status}</p>
         {error && <p className="error" role="alert">{error}</p>}
         <div className="boundary">
@@ -235,58 +170,74 @@ export default function AdaptiveChannelPage() {
 
       <section className="panel channel-player-panel">
         <div className="panel-heading">
-          <div><span>Continuous playback</span><h2>{current ? `Chapter ${current.sequence + 1}` : "Waiting for chapter 1"}</h2></div>
-          <i>9:16 · current + next</i>
+          <div><span>Progressive playback</span><h2>{activeScene ? `Scene ${Math.max(1, activeIndex + 1)} of 5` : "Waiting for scene 1"}</h2></div>
+          <i>9:16 · one SDK stream</i>
         </div>
         <div className="player-stage channel-stage">
-          {current
+          {stream
             ? <VideoPlayer
-                key={current.id}
-                video={current.video}
+                stream={stream}
                 templates={templates}
                 autoPlay
                 startMuted
+                nativeMediaAudio={{ volume: 0.85 }}
                 loop
                 onSceneChange={onSceneChange}
+                onError={(caught) => {
+                  if (caught.name === "AbortError") return;
+                  setError(caught.message);
+                  setIsRunning(false);
+                }}
                 ariaLabel="Adaptive generative story channel"
               />
             : <div className="channel-placeholder">
                 <span>01</span>
-                <strong>Start with a premise.</strong>
-                <p>The first chapter resolves immediately from safe fixtures; live providers are opt-in.</p>
+                <strong>Start with one prompt.</strong>
+                <p>Five text-to-video jobs launch together. Playback opens when the startup buffer is ready.</p>
               </div>}
         </div>
-        <div className="queue-strip" aria-label="Segment queue">
-          <div><span>Now</span><b>{current ? `Chapter ${current.sequence + 1} playing` : "Empty"}</b></div>
-          <div data-testid="queue-next"><span>Next</span><b>{next ? `Chapter ${next.sequence + 1} ready` : current ? "Generating…" : "Empty"}</b></div>
+        <div className="queue-strip" aria-label="Rolling scene queue">
+          <div><span>Now</span><b>{activeScene?.resolved.plan.headline || "Empty"}</b></div>
+          <div data-testid="queue-ready"><span>Ready ahead</span><b>{readyAhead} scene{readyAhead === 1 ? "" : "s"} · {bufferSeconds.toFixed(1)}s</b></div>
+          <div data-testid="parallelism"><span>Producer</span><b>peak {peakConcurrency} parallel · target {targetBufferSeconds}s</b></div>
         </div>
       </section>
 
       <aside className="panel channel-decisions-panel">
         <div className="panel-heading">
-          <div><span>Route decisions</span><h2>Why each scene got its media</h2></div>
-          <i>planner → policy → resolver</i>
+          <div><span>Live production log</span><h2>Why each scene got its media</h2></div>
+          <i>prompt → planner → provider</i>
         </div>
-        {current ? <ol className="route-list">
-          {current.scenes.map((scene, index) => <li key={scene.plan.id} data-testid="route-card">
+        {visibleScenes.length > 0 ? <ol className="route-list">
+          {visibleScenes.map(({ resolved, scheduling }, index) => <li
+            key={resolved.plan.id}
+            data-testid="route-card"
+            data-active={resolved.plan.id === activeSceneId ? "true" : "false"}
+          >
             <div className="route-card-top">
-              <b>{String(index + 1).padStart(2, "0")}</b>
-              <code>{scene.decision.route}{scene.resolvedRoute !== scene.decision.route ? ` → ${scene.resolvedRoute}` : ""}</code>
-              <span>{scene.media.provider}</span>
+              <b>{String(Math.max(1, scenes.length - visibleScenes.length + index + 1)).padStart(2, "0")}</b>
+              <code>{resolved.decision.route}{resolved.resolvedRoute !== resolved.decision.route ? ` → ${resolved.resolvedRoute}` : ""}</code>
+              <span>{resolved.media.provider}</span>
             </div>
-            <strong>{scene.plan.headline}</strong>
-            <p>{scene.decision.reason}</p>
-            <small>{scene.decision.route === "stock" ? `Query: “${scene.plan.stockQuery}”` : scene.plan.description}</small>
-            {scene.fallbacks.length > 0 && <em>Fallback after: {scene.fallbacks.join(", ")}</em>}
-            {scene.media.credit && <a href={scene.media.credit.url}>{scene.media.credit.label} ↗</a>}
+            <strong>{resolved.plan.headline}</strong>
+            <p>{resolved.decision.reason}</p>
+            <small>{resolved.decision.route === "stock" ? `Query: “${resolved.plan.stockQuery}”` : resolved.plan.description}</small>
+            <small>
+              available after {seconds(scheduling.queuedMs + scheduling.generationMs + (scheduling.clientWarmMs || 0))}
+              {resolved.media.generationTiming?.inferenceMs != null
+                ? ` · model inference ${seconds(resolved.media.generationTiming.inferenceMs)}`
+                : resolved.media.generationTiming ? ` · provider ${seconds(resolved.media.generationTiming.requestMs)}` : ""}
+            </small>
+            {resolved.fallbacks.length > 0 && <em>Fallback after: {resolved.fallbacks.join(", ")}</em>}
+            {resolved.media.credit && <a href={resolved.media.credit.url}>{resolved.media.credit.label} ↗</a>}
           </li>)}
         </ol> : <div className="empty-decisions">
-          <p>Auto is a collaboration:</p>
+          <p>On start:</p>
           <ol>
-            <li>The planner describes the shot.</li>
-            <li>Policy chooses a cost/latency route.</li>
-            <li>The adapter compiles the provider prompt.</li>
-            <li>A manual choice always wins.</li>
+            <li>Five text-to-video jobs launch together.</li>
+            <li>Every scene gets its own cinematic prompt.</li>
+            <li>No image reference is sent to the video model.</li>
+            <li>Resolved scenes enter the player in story order.</li>
           </ol>
         </div>}
       </aside>

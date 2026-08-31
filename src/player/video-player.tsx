@@ -51,6 +51,7 @@ export function VideoPlayerRuntime({
   playbackMode,
   autoPlay = true,
   startMuted = true,
+  nativeMediaAudio,
   width,
   orientation: orientationOverride,
   responsiveBreakpoint = 520,
@@ -63,6 +64,11 @@ export function VideoPlayerRuntime({
   onSceneChange,
   onStateChange,
 }: VideoPlayerRuntimeProps): ReactElement {
+  const nativeMediaVolume = Math.max(0, Math.min(1,
+    typeof nativeMediaAudio?.volume === "number" && Number.isFinite(nativeMediaAudio.volume)
+      ? nativeMediaAudio.volume
+      : 1,
+  ));
   const [reducedMotion, setReducedMotion] = useState(() =>
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
@@ -473,6 +479,8 @@ export function VideoPlayerRuntime({
           width={dimensions.width}
           height={dimensions.height}
           playing={isPlaying}
+          mediaAudioMuted={!nativeMediaAudio || isMuted}
+          mediaAudioVolume={nativeMediaVolume}
           style={{
             position: "absolute",
             left: 0,
@@ -508,7 +516,7 @@ export function VideoPlayerRuntime({
         isPlaying={isPlaying}
         isMuted={isMuted}
         isFullscreen={isFullscreen}
-        hasAudio={Boolean(config?.audio)}
+        hasAudio={Boolean(config?.audio) || Boolean(nativeMediaAudio)}
         onTogglePlayback={togglePlayback}
         onToggleMuted={() => setIsMuted((muted) => {
           if (muted) setAudioUnlocked(true);

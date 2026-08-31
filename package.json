@@ -35,6 +35,7 @@
     "examples/nextjs-quickstart/package.json",
     "examples/nextjs-quickstart/src",
     "examples/nextjs-quickstart/tsconfig.json",
+    "examples/server-integrations/src/ai-sdk-media.ts",
     "README.md",
     "LICENSE",
     "SECURITY.md",

@@ -717,14 +717,27 @@ describe("createVideoHandler", () => {
 
     expect(resolveMedia).toHaveBeenCalledTimes(2);
     expect(resolveMedia).toHaveBeenNthCalledWith(1, "product team", expect.objectContaining({
+      requestId: "request-resolved-media",
       templateId: "bigNumber",
       preferredType: "any",
       signal: expect.any(AbortSignal),
+      scene: expect.objectContaining({
+        id: "first",
+        variables: expect.not.objectContaining({ mediaKeyword: expect.anything() }),
+      }),
     }));
     expect(resolveMedia).toHaveBeenNthCalledWith(2, "product team celebrating", expect.objectContaining({
+      requestId: "request-resolved-media",
       templateId: "media",
       preferredType: "video",
       signal: expect.any(AbortSignal),
+      scene: expect.objectContaining({
+        id: "payoff",
+        variables: expect.objectContaining({
+          texts: "Momentum unlocked",
+          mediaType: "video",
+        }),
+      }),
     }));
     expect(systemPrompt).toContain('"mediaKeyword":"string{2..80}"');
     expect(scenes[0].variables).toMatchObject({ mediaType: "gradient" });

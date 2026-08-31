@@ -164,13 +164,17 @@ button:disabled { cursor: wait; opacity: .58; }
 .channel-placeholder span { color: #7567d8; font: 800 .72rem ui-monospace, monospace; }
 .channel-placeholder strong { margin-top: 15px; color: white; font-size: 1.4rem; }
 .channel-placeholder p { max-width: 280px; margin: 12px auto 0; font-size: .78rem; line-height: 1.55; }
-.queue-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 16px; }
+.queue-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 16px; }
 .queue-strip > div { padding: 11px 12px; border: 1px solid #302a43; border-radius: 10px; background: #090812; }
 .queue-strip span { display: block; color: #7e758f; font-size: .6rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
 .queue-strip b { display: block; margin-top: 5px; color: #d9d5e4; font-size: .72rem; }
+.channel-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.channel-actions button:only-child { grid-column: 1 / -1; }
+.secondary-button { border: 1px solid #49415f; background: #171324; }
 
 .route-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .route-list li { padding: 14px; border: 1px solid #332d47; border-radius: 13px; background: #090812; }
+.route-list li[data-active="true"] { border-color: #8172eb; box-shadow: 0 0 0 2px rgba(129, 114, 235, .12); }
 .route-card-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
 .route-card-top b { color: #7769da; font-size: .64rem; }
 .route-card-top code { overflow: hidden; color: #bdb5ff; font-size: .67rem; text-overflow: ellipsis; }
@@ -193,4 +197,5 @@ button:disabled { cursor: wait; opacity: .58; }
   .channel-player-panel { position: static; grid-row: 1; }
   .channel-decisions-panel { grid-column: auto; }
   .channel-stage { min-height: 0; }
+  .queue-strip { grid-template-columns: 1fr; }
 }

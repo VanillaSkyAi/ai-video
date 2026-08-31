@@ -3,6 +3,24 @@ import { appendBoundedSegment, planChannelSegment } from "./channel-plan";
 import type { ChannelSegment } from "./types";
 
 describe("rolling channel plan", () => {
+  it("turns one story prompt into five independent text-to-video scenes", () => {
+    const prompt = "A botanist discovers that her greenhouse grows memories overnight.";
+    const plan = planChannelSegment({
+      premise: prompt,
+      sceneCount: 5,
+      sequence: 0,
+    });
+
+    expect(plan.world.premise).toBe(prompt);
+    expect(plan.scenes).toHaveLength(5);
+    expect(plan.scenes.map(({ manualRoute }) => manualRoute))
+      .toEqual(["video", "video", "video", "video", "video"]);
+    expect(plan.scenes.map(({ continuityRole }) => continuityRole))
+      .toEqual(["none", "none", "none", "none", "none"]);
+    expect(JSON.stringify({ world: plan.world, scenes: plan.scenes }))
+      .not.toMatch(/Mara|observatory|radio operator/i);
+  });
+
   it("adds the trailer only to the first finite segment", () => {
     const first = planChannelSegment({
       premise: "A radio operator receives tomorrow's weather from space.",

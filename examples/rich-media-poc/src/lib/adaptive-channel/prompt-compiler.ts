@@ -28,8 +28,10 @@ export function compileVideoPrompt(world: ChannelWorld, scene: PlannedChannelSce
     : `0-${scene.durationSec}s: ${scene.shot.action}`;
   return [
     continuityDirection(world, scene),
+    `Story: ${world.premise}`,
     beats,
     `Setting: ${world.setting}. Shot: ${scene.shot.framing}. Camera: ${scene.shot.camera}. Lighting: ${scene.shot.lighting}.`,
+    scene.shot.sound ? `Sound: ${scene.shot.sound}.` : undefined,
     `Style: ${world.visualStyle}. Keep the shot visually coherent throughout.`,
     "No subtitles, logos, watermarks, UI, borders, split screens, or readable text.",
   ].filter(Boolean).join("\n");

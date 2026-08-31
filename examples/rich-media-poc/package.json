@@ -13,6 +13,7 @@
     "templates:check": "vanillasky check"
   },
   "dependencies": {
+    "@ai-sdk/fal": "3.0.35",
     "@ai-sdk/openai": "4.0.46",
     "@fal-ai/client": "1.10.1",
     "@lottiefiles/dotlottie-react": "0.19.15",

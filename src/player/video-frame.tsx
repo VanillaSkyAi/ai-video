@@ -130,6 +130,8 @@ export interface VideoFrameProps {
   width: number;
   height: number;
   playing?: boolean;
+  mediaAudioMuted?: boolean;
+  mediaAudioVolume?: number;
   className?: string;
   style?: CSSProperties;
 }
@@ -143,6 +145,8 @@ interface SceneLayerProps {
   width: number;
   height: number;
   playing: boolean;
+  mediaAudioMuted: boolean;
+  mediaAudioVolume: number;
   layer: "active" | "outgoing" | "incoming";
   opacity: number;
   interactive: boolean;
@@ -159,6 +163,8 @@ function SceneLayer({
   width,
   height,
   playing,
+  mediaAudioMuted,
+  mediaAudioVolume,
   layer,
   opacity,
   interactive,
@@ -169,7 +175,11 @@ function SceneLayer({
   const duration = range.end - range.start;
 
   return (
-    <ExternalVideoBackdropProvider mode={externalVideoBackdrop}>
+    <ExternalVideoBackdropProvider
+      mode={externalVideoBackdrop}
+      audioMuted={mediaAudioMuted || !playing}
+      audioVolume={mediaAudioVolume}
+    >
       <div
         data-scene-layer={layer}
         data-layer-scene-id={range.scene.id}
@@ -238,6 +248,8 @@ export function VideoFrame({
   width,
   height,
   playing = false,
+  mediaAudioMuted = true,
+  mediaAudioVolume = 1,
   className,
   style,
 }: VideoFrameProps): ReactElement {
@@ -472,6 +484,8 @@ export function VideoFrame({
                 backgroundEffect={persistentVideoRange.scene.backgroundEffect ?? config.style.defaultBackgroundEffect}
                 progress={persistentVideoRange.scene.id === active.scene.id ? rawProgress : 0}
                 isPlaying={persistentVideoRange.scene.id === active.scene.id && playing}
+                muted={mediaAudioMuted || persistentVideoRange.scene.id !== active.scene.id || !playing}
+                volume={mediaAudioVolume}
                 playbackId={persistentVideoRange.scene.id}
                 retainPoster
                 persistent
@@ -502,6 +516,8 @@ export function VideoFrame({
               width={canvas.width}
               height={canvas.height}
               playing={playing}
+              mediaAudioMuted={mediaAudioMuted}
+              mediaAudioVolume={mediaAudioVolume}
               // Only a blend makes this scene "outgoing". During a preroll it
               // is still the scene on screen, fully opaque and interactive —
               // the layer beside it is invisible and only there to decode.
@@ -523,6 +539,8 @@ export function VideoFrame({
               width={canvas.width}
               height={canvas.height}
               playing={false}
+              mediaAudioMuted={mediaAudioMuted}
+              mediaAudioVolume={mediaAudioVolume}
               layer="incoming"
               opacity={blendProgress}
               interactive={false}
@@ -543,6 +561,8 @@ export function VideoFrame({
             width={canvas.width}
             height={canvas.height}
             playing={playing}
+            mediaAudioMuted={mediaAudioMuted}
+            mediaAudioVolume={mediaAudioVolume}
             layer="active"
             opacity={1}
             interactive

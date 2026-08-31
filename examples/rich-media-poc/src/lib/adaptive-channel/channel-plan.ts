@@ -1,5 +1,6 @@
 import type {
   ChannelSegment,
+  ChannelStoryOutline,
   ChannelWorld,
   ManualMediaRoute,
   PlannedChannelScene,
@@ -8,6 +9,13 @@ import type {
 
 const MIN_SCENES = 2;
 const MAX_SCENES = 5;
+const FIVE_SCENE_POC_ROUTES: readonly ManualMediaRoute[] = [
+  "video",
+  "video",
+  "video",
+  "video",
+  "video",
+];
 
 function clampSceneCount(sceneCount: number): number {
   return Math.max(MIN_SCENES, Math.min(MAX_SCENES, Math.round(sceneCount)));
@@ -17,11 +25,11 @@ function createWorld(premise: string): ChannelWorld {
   return {
     premise,
     visualStyle: "cinematic retro-futurist micro-drama, practical sets, rich color separation, subtle film grain",
-    setting: "a remote late-night observatory above a stormy coast",
-    characterBible: "Mara, 34, short black hair, mustard field jacket, silver over-ear headphones",
+    setting: `the primary setting, period, and atmosphere implied by this story: ${premise}`,
+    characterBible: "the same principal character established in the first generated image, with an unchanged face, age, hair, wardrobe, and silhouette",
     continuityRules: [
-      "Mara's face, hair, jacket, and headphones remain unchanged",
-      "The observatory uses the same circular windows and amber analog instruments",
+      "Preserve the principal character exactly whenever that character appears",
+      "Preserve established production design, geography, palette, and lighting logic",
       "No logos or readable text",
     ],
   };
@@ -40,50 +48,50 @@ type StoryBeat = Omit<PlannedChannelScene, "id" | "manualRoute" | "durationSec" 
 
 const STORY_BEATS: StoryBeat[] = [
   {
-    beatId: "identity-pulse",
-    headline: "One detail no longer matches.",
-    description: "Mara notices the receiver pulsing in time with lightning beyond the window.",
+    beatId: "protagonist-reveal",
+    headline: "Enter the world.",
+    description: "An iconic opening portrait establishes the principal character and the world described by the story prompt.",
     factuality: "fictional", motion: "optional", novelty: "high", continuityRole: "character",
-    stockQuery: "radio operator night", framing: "medium close-up",
+    stockQuery: "cinematic character portrait", framing: "cinematic medium portrait",
     camera: "locked composition with shallow depth of field",
-    action: "Mara studies the receiver as a blue pulse reflects in her eyes.",
-    lighting: "warm instrument light against cold lightning",
+    action: "The principal character holds a clear, emotionally charged pose that establishes who they are.",
+    lighting: "motivated cinematic key light with strong color separation",
   },
   {
-    beatId: "signal-answers",
-    headline: "Then the signal answers.",
-    description: "The receiver activates and Mara realizes the transmission is responding to her.",
+    beatId: "inciting-action",
+    headline: "Something changes.",
+    description: "The inciting action from the story prompt happens and the principal character reacts.",
     factuality: "fictional", motion: "essential", novelty: "high", continuityRole: "character",
-    stockQuery: "vintage radio static", framing: "tight close-up moving to a medium shot",
+    stockQuery: "cinematic dramatic action", framing: "close-up moving to a medium shot",
     camera: "slow push in followed by a subtle orbit",
-    action: "Static pulses, Mara freezes, then reaches for the tuning dial.",
-    lighting: "amber dials, blue lightning, rhythmic cyan signal glow",
+    action: "The principal character notices the story's impossible event, freezes, and takes one decisive physical action.",
+    lighting: "the established scene lighting intensifies around the event",
   },
   {
-    beatId: "storm-exterior",
-    headline: "The ordinary world keeps moving.",
-    description: "Storm clouds gather around the isolated observatory while the night shift continues.",
-    factuality: "fictional", motion: "optional", novelty: "low", continuityRole: "none",
-    stockQuery: "storm observatory night", framing: "wide establishing shot", camera: "slow lateral drift",
-    action: "Clouds move across the coast and one observatory window glows.",
-    lighting: "deep blue storm light and a single amber window",
+    beatId: "consequence-reveal",
+    headline: "The evidence appears.",
+    description: "A striking object, location, or visual clue reveals the consequence of the story's central event, with no person in frame.",
+    factuality: "fictional", motion: "optional", novelty: "high", continuityRole: "none",
+    stockQuery: "cinematic mysterious object reveal", framing: "wide environmental or macro reveal", camera: "locked dramatic composition",
+    action: "The visual clue sits at the center of the frame and makes the story's stakes immediately legible.",
+    lighting: "high-contrast motivated light that matches the established palette",
   },
   {
-    beatId: "forecast-map",
-    headline: "The forecast draws a path.",
-    description: "A hand-drawn weather map reveals a perfect spiral centered on the observatory.",
-    factuality: "fictional", motion: "optional", novelty: "high", continuityRole: "scene",
-    stockQuery: "weather map desk", framing: "overhead insert", camera: "very slow push toward the map",
-    action: "Condensation crawls across the paper in a precise spiral.", lighting: "amber desk lamp and cyan reflections",
-  },
-  {
-    beatId: "locked-door",
-    headline: "A door unlocks by itself.",
-    description: "A sealed equipment room clicks open as the signal reaches its highest tone.",
+    beatId: "cliffhanger-motion",
+    headline: "Now it cannot be undone.",
+    description: "The revealed clue activates or transforms, ending the story on a clear visual cliffhanger.",
     factuality: "fictional", motion: "essential", novelty: "high", continuityRole: "scene",
-    stockQuery: "industrial door dark", framing: "low medium shot", camera: "controlled dolly toward the door",
-    action: "Dust falls, the warning light flips from red to blue, and the heavy door opens a few centimeters.",
-    lighting: "hard red practical light changing to cold cyan",
+    stockQuery: "cinematic object transformation", framing: "the same composition as the reveal", camera: "slow controlled push toward the clue",
+    action: "The central clue activates, changes state, and causes one final unexpected movement before cutting away.", lighting: "the established light shifts toward one intense accent color",
+  },
+  {
+    beatId: "decisive-aftermath",
+    headline: "The choice arrives.",
+    description: "The final consequence of the story forces one decisive reaction and leaves a striking visual question behind.",
+    factuality: "fictional", motion: "essential", novelty: "high", continuityRole: "none",
+    stockQuery: "cinematic decisive aftermath", framing: "dynamic wide shot resolving into a close detail", camera: "controlled tracking move ending on the final clue",
+    action: "The consequence reaches its peak, the world responds, and one last unexpected detail changes the meaning of what happened.",
+    lighting: "the established palette reaches its strongest contrast before falling into shadow",
   },
   {
     beatId: "second-voice",
@@ -161,13 +169,69 @@ function sceneFor(sequence: number, index: number, manualRoute: ManualMediaRoute
       action: variant.action,
       lighting: variant.lighting,
       beats: variant.motion === "essential" ? [
-        { fromSec: 0, toSec: 2, action: "Static pulses in time with the lightning." },
-        { fromSec: 2, toSec: 5, action: "Mara freezes, then slowly reaches for the tuning dial." },
+        { fromSec: 0, toSec: 2, action: "Hold the supplied opening frame, then begin the first subtle movement." },
+        { fromSec: 2, toSec: 5, action: variant.action },
       ] : undefined,
       sound: variant.motion === "essential"
-        ? "distant thunder, analog static, one clear electronic tone"
-        : "wind around the observatory and a quiet electrical hum",
+        ? "a restrained cinematic rise ending on one clear impact"
+        : "quiet environmental atmosphere",
     },
+  };
+}
+
+function defaultMediaRoute(sequence: number, sceneCount: number, index: number): ManualMediaRoute {
+  return sequence === 0 && sceneCount === FIVE_SCENE_POC_ROUTES.length
+    ? FIVE_SCENE_POC_ROUTES[index]!
+    : "auto";
+}
+
+function planFromOutline(input: {
+  premise: string;
+  sequence: number;
+  sceneCount: number;
+  outline: ChannelStoryOutline;
+  overrides?: Partial<Record<number, ManualMediaRoute>>;
+}): PlannedSegment {
+  if (input.outline.scenes.length !== input.sceneCount) {
+    throw new Error(`Story outline must contain exactly ${input.sceneCount} scenes.`);
+  }
+  const world: ChannelWorld = {
+    premise: input.premise.trim(),
+    visualStyle: input.outline.visualStyle,
+    setting: input.outline.setting,
+    characterBible: input.outline.characterBible,
+    continuityRules: input.outline.continuityRules,
+  };
+  const factuality = input.outline.contentType === "fictional-narrative" ? "fictional" : "factual";
+  const scenes = input.outline.scenes.map((scene, index): PlannedChannelScene => ({
+    id: `s${input.sequence}-${index}-${slug(scene.headline)}`,
+    beatId: `planned-${index + 1}-${slug(scene.headline)}`,
+    headline: scene.headline,
+    description: scene.description,
+    factuality,
+    motion: "essential",
+    novelty: "high",
+    continuityRole: "none",
+    manualRoute: input.overrides?.[index] || defaultMediaRoute(input.sequence, input.sceneCount, index),
+    stockQuery: scene.description,
+    durationSec: 5,
+    shot: {
+      framing: scene.framing,
+      camera: scene.camera,
+      action: scene.action,
+      lighting: scene.lighting,
+      sound: scene.sound,
+    },
+  }));
+  const recentBeatIds = scenes.flatMap((scene) => scene.beatId ? [scene.beatId] : []);
+
+  return {
+    sequence: input.sequence,
+    world,
+    scenes,
+    summary: `Chapter ${input.sequence + 1}: ${scenes.map(({ headline }) => headline).join(" ")}`,
+    recentBeatIds: recentBeatIds.slice(-8),
+    openThreads: [],
   };
 }
 
@@ -180,11 +244,23 @@ export function planChannelSegment(input: {
   recentBeatIds?: readonly string[];
   openThreads?: readonly string[];
   overrides?: Partial<Record<number, ManualMediaRoute>>;
+  outline?: ChannelStoryOutline;
 }): PlannedSegment {
   const sceneCount = clampSceneCount(input.sceneCount);
+  if (input.outline) {
+    return planFromOutline({
+      premise: input.premise,
+      sequence: input.sequence,
+      sceneCount,
+      outline: input.outline,
+      overrides: input.overrides,
+    });
+  }
+  const isFiveSceneTextToVideoPoc = input.sequence === 0
+    && sceneCount === FIVE_SCENE_POC_ROUTES.length;
   const world = input.world || createWorld(input.premise.trim());
   const scenes: PlannedChannelScene[] = [];
-  const storySceneCount = sceneCount - (input.sequence === 0 ? 1 : 0);
+  const storySceneCount = sceneCount - (input.sequence === 0 && !isFiveSceneTextToVideoPoc ? 1 : 0);
   const recent = new Set(input.recentBeatIds || []);
   let available = STORY_BEATS.filter(({ beatId }) => beatId && !recent.has(beatId));
   if (available.length < storySceneCount) {
@@ -200,7 +276,7 @@ export function planChannelSegment(input: {
     : Array.from({ length: storySceneCount }, (_, index) => available[(offset + index) % available.length]!);
   let storyIndex = 0;
   for (let index = 0; index < sceneCount; index += 1) {
-    if (input.sequence === 0 && index === 0) {
+    if (input.sequence === 0 && index === 0 && !isFiveSceneTextToVideoPoc) {
       scenes.push({
         id: "channel-trailer",
         headline: world.premise,
@@ -224,8 +300,10 @@ export function planChannelSegment(input: {
     scenes.push(sceneFor(
       input.sequence,
       index,
-      input.overrides?.[index] || "auto",
-      selectedBeats[storyIndex++]!,
+      input.overrides?.[index] || defaultMediaRoute(input.sequence, sceneCount, index),
+      isFiveSceneTextToVideoPoc
+        ? { ...selectedBeats[storyIndex++]!, continuityRole: "none" }
+        : selectedBeats[storyIndex++]!,
     ));
   }
 
