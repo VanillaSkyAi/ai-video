@@ -10,6 +10,13 @@ playing while your LLM composes them.
 Your application owns the model, data, authentication, and UI. VanillaSky owns
 the planning prompt, trusted templates, validation, streaming, and player.
 
+## See it first
+
+Generate a video in the browser, with no install and no API key, in the
+[playground](https://vanillasky.ai/playground/). The
+[website](https://vanillasky.ai/) has the overview and full
+[documentation](https://vanillasky.ai/docs/).
+
 ## Start
 
 For humans:
@@ -139,6 +146,7 @@ compiler: `npm install --save-dev tsx`.
 
 | Goal | Guide |
 | --- | --- |
+| See a video without installing | [Playground](https://vanillasky.ai/playground/) |
 | Integrate with a coding agent | [Agent integration guide](docs/agent-integration.md) |
 | Build the first response | [Getting started](docs/getting-started.md) |
 | Copy the Next.js route and component | [Next.js integration](docs/integrate-nextjs.md) |
