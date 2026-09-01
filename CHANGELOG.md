@@ -4,6 +4,11 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Removes the `examples/rich-media-poc` exploration. It was never part of the
+  published package and is not covered by CI; media generation stays an
+  application concern behind the `resolveMedia` callback documented in
+  `docs/media-and-audio.md`.
+
 ## 0.6.0
 
 - Adds opt-in native scene-video audio to `VideoPlayer`, mixed with the existing
@@ -15,15 +20,6 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 - Documents a provider-neutral app-owned media generation adapter in
   `examples/server-integrations/src/ai-sdk-media.ts`. Generation stays outside
   the SDK install: the application supplies the AI SDK model and storage.
-- Extends the isolated rich-media consumer POC with an adaptive `/channel`
-  route: structured scene intent, deterministic stock/image/H3 Max routing,
-  manual overrides, explicit character/keyframe continuity, factual-safe
-  fallbacks, cancellation, deadline-aware generation, and a bounded
-  current-plus-next segment queue without changing the SDK API.
-- Adds an isolated AI scene-director proof of concept where VanillaSky's trusted
-  planner chooses and explains app-owned generated imagery, varied delay-aware
-  GIF stickers, and varied progress-driven Lottie motion without changing the
-  stable SDK contract.
 
 ## 0.5.8
 
