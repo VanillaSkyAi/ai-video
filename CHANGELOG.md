@@ -4,6 +4,16 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds `createSceneTimeline`: compose a playable video from scenes the
+  application builds itself, appended through the player's `stream` prop.
+  `VideoInput.opening` holds a single line of copy, and replacing the `video`
+  prop restarts playback, so an application with its own opening scenes
+  previously had to emit protocol envelopes by hand - where the sequence, event
+  id, scene position and completion snapshot must all be exact and any mistake
+  rejects the whole stream silently. `awaitAudio` covers the related trap that
+  `audio.set` is only valid before the first scene, by holding openings until
+  the soundtrack is known.
+
 - Adds optional `narration` to `VideoScene`: the line spoken aloud while that
   scene is showing. A narrated video previously had to be carried as scenes plus
   a separate script kept in step by index, which drifts; holding the line on the
