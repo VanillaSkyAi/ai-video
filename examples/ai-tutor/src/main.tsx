@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createSceneTimeline, getSceneDuration, type Video, type VideoScene } from "@vanillaskyai/video";
 import { VideoPlayer, useNarration } from "@vanillaskyai/video/react";
@@ -44,33 +44,29 @@ function pacedScene(scene: VideoScene, spokenSeconds?: number): VideoScene {
   const held = spokenSeconds && spokenSeconds > 0
     ? spokenSeconds + 0.8
     : getSceneDuration(scene, templates.getTemplateMetadata(scene.templateId));
-  return { ...scene, timing: { ...scene.timing, fixedDuration: held } };
+  // Only the duration survives. The server paces every scene it plans and
+  // stamps an absolute startTime and endTime on it, and those beat
+  // fixedDuration when the timeline is resolved - so keeping them means the
+  // picture moves on at the planner's estimate while the line is still being
+  // said, and the voice is cut off. The measured audio decides, which means
+  // nothing else may.
+  const { startTime: _startTime, endTime: _endTime, beatStart: _beatStart, beatEnd: _beatEnd, ...timing } = scene.timing ?? {};
+  return { ...scene, timing: { ...timing, fixedDuration: held } };
 }
 
 const EMPTY_VIDEO = { schemaVersion: "0.1", orientation: "landscape", scenes: [], style: undefined } as unknown as Video;
 
 /**
- * Pause the narration when the video is paused.
+ * How many scenes must be ready before the first one plays.
  *
- * The player owns playback and has no way to say so - it reports which scene is
- * showing, not whether it is running - so this reads the state off its own
- * control, which is labelled for exactly this reason. An affordance on the
- * player would be better; this is what exists.
+ * One, now that the planner writes the lines. A scene used to trail the one
+ * before it by a whole narration call, so starting on scene one risked
+ * reaching its end with nothing behind it; the only thing still trailing is
+ * that scene's own speech, and every scene's runs at the same time. Scene two
+ * lands about a second after scene one and scene one runs for five, so the
+ * lead was buying insurance against a gap that can no longer open.
  */
-function usePausedWithVideo(stage: RefObject<HTMLDivElement | null>, voice: { pause: () => void; resume: () => void }) {
-  useEffect(() => {
-    const container = stage.current;
-    if (!container) return;
-    const observer = new MutationObserver(() => {
-      const control = container.querySelector('button[aria-label*="video response"]');
-      const label = control?.getAttribute("aria-label") ?? "";
-      if (label.startsWith("Pause")) voice.resume();
-      else if (label.startsWith("Play")) voice.pause();
-    });
-    observer.observe(container, { subtree: true, attributes: true, attributeFilter: ["aria-label"] });
-    return () => observer.disconnect();
-  }, [stage, voice]);
-}
+const SCENE_LEAD = 1;
 
 function App() {
   const [draft, setDraft] = useState("");
@@ -83,16 +79,15 @@ function App() {
   const [followups, setFollowups] = useState<string[]>([]);
   const [composing, setComposing] = useState(false);
   const [planned, setPlanned] = useState(0);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string>();
 
   const voice = useMemo(createSpokenVoice, []);
-  const stageRef = useRef<HTMLDivElement>(null);
   const narration = useNarration({ voice });
   // Read inside the async run, which was created before the speaking state it
   // needs to wait on existed.
   const speakingRef = useRef(false);
   speakingRef.current = narration.speaking;
-  usePausedWithVideo(stageRef, voice);
   const theme = themeById(themeId);
   const mode = modeById(modeId);
   const answerRef = useRef(0);
@@ -124,50 +119,121 @@ function App() {
     const index = (answerRef.current += 1);
     setAnswers((current) => [...current, { index, question }]);
 
+    setOpening(false);
+    const askedAt = Date.now();
     let timeline: ReturnType<typeof createSceneTimeline> | undefined;
     let pendingStyle: Video["style"] | undefined;
+    let playbackStartedAt: number | undefined;
+    // Scenes are finished out of order - each one's line and its audio take
+    // their own time - so they are held by position and appended only as an
+    // unbroken run from the front. A quick scene three must not overtake a
+    // slow scene two.
+    const ready: (VideoScene | undefined)[] = [];
+    let appended = 0;
+    let planComplete = false;
+    // The opening line holds playback only while it is actually being said.
+    // Cutting a sentence off two seconds in is worse than the second it costs
+    // to let it land, and the lesson is rarely ready first: the line starts at
+    // about two seconds and the plan arrives at six.
+    let speakingOpening = false;
+
+    const flush = () => {
+      let available = appended;
+      while (ready[available]) available += 1;
+      if (available === appended) return;
+      if (!timeline) {
+        if (!pendingStyle) return;
+        // A one-scene lead. Starting on scene one alone risks reaching its end
+        // before scene two exists; waiting for the whole lesson is the wait
+        // being removed. One scene in hand costs about a second, and it is
+        // enough, because every scene's line and audio were started within a
+        // moment of each other rather than one after the last.
+        if (available < SCENE_LEAD && !planComplete) return;
+        if (speakingOpening) return;
+        timeline = createSceneTimeline({ style: pendingStyle, orientation: "landscape" });
+        playbackStartedAt = Date.now();
+        console.log(`[tutor] ${String(playbackStartedAt - askedAt).padStart(6)}ms  playback opened on ${available} scene${available === 1 ? "" : "s"}`);
+        setStream(timeline.stream);
+        setComposing(false);
+      }
+      while (ready[appended]) timeline.add(ready[appended++]!);
+      const script = ready.slice(0, appended) as VideoScene[];
+      setAnswers((current) => current.map((answer) => (answer.index === index
+        ? { ...answer, video: { ...(answer.video ?? EMPTY_VIDEO), scenes: script } }
+        : answer)));
+    };
+
+    // Fired with the lesson, not after it, because its whole purpose is to
+    // occupy the six seconds the planner spends writing its first scene.
+    void (async () => {
+      try {
+        const response = await fetch("/api/hook", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          signal: inFlight.signal,
+          body: JSON.stringify({ question }),
+        });
+        if (!response.ok) return;
+        const line = ((await response.json() as { line?: string }).line ?? "").trim();
+        if (!line || inFlight.signal.aborted) return;
+        const spoken = await voice.prepare(line);
+        // If the lesson got here first there is nothing to cover, and an
+        // opening line over a video that is already playing is just two
+        // voices.
+        if (!spoken || timeline || inFlight.signal.aborted) return;
+        speakingOpening = true;
+        setOpening(true);
+        await voice.speak(line, { signal: inFlight.signal });
+      } catch {
+        // A warm-up with no voice, not a broken lesson.
+      } finally {
+        speakingOpening = false;
+        setOpening(false);
+        flush();
+      }
+    })();
+
     try {
       const lesson = await streamLessonWithRetry({
         question,
         theme,
         mode,
         signal: inFlight.signal,
-        // The style arrives first, but the timeline is not opened yet: a
-        // player handed a stream with no scenes shows its own generation
-        // cover, and there is nothing to watch until the first scene is
-        // genuinely ready. The warm-up owns the whole wait.
+        // The style arrives before any scene, and the timeline needs it. The
+        // player is still not given a stream yet: handed one with no scenes it
+        // shows its own generation cover, and the warm-up owns that wait.
         onStyle: (style) => { pendingStyle = style; },
-        // Each scene is appended the moment its line is written, so the first
-        // one plays in seconds rather than after the whole lesson.
-        onScene: async (scene) => {
+        onScene: async (scene, position) => {
           setPlanned((count) => count + 1);
-          // The audio is generated before the scene is appended, because its
-          // length is what the scene's duration is set from. It costs a second
-          // or so, spent while the scene before it is still playing.
+          // The audio exists before the scene is appended, because its
+          // measured length is what the scene is held for. Every line's audio
+          // is requested as that line lands, so the requests overlap instead
+          // of queueing behind each other.
           const spoken = scene.narration ? await voice.prepare(scene.narration) : undefined;
-          // Opened on the first scene, not before it: playback begins with
-          // something real on screen - in a filmed mode, an actual clip.
-          if (!timeline && pendingStyle) {
-            timeline = createSceneTimeline({ style: pendingStyle, orientation: "landscape" });
-            setStream(timeline.stream);
-            setComposing(false);
-          }
-          timeline?.add(pacedScene(scene, spoken?.seconds));
-          setAnswers((current) => current.map((answer) => (answer.index === index
-            ? { ...answer, video: { ...(answer.video ?? EMPTY_VIDEO), scenes: [...(answer.video?.scenes ?? []), scene] } }
-            : answer)));
+          ready[position] = pacedScene(scene, spoken?.seconds);
+          flush();
         },
       });
       if (inFlight.signal.aborted) return;
+      // Whatever is still held goes in now, including the case of a lesson
+      // short enough to have never reached the lead.
+      planComplete = true;
+      flush();
+
       // Completing the timeline is what ends playback and offers a replay, so
       // doing it while the last line is still being said cuts the tutor off
       // mid-sentence and invites the viewer to start again over the top of it.
+      // The scenes are held for their measured audio, so their total is when
+      // the picture runs out; the voice check catches the tail. Watching only
+      // for silence would end the lesson in the gap between two lines.
+      const runtime = (ready.slice(0, appended) as VideoScene[])
+        .reduce((total, scene) => total + (scene.timing?.fixedDuration ?? 0), 0) * 1000;
       await new Promise<void>((resolve) => {
-        const started = Date.now();
+        const startedAt = playbackStartedAt ?? Date.now();
         const poll = window.setInterval(() => {
-          const finished = !speakingRef.current && Date.now() - started > 400;
+          const elapsed = Date.now() - startedAt;
           // A voice that never starts must not hold the video open forever.
-          if (finished || Date.now() - started > 30_000 || inFlight.signal.aborted) {
+          if ((elapsed >= runtime && !speakingRef.current) || elapsed > runtime + 30_000 || inFlight.signal.aborted) {
             window.clearInterval(poll);
             resolve();
           }
@@ -175,7 +241,12 @@ function App() {
       });
       if (inFlight.signal.aborted) return;
       timeline?.complete();
-      setAnswers((current) => current.map((answer) => (answer.index === index ? { ...answer, video: lesson.video } : answer)));
+      // The paced scenes, not the planned ones. What is stored is what gets
+      // replayed, and the planner's own timing is the estimate that cuts the
+      // voice off - a replay has to hold each scene for the same measured
+      // audio the first showing did.
+      const answered: Video = { ...lesson.video, scenes: ready.slice(0, appended) as VideoScene[] };
+      setAnswers((current) => current.map((answer) => (answer.index === index ? { ...answer, video: answered } : answer)));
       setFollowups(lesson.followups);
     } catch (cause) {
       if (inFlight.signal.reason instanceof Error && inFlight.signal.reason.message === "stalled") {
@@ -265,13 +336,13 @@ function App() {
 
     <div className="columns">
       <div className="stage-column">
-        <div className="stage" data-theme={theme.id} ref={stageRef}>
+        <div className="stage" data-theme={theme.id}>
           {replaying
-            ? <VideoPlayer video={replaying} templates={templates} orientation="landscape" autoPlay onSceneChange={narration.onSceneChange} ariaLabel="Replay" />
+            ? <VideoPlayer video={replaying} templates={templates} orientation="landscape" autoPlay onSceneChange={narration.onSceneChange} controls={false} ariaLabel="Replay" />
             : stream
-              ? <VideoPlayer stream={stream as never} templates={templates} orientation="landscape" autoPlay onSceneChange={narration.onSceneChange} onError={(cause) => setError(cause.message)} ariaLabel="The lesson" />
+              ? <VideoPlayer stream={stream as never} templates={templates} orientation="landscape" autoPlay onSceneChange={narration.onSceneChange} onError={(cause) => setError(cause.message)} controls={false} ariaLabel="The lesson" />
               : null}
-          <Warmup visible={composing && !error} scenes={planned} />
+          <Warmup visible={composing && !error} question={current?.question} speaking={opening} scenes={planned} />
           {narration.speaking && <span className="live"><span aria-hidden="true">●</span> Speaking</span>}
         </div>
 
