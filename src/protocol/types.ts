@@ -88,6 +88,19 @@ export interface VideoScene {
   textArchetype?: string;
   backgroundEffect?: string;
   timing: VideoTiming;
+  /**
+   * What is said aloud while this scene is showing.
+   *
+   * A narrated video otherwise has to be carried as two things kept in step by
+   * index - the scenes, and a separate script - and they drift. Holding the
+   * line on the scene keeps them together through planning, playback, storage
+   * and replay, so a stored video can be spoken again without the model that
+   * wrote it.
+   *
+   * The renderer never draws this. It is the spoken half of the scene, not
+   * on-screen copy.
+   */
+  narration?: string;
 }
 
 export interface VideoAudio {

@@ -75,6 +75,7 @@ function scene(value: unknown, path: string): VideoScene {
     "textArchetype",
     "backgroundEffect",
     "timing",
+    "narration",
   ], path);
   string(result.id, `${path}.id`);
   string(result.templateId, `${path}.templateId`);
@@ -83,6 +84,7 @@ function scene(value: unknown, path: string): VideoScene {
   timing(result.timing, `${path}.timing`);
   if (result.textArchetype != null) string(result.textArchetype, `${path}.textArchetype`);
   if (result.backgroundEffect != null) string(result.backgroundEffect, `${path}.backgroundEffect`);
+  if (result.narration != null) string(result.narration, `${path}.narration`);
   return result as unknown as VideoScene;
 }
 

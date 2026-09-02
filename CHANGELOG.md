@@ -4,6 +4,14 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds optional `narration` to `VideoScene`: the line spoken aloud while that
+  scene is showing. A narrated video previously had to be carried as scenes plus
+  a separate script kept in step by index, which drifts; holding the line on the
+  scene keeps the two together through planning, playback, storage and replay,
+  so a stored video can be spoken again without the model that wrote it. The
+  renderer never draws it. Additive and optional, so existing videos parse
+  unchanged.
+
 ## 0.6.0
 
 - Adds opt-in native scene-video audio to `VideoPlayer`, mixed with the existing
