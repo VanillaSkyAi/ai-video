@@ -7,6 +7,12 @@ what it cost to work around, so the reason survives the person who found it.
 The bar these are measured against: someone asks the SDK skill for an AI tutor
 and has a working one in minutes, without opening the SDK source.
 
+Everything a tutor needs belongs here - setting up the voice, composing the
+scenes, calling the video provider, and the recipe that ties them together. What
+stays with the consumer is what their page looks like. Where a piece would force
+a dependency on someone who only wants to render a video, it ships behind its
+own entry point rather than being left out.
+
 ## Export a readable scene duration, and make it a range
 
 `getReadableSceneDuration` in `src/server/pacing.ts` already computes how long a
@@ -97,11 +103,15 @@ together, scene duration following the spoken line, an interrupt aborting
 filming, the transcript following the scene. A consumer wiring their own hook
 hits every one.
 
-Own the contract - speak, interrupt, events - and ship providers as adapters.
-fal serves both voice and video from one key, which is the dependency the SDK
-already has, so the first adapter adds no new provider surface. Pacing off the
-audio clock instead of a words-per-second estimate is only possible once the SDK
-owns both ends; today the tutor's alignment is a guess for exactly this reason.
+Ship the session itself, not just a contract: connecting, speaking, being
+interrupted, and staying in step with the picture. Providers plug in behind it,
+and fal serves both voice and video from one key - the dependency the SDK
+already has - so the first adapter adds no new provider surface. A separate
+entry point keeps the audio out of the way of anyone who only wants to render.
+
+Pacing off the audio clock instead of a words-per-second estimate is only
+possible once the SDK owns both ends; today the tutor's alignment is a guess for
+exactly this reason.
 
 ## A default tutor instruction contract and tool schemas
 
@@ -117,3 +127,13 @@ Filmed scenes cost real money per beat and nothing in the SDK bounds them. The
 tutor can be made to spend by holding down a suggestion chip. Per-session and
 global ceilings, with a documented way to degrade to rendered scenes rather than
 fail, belong beside the media resolver that spends the money.
+
+## Ship the tutor as an example, and let it prove the line
+
+The tutor lives in `vanillasky-site` today only because that is where it was
+built. Once the pieces above exist it moves here as an example app, and it
+should end up thin: a page, some styling, and calls into the SDK.
+
+That is the test for everything on this list. If the example still needs
+hundreds of lines of plumbing, the line was drawn in the wrong place, and the
+example shows exactly where.
