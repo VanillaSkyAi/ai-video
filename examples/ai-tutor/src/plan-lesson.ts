@@ -1,94 +1,81 @@
-import type { Video } from "@vanillaskyai/video";
+import type { Video, VideoScene } from "@vanillaskyai/video";
 import type { Theme } from "./themes";
 import type { VisualMode } from "./modes";
 
 /**
- * Compose a whole lesson before any of it is shown.
+ * Stream a lesson, narrating each scene as it arrives.
  *
- * The planner sees the entire question at once, so it can choose the template
- * that fits each beat rather than repeating one shape. The narration is written
- * afterwards from the scenes it chose - never from the question - so the words
- * describe what is actually on screen. Both exist before playback starts, which
- * is what lets the voice and the picture begin together.
- */
-export interface Lesson {
-  video: Video;
-  followups: string[];
-}
-
-/**
- * A question is short input, and the planner reads short input as sparse
- * material - so without being told, it answers a whole question in one or two
- * scenes. The material here is the answer, not the question, and the shape of a
- * good answer is worth stating outright.
+ * Composing the whole answer first is what keeps the words matched to the
+ * pictures, but it costs the entire plan before a single frame - thirty to
+ * ninety seconds of nothing. The scenes arrive one at a time, so the narration
+ * can too: each line is written as its scene lands, and the first scene plays
+ * within a few seconds with its own line spoken over it.
+ *
+ * The narrator is given the lines already written, so the script still joins up
+ * into one explanation rather than four unrelated remarks. What it cannot do is
+ * set up a payoff it has not seen yet - the price of not waiting.
  */
 const PLANNER_INSTRUCTIONS = [
   "The input is a question from a learner. Answer it as a short explainer video.",
   "The material is the answer, not the question: a one-line question still deserves a full explanation.",
   "Use four or five scenes. Open on what the question is really asking, spend two or three scenes on the mechanism, and close on the point that makes it stick.",
-  "Choose the template that fits each beat honestly - a figure belongs in a number scene, an ordered process in steps, something physical worth watching in a filmed beat - rather than repeating one shape.",
+  "Choose the template that fits each beat honestly - a figure belongs in a number scene, an ordered process in steps, a comparison in a chart - rather than repeating one shape.",
   "Never invent statistics. Never mention the video, the scenes, or yourself.",
 ].join("\n");
 
-async function readPlan(response: Response, onScene?: (count: number) => void): Promise<Video> {
-  const scenes: Video["scenes"] = [];
-  let style: Video["style"] | undefined;
-  const reader = response.body!.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    buffer += decoder.decode(value, { stream: !done });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.startsWith("data: ") || line === "data: [DONE]") continue;
-      const event = JSON.parse(line.slice(6)) as { type?: string; data?: Record<string, unknown> };
-      if (event.type === "response.start") style = event.data?.style as Video["style"];
-      if (event.type === "scene.add" && event.data?.scene) {
-        scenes.push(event.data.scene as Video["scenes"][number]);
-        // Scenes arrive one at a time over a slow minute. Saying how many have
-        // landed is the difference between waiting and wondering.
-        onScene?.(scenes.length);
-      }
-    }
-    if (done) break;
-  }
-  if (scenes.length === 0) throw new Error("The planner returned no scenes");
-  return { schemaVersion: "0.1", orientation: "landscape", scenes, style: style! };
+export interface StreamedLesson {
+  /** Resolves when the last scene has been planned and narrated. */
+  done: Promise<{ video: Video; followups: string[] }>;
 }
 
-export async function planLesson(
+async function narrateScene(
   question: string,
-  theme: Theme,
-  mode: VisualMode,
-  options: { signal?: AbortSignal; onScene?: (count: number) => void } = {},
-): Promise<Lesson> {
-  const response = await fetch(`/api/lesson?filmed=${mode.filmedScenes}`, {
+  scene: VideoScene,
+  earlier: string[],
+  signal?: AbortSignal,
+): Promise<string> {
+  const result = await fetch("/api/narration", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    signal,
+    body: JSON.stringify({ question, scene, earlier }),
+  });
+  if (!result.ok) return "";
+  const payload = await result.json() as { line?: string };
+  return typeof payload.line === "string" ? payload.line : "";
+}
+
+export async function streamLesson(options: {
+  question: string;
+  theme: Theme;
+  mode: VisualMode;
+  signal?: AbortSignal;
+  /** Called with each scene once its line has been written. */
+  onScene: (scene: VideoScene) => void;
+  onStyle: (style: Video["style"]) => void;
+}): Promise<{ video: Video; followups: string[] }> {
+  const response = await fetch(`/api/lesson?filmed=${options.mode.filmedScenes}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     signal: options.signal,
     body: JSON.stringify({
       protocolVersion: "0.5",
       requestId: `tutor-${Date.now()}`,
-      // The templates this page can actually render. Without it the planner
-      // reaches for names it knows from elsewhere, and a scene arrives that
-      // there is no component for.
-      capabilities: { templates: ["point", "steps", "figure", "media"] },
       input: {
-        input: question,
+        input: options.question,
         instructions: PLANNER_INSTRUCTIONS,
-        opening: false,
+        // The opening scene is composed by the runtime, not the model, so it
+        // reaches the page in about a second. Without it nothing is on screen
+        // until the planner finishes - which is what made this feel broken.
+        opening: options.question,
         orientation: "landscape",
         maxDurationSec: 40,
-        brand: theme.brand,
+        brand: options.theme.brand,
         style: {
           density: "airy",
           motion: "calm",
           textArchetype: "cinematic",
-          // The look the footage is filmed in travels with the brand the
-          // captions are drawn with, so the two cannot disagree.
-          generatedLook: theme.generatedLook,
+          generatedLook: options.theme.generatedLook,
         },
       },
     }),
@@ -97,26 +84,51 @@ export async function planLesson(
     throw new Error((await response.text()).slice(0, 300) || `Planning failed (${response.status})`);
   }
 
-  const video = await readPlan(response, options.onScene);
-  const narrated = await fetch("/api/narration", {
+  const scenes: VideoScene[] = [];
+  const lines: string[] = [];
+  let style: Video["style"] | undefined;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const rows = buffer.split("\n");
+    buffer = rows.pop() ?? "";
+    for (const row of rows) {
+      if (!row.startsWith("data: ") || row === "data: [DONE]") continue;
+      const event = JSON.parse(row.slice(6)) as { type?: string; data?: Record<string, unknown> };
+      if (event.type === "response.start") {
+        style = event.data?.style as Video["style"];
+        options.onStyle(style);
+      }
+      if (event.type !== "scene.add" || !event.data?.scene) continue;
+
+      const planned = event.data.scene as VideoScene;
+      // Narrating here, rather than after the whole plan, is what makes the
+      // first scene playable in seconds instead of a minute.
+      const line = await narrateScene(options.question, planned, lines, options.signal);
+      if (line) lines.push(line);
+      const scene = line ? { ...planned, narration: line } : planned;
+      scenes.push(scene);
+      options.onScene(scene);
+    }
+    if (done) break;
+  }
+  if (scenes.length === 0) throw new Error("The planner returned no scenes");
+
+  const followups = await fetch("/api/followups", {
     method: "POST",
     headers: { "content-type": "application/json" },
     signal: options.signal,
-    body: JSON.stringify({ question, scenes: video.scenes }),
+    body: JSON.stringify({ question: options.question, lines }),
   })
-    .then(async (result) => (result.ok ? result.json() : { lines: [], followups: [] }))
-    // A lesson with no narration is still a lesson; one that never plays
-    // because its narration failed is not.
-    .catch(() => ({ lines: [], followups: [] }));
+    .then(async (result) => (result.ok ? (await result.json()).followups ?? [] : []))
+    .catch(() => []);
 
-  const lines = (narrated.lines ?? []) as string[];
   return {
-    video: {
-      ...video,
-      // The line said over a scene belongs to that scene, so it travels with it
-      // from here on: through pacing, playback, storage and replay.
-      scenes: video.scenes.map((scene, index) => (lines[index] ? { ...scene, narration: lines[index] } : scene)),
-    },
-    followups: (narrated.followups ?? []) as string[],
+    video: { schemaVersion: "0.1", orientation: "landscape", scenes, style: style! },
+    followups: followups as string[],
   };
 }

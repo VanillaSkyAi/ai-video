@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { createSceneTimeline, getSceneDuration, type Video } from "@vanillaskyai/video";
+import { createSceneTimeline, getSceneDuration, type Video, type VideoScene } from "@vanillaskyai/video";
 import { VideoPlayer, useNarration } from "@vanillaskyai/video/react";
 
 const OPENING_QUESTIONS = [
@@ -10,9 +10,9 @@ const OPENING_QUESTIONS = [
   "Why do some animals walk on two legs?",
 ];
 import { createTemplateRegistry } from "@vanillaskyai/video/templates";
-import { definitions } from "./templates";
+import { definitions } from "../vanillasky";
 import { createBrowserVoice } from "./browser-voice";
-import { planLesson } from "./plan-lesson";
+import { streamLesson } from "./plan-lesson";
 import { defaultMode, modeById, visualModes } from "./modes";
 import { defaultTheme, themeById, themes } from "./themes";
 import { Warmup } from "./warmup";
@@ -27,16 +27,18 @@ interface Answer {
   video?: Video;
 }
 
-/** Hold every scene for as long as its line takes to say. */
-function paced(video: Video): Video {
+/** Hold a scene for as long as its line takes to say. */
+function pacedScene(scene: VideoScene): VideoScene {
   return {
-    ...video,
-    scenes: video.scenes.map((scene) => ({
-      ...scene,
-      timing: { ...scene.timing, fixedDuration: getSceneDuration(scene, templates.getTemplateMetadata(scene.templateId)) },
-    })),
+    ...scene,
+    timing: {
+      ...scene.timing,
+      fixedDuration: getSceneDuration(scene, templates.getTemplateMetadata(scene.templateId)),
+    },
   };
 }
+
+const EMPTY_VIDEO = { schemaVersion: "0.1", orientation: "landscape", scenes: [], style: undefined } as unknown as Video;
 
 function App() {
   const [draft, setDraft] = useState("");
@@ -84,20 +86,33 @@ function App() {
     const index = (answerRef.current += 1);
     setAnswers((current) => [...current, { index, question }]);
 
+    let timeline: ReturnType<typeof createSceneTimeline> | undefined;
     try {
-      const lesson = await planLesson(question, theme, mode, { signal: inFlight.signal, onScene: setPlanned });
+      const lesson = await streamLesson({
+        question,
+        theme,
+        mode,
+        signal: inFlight.signal,
+        // The style arrives first, so the timeline can open before any scene
+        // exists and the player has something to attach to.
+        onStyle: (style) => {
+          timeline = createSceneTimeline({ style, orientation: "landscape" });
+          setStream(timeline.stream);
+          setComposing(false);
+        },
+        // Each scene is appended the moment its line is written, so the first
+        // one plays in seconds rather than after the whole lesson.
+        onScene: (scene) => {
+          setPlanned((count) => count + 1);
+          timeline?.add(pacedScene(scene));
+          setAnswers((current) => current.map((answer) => (answer.index === index
+            ? { ...answer, video: { ...(answer.video ?? EMPTY_VIDEO), scenes: [...(answer.video?.scenes ?? []), scene] } }
+            : answer)));
+        },
+      });
       if (inFlight.signal.aborted) return;
-      const video = paced(lesson.video);
-
-      // The timeline is what the player understands: envelopes with exact
-      // sequence numbers, scene positions and a completion snapshot. Composing
-      // one by hand is where every silent playback failure comes from.
-      const timeline = createSceneTimeline({ style: video.style, orientation: "landscape" });
-      setStream(timeline.stream);
-      for (const scene of video.scenes) timeline.add(scene);
-      timeline.complete();
-
-      setAnswers((current) => current.map((answer) => (answer.index === index ? { ...answer, video } : answer)));
+      timeline?.complete();
+      setAnswers((current) => current.map((answer) => (answer.index === index ? { ...answer, video: lesson.video } : answer)));
       setFollowups(lesson.followups);
     } catch (cause) {
       if (inFlight.signal.reason instanceof Error && inFlight.signal.reason.message === "stalled") {

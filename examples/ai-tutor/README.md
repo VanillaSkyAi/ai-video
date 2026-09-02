@@ -45,16 +45,21 @@ billed.
 | Some AI video | `1` | The opening beat is filmed. |
 | Full AI video | `4` | Every beat filmed, up to the ceiling. |
 
-## Known rough edges
+## Why it starts immediately
 
-**Planning takes 30 to 90 seconds.** The whole lesson is composed before a word
-is spoken, and that is the wait. Nothing is wrong when the warm-up runs for a
-minute.
+The first scene is on screen in about a second, and the rest arrive as they are
+planned. Two things make that true, and losing either one puts a minute of
+loading screen back:
 
-**Lessons come out shorter than asked for** - often one to three scenes rather
-than the four or five the instructions request. A question is short input, and
-the planner reads short input as sparse material; the instructions push back on
-that but do not always win.
+**`opening` is set to the question.** The opening scene is composed by the
+runtime rather than the model, so it exists before any planning has happened.
+With `opening: false` there is nothing to show until the planner finishes, and
+the planner takes thirty to ninety seconds.
+
+**Each scene is narrated as it arrives**, not after the whole plan. Every line
+is written with the lines before it for context, so the script still joins up.
+The narrator cannot set up a payoff four scenes ahead, which is the price of not
+waiting - and a cheap price against a minute of gradient.
 
 ## How an answer is made
 

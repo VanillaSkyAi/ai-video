@@ -16,7 +16,7 @@ function tutorRoutes(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const path = request.url?.split("?")[0];
-        if (path !== "/api/lesson" && path !== "/api/narration") return next();
+        if (path !== "/api/lesson" && path !== "/api/narration" && path !== "/api/followups") return next();
         if (!process.env.ANTHROPIC_API_KEY) {
           response.statusCode = 503;
           response.end("Set ANTHROPIC_API_KEY and restart. This example plans real lessons; there is nothing canned to fall back to.");
@@ -26,20 +26,32 @@ function tutorRoutes(): Plugin {
         try {
         const chunks: Buffer[] = [];
         for await (const chunk of request) chunks.push(chunk as Buffer);
-        const { planLesson, narrateLesson } = await server.ssrLoadModule("/server.ts");
+        const routes = await server.ssrLoadModule("/server.ts");
         const incoming = new Request(`http://localhost${request.url}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: Buffer.concat(chunks).toString("utf8"),
         });
 
-        const result: Response = path === "/api/lesson"
-          ? await planLesson(incoming)
-          : await narrateLesson(incoming);
+        const handle = path === "/api/lesson" ? routes.planLesson
+          : path === "/api/narration" ? routes.narrateLesson
+          : routes.suggestFollowups;
+        const result: Response = await handle(incoming);
         response.statusCode = result.status;
         result.headers.forEach((value, key) => response.setHeader(key, value));
         if (!result.body) return void response.end();
-        for await (const chunk of result.body as unknown as AsyncIterable<Uint8Array>) response.write(chunk);
+
+        // A planned lesson streams: the page appends each scene as it arrives
+        // and plays the first one within seconds. Node holds small writes back
+        // unless the headers are flushed and Nagle is off, which turns a
+        // streaming response into one silent minute and then everything at
+        // once - which is exactly how it behaved.
+        response.setHeader("cache-control", "no-cache, no-transform");
+        response.flushHeaders();
+        response.socket?.setNoDelay(true);
+        for await (const chunk of result.body as unknown as AsyncIterable<Uint8Array>) {
+          response.write(chunk);
+        }
         response.end();
         } catch (cause) {
           // A route that throws must not take the dev server with it: an
