@@ -494,7 +494,8 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
           "type": "string",
           "title": "Text",
           "description": "Title text shown above the chart",
-          "default": "Revenue up 300%."
+          "default": "Revenue up 300%.",
+          "maxLength": 48
         },
         "bars": {
           "type": "array",
@@ -3052,7 +3053,8 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
           "type": "string",
           "title": "Text",
           "description": "Title text",
-          "default": "What you get."
+          "default": "What you get.",
+          "maxLength": 48
         },
         "items": {
           "type": "array",
@@ -3190,7 +3192,8 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
           "type": "string",
           "title": "Text",
           "description": "Title text",
-          "default": "How it works."
+          "default": "How it works.",
+          "maxLength": 48
         },
         "steps": {
           "type": "array",
