@@ -271,7 +271,7 @@
           "type"
         ],
         "declaration": [
-          "interface VideoHandlerOptions extends Omit<VideoStreamHandlerOptions, \"generate\" | \"systemPrompt\" | \"supportedCapabilities\" | \"validateScene\" | \"getTemplatePacing\"> {\n    templates?: ServerTemplateRegistry;\n    streamText: TextDeltaVideoPlannerOptions[\"streamText\"];\n    includeRawProviderData?: boolean;\n    basePrompt?: string;\n    allowMediaUrl?: Parameters<typeof createTemplateSceneValidator>[0][\"allowMediaUrl\"];\n    resolveMedia?: MediaResolver;\n}"
+          "interface VideoHandlerOptions extends Omit<VideoStreamHandlerOptions, \"generate\" | \"systemPrompt\" | \"supportedCapabilities\" | \"validateScene\" | \"getTemplatePacing\"> {\n    templates?: ServerTemplateRegistry;\n    streamText: TextDeltaVideoPlannerOptions[\"streamText\"];\n    includeRawProviderData?: boolean;\n    basePrompt?: string;\n    allowMediaUrl?: Parameters<typeof createTemplateSceneValidator>[0][\"allowMediaUrl\"];\n    resolveMedia?: MediaResolver;\n    mediaConcurrency?: number;\n}"
         ]
       },
       "VideoProviderUsage": {

@@ -36,6 +36,14 @@ export interface VideoHandlerOptions extends Omit<
   allowMediaUrl?: Parameters<typeof createTemplateSceneValidator>[0]["allowMediaUrl"];
   /** Resolve bounded semantic media intent through an application-owned provider. */
   resolveMedia?: MediaResolver;
+  /**
+   * How many scenes may resolve media at once. Defaults to one.
+   *
+   * Raise it when resolution is slow enough to be felt - generated video rather
+   * than a stock search. Scenes are still emitted in the order they were
+   * planned; only the waiting overlaps.
+   */
+  mediaConcurrency?: number;
 }
 
 /**
@@ -58,6 +66,7 @@ export function createVideoHandler(
     basePrompt,
     allowMediaUrl,
     resolveMedia,
+    mediaConcurrency,
     requireCloser = true,
     ...handlerOptions
   } = options;
@@ -87,6 +96,11 @@ export function createVideoHandler(
       resolveMedia,
       approveUrl,
       isOpeningReady: (input) => openingReadyInputs.has(input),
+      mediaConcurrency,
+      // The same rule the scene validator applies, answered from the part
+      // rather than from what the validator has already seen.
+      marksOpeningReady: (part) => part.type === "scene.add"
+        && templates.getTemplateMetadata(part.scene.templateId)?.jobs?.includes("ask") !== true,
     }),
     systemPrompt: ({ request, capabilities }) => {
       const selectedIds = capabilities?.templates == null
