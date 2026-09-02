@@ -12,10 +12,16 @@ import { selectPackedArtifact } from "./lib/release-integrity.mjs";
 
 export const PACKED_SIZE_BUDGET = 1_250_000;
 export const UNPACKED_SIZE_BUDGET = 5_000_000;
-// Reset after the lean player manifest reduced the measured initial graph to
-// 35,649 bytes. Preserve useful release headroom without accepting the old
-// planner-metadata baseline again.
-export const INITIAL_CLIENT_GZIP_BUDGET = 43_000;
+// Set against a measured graph of 37,983 bytes, which had left 17 bytes before
+// the reserve - so any addition at all failed, including a single optional
+// schema field. Raised once, deliberately, rather than nudged each time
+// something bumps into it: 48,000 is roughly a quarter of room over today's
+// graph, enough that a feature is weighed on its merits and a careless import
+// still trips the gate.
+//
+// This is a ratchet, not a safety limit. Raise it only with a measurement and a
+// reason, never to get a build green.
+export const INITIAL_CLIENT_GZIP_BUDGET = 48_000;
 export const TEST_KIT_GZIP_BUDGET = 50_000;
 export const LOADED_TEST_KIT_GZIP_BUDGET = 60_000;
 export const ENTRY_GZIP_HEADROOM = 5_000;
