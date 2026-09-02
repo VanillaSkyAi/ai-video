@@ -14,7 +14,7 @@ import { definitions } from "../vanillasky";
 import { createSpokenVoice } from "./spoken-voice";
 import { streamLessonWithRetry } from "./plan-lesson";
 import { defaultMode, modeById, visualModes } from "./modes";
-import { defaultTheme, themeById, themes } from "./themes";
+import { defaultTheme, themeBackground, themeById, themeForeground, themes } from "./themes";
 import { Warmup } from "./warmup";
 import "./styles.css";
 
@@ -23,6 +23,14 @@ const templates = createTemplateRegistry({ definitions });
 interface Answer {
   index: number;
   question: string;
+  /**
+   * The line said over the question while the lesson was being composed.
+   *
+   * It belongs to the answer rather than to the warm-up: it is the first thing
+   * the tutor said, so it is the first thing the script shows, and a session
+   * replayed from history is missing its opening without it.
+   */
+  opening?: string;
   /** Replayable from JSON, with no model call: an answer is just data. */
   video?: Video;
 }
@@ -78,12 +86,25 @@ function App() {
   const [viewing, setViewing] = useState<number>();
   const [followups, setFollowups] = useState<string[]>([]);
   const [composing, setComposing] = useState(false);
-  const [planned, setPlanned] = useState(0);
-  const [opening, setOpening] = useState(false);
+  // How far the voice has got. The script is written as the lesson is planned,
+  // so without this every line is on the page before a word is said - the
+  // answer readable in full while the video is still on its first scene.
+  const [spokenUpTo, setSpokenUpTo] = useState(-1);
+  // Whether a lesson is on the stage, not whether a sentence is being said.
+  // The voice falls silent in the gap between two scenes, and a badge tied to
+  // that blinked off and on all the way through the answer.
+  const [live, setLive] = useState(false);
   const [error, setError] = useState<string>();
 
   const voice = useMemo(createSpokenVoice, []);
   const narration = useNarration({ voice });
+  // The player reports which scene is showing; that is the cue for both the
+  // voice and the script, so they arrive together rather than the words
+  // running ahead of the picture.
+  const onSceneChange = useCallback((scene: VideoScene, index: number) => {
+    setSpokenUpTo((furthest) => Math.max(furthest, index));
+    narration.onSceneChange(scene, index);
+  }, [narration]);
   // Read inside the async run, which was created before the speaking state it
   // needs to wait on existed.
   const speakingRef = useRef(false);
@@ -115,11 +136,11 @@ function App() {
     setReplaying(undefined);
     setStream(undefined);
     setComposing(true);
-    setPlanned(0);
     const index = (answerRef.current += 1);
     setAnswers((current) => [...current, { index, question }]);
 
-    setOpening(false);
+    setSpokenUpTo(-1);
+    setLive(false);
     const askedAt = Date.now();
     let timeline: ReturnType<typeof createSceneTimeline> | undefined;
     let pendingStyle: Video["style"] | undefined;
@@ -152,6 +173,7 @@ function App() {
         if (speakingOpening) return;
         timeline = createSceneTimeline({ style: pendingStyle, orientation: "landscape" });
         playbackStartedAt = Date.now();
+        setLive(true);
         console.log(`[tutor] ${String(playbackStartedAt - askedAt).padStart(6)}ms  playback opened on ${available} scene${available === 1 ? "" : "s"}`);
         setStream(timeline.stream);
         setComposing(false);
@@ -182,13 +204,15 @@ function App() {
         // voices.
         if (!spoken || timeline || inFlight.signal.aborted) return;
         speakingOpening = true;
-        setOpening(true);
+        // Written down as it starts being said, like every other line.
+        setAnswers((current) => current.map((answer) => (answer.index === index
+          ? { ...answer, opening: line }
+          : answer)));
         await voice.speak(line, { signal: inFlight.signal });
       } catch {
         // A warm-up with no voice, not a broken lesson.
       } finally {
         speakingOpening = false;
-        setOpening(false);
         flush();
       }
     })();
@@ -204,7 +228,6 @@ function App() {
         // shows its own generation cover, and the warm-up owns that wait.
         onStyle: (style) => { pendingStyle = style; },
         onScene: async (scene, position) => {
-          setPlanned((count) => count + 1);
           // The audio exists before the scene is appended, because its
           // measured length is what the scene is held for. Every line's audio
           // is requested as that line lands, so the requests overlap instead
@@ -241,6 +264,7 @@ function App() {
       });
       if (inFlight.signal.aborted) return;
       timeline?.complete();
+      setLive(false);
       // The paced scenes, not the planned ones. What is stored is what gets
       // replayed, and the planner's own timing is the estimate that cuts the
       // voice off - a replay has to hold each scene for the same measured
@@ -265,9 +289,6 @@ function App() {
   const current = answers.at(-1);
   const shown = viewing === undefined ? current : answers.find((answer) => answer.index === viewing) ?? current;
   const suggestions = followups.length > 0 ? followups : OPENING_QUESTIONS;
-  // Asking mid-lesson cuts the tutor off, so there is nothing to ask with until
-  // it has finished - only a deliberate way to cut in.
-  const answering = composing || narration.speaking;
 
   const composer = <form className="composer" onSubmit={(event) => { event.preventDefault(); void ask(draft); }}>
     <label className="sr-only" htmlFor="question">Question</label>
@@ -338,32 +359,38 @@ function App() {
       <div className="stage-column">
         <div className="stage" data-theme={theme.id}>
           {replaying
-            ? <VideoPlayer video={replaying} templates={templates} orientation="landscape" autoPlay onSceneChange={narration.onSceneChange} controls={false} ariaLabel="Replay" />
+            ? <VideoPlayer video={replaying} templates={templates} orientation="landscape" autoPlay onSceneChange={onSceneChange} controls={false} ariaLabel="Replay" />
             : stream
-              ? <VideoPlayer stream={stream as never} templates={templates} orientation="landscape" autoPlay onSceneChange={narration.onSceneChange} onError={(cause) => setError(cause.message)} controls={false} ariaLabel="The lesson" />
+              ? <VideoPlayer stream={stream as never} templates={templates} orientation="landscape" autoPlay onSceneChange={onSceneChange} onError={(cause) => setError(cause.message)} controls={false} ariaLabel="The lesson" />
               : null}
-          <Warmup visible={composing && !error} question={current?.question} speaking={opening} scenes={planned} />
-          {narration.speaking && <span className="live"><span aria-hidden="true">●</span> Speaking</span>}
+          <Warmup visible={composing && !error} question={current?.question} background={themeBackground(theme)} foreground={themeForeground(theme)} />
+          {/* One badge for the whole answer: composing, then playing. It says
+              what the stage is doing, which does not change between scenes. */}
+          {(composing || live || replaying) && !error && <span className="live" data-state={composing ? "loading" : "live"}>
+            <span aria-hidden="true">●</span> {composing ? "Loading" : "Live"}
+          </span>}
         </div>
 
-        {answering
-          ? <p className="answering">
-              <span>{narration.speaking ? "Explaining…" : "Composing the lesson…"}</span>
-              {narration.speaking && <button type="button" onClick={() => narration.interrupt()}>Cut in</button>}
-            </p>
-          : <>
-              {composer}
-              <div className="suggestions">
-                {suggestions.map((question) => <button key={question} type="button" onClick={() => void ask(question)}>{question}</button>)}
-              </div>
-            </>}
+        {/* Always here, from the first moment to the last. Hiding the way to
+            ask until the lesson finished meant the one thing a learner wants
+            while watching - to cut in and ask something else - was the one
+            thing the page took away. */}
+        {composer}
+        <div className="suggestions">
+          {suggestions.map((question) => <button key={question} type="button" onClick={() => void ask(question)}>{question}</button>)}
+        </div>
 
         {error && <p className="error">{error}</p>}
       </div>
 
       <article className="script" aria-label="What the tutor said">
         <h1>{shown?.question}</h1>
-        {(shown?.video?.scenes ?? []).map((scene) => scene.narration && <p key={scene.id}>{scene.narration}</p>)}
+        {shown?.opening && <p>{shown.opening}</p>}
+        {(shown?.video?.scenes ?? [])
+          // A past answer is finished, so all of it is readable. The one being
+          // said arrives a line at a time, with the scene it belongs to.
+          .slice(0, shown === current && !replaying ? spokenUpTo + 1 : undefined)
+          .map((scene) => scene.narration && <p key={scene.id}>{scene.narration}</p>)}
       </article>
     </div>
   </main>;
