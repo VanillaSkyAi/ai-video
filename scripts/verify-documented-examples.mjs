@@ -14,6 +14,7 @@ const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const workspace = mkdtempSync(join(tmpdir(), "vanillasky-documented-examples-"));
 const examples = [
   { name: "react-vite", url: "http://localhost:5173/" },
+  { name: "ai-tutor", url: "http://localhost:5173/" },
   { name: "server-integrations" },
   { name: "nextjs-quickstart", url: "http://localhost:3000/", browser: true, rejectsProduction: true },
 ];
