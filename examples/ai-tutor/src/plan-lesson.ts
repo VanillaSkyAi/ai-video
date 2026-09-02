@@ -1,5 +1,5 @@
 import { resolveVideoBrand, type Video } from "@vanillaskyai/video";
-import { lesson as storedLesson } from "./lesson";
+import { storedLessons, storedQuestions } from "./lesson";
 import type { Theme } from "./themes";
 
 /**
@@ -26,22 +26,34 @@ const PLANNER_INSTRUCTIONS = [
 ].join("\n");
 
 /**
- * The lesson checked in, wearing the chosen look.
+ * The lesson checked in for this question, wearing the chosen look.
  *
- * The theme has to reach it or the picker does nothing without a key, which
- * would make the one control on the landing page a lie.
+ * Only the starter questions have one. Anything else returns nothing, and the
+ * page says it cannot plan without a key rather than answering a question it
+ * was not asked - which is what a single stored lesson for every question
+ * amounts to.
+ *
+ * The theme has to reach the stored lesson, or the one control on the landing
+ * page does nothing until a key is set.
  */
-function stored(theme: Theme): Lesson {
+function stored(question: string, theme: Theme): Lesson | undefined {
+  const video = storedLessons[question];
+  if (!video) return undefined;
   return {
     stored: true,
-    followups: [],
-    video: {
-      ...storedLesson,
-      // The brand a video carries is the resolved shape, not the input one, and
-      // the SDK resolves it for exactly this reason.
-      style: { ...storedLesson.style, brand: resolveVideoBrand(theme.brand) },
-    },
+    followups: storedQuestions.filter((other) => other !== question).slice(0, 3),
+    // The brand a video carries is the resolved shape, not the input one, and
+    // the SDK resolves it for exactly this reason.
+    video: { ...video, style: { ...video.style, brand: resolveVideoBrand(theme.brand) } },
   };
+}
+
+/** Raised when there is no key and no stored lesson for the question asked. */
+export class NoPlannerError extends Error {
+  constructor() {
+    super("Set ANTHROPIC_API_KEY and restart to plan a lesson for a question of your own.");
+    this.name = "NoPlannerError";
+  }
 }
 
 async function readPlan(response: Response): Promise<Video> {
@@ -96,10 +108,14 @@ export async function planLesson(question: string, theme: Theme, signal?: AbortS
       }),
     });
   } catch {
-    return stored(theme);
+    return stored(question, theme) ?? Promise.reject(new NoPlannerError());
   }
   if (!response.ok || !response.body) {
-    if (response.status === 404) return stored(theme);
+    if (response.status === 404) {
+      const fallback = stored(question, theme);
+      if (!fallback) throw new NoPlannerError();
+      return fallback;
+    }
     throw new Error((await response.text()).slice(0, 200) || `Planning failed (${response.status})`);
   }
 

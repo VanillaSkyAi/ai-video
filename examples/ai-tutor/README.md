@@ -16,9 +16,11 @@ npm run dev
 ```
 <!-- verify:end -->
 
-It runs with no key: without one, `/api/lesson` answers 404 and the page shows
-the lesson checked into `src/lesson.ts`, which is exactly what a planner
-returns. Set `ANTHROPIC_API_KEY` and restart to plan live ones.
+It runs with no key. Without one, `/api/lesson` answers 404 and the four starter
+questions are served from `src/lesson.ts` - one lesson each, exactly as a
+planner returns them. Ask a question of your own and it says it cannot plan one,
+rather than replying with somebody else's answer. Set `ANTHROPIC_API_KEY` and
+restart to plan live lessons for any question.
 
 ## How an answer is made
 

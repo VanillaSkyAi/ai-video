@@ -6,18 +6,14 @@ import { createTemplateRegistry } from "@vanillaskyai/video/templates";
 import { definitions } from "./templates";
 import { createBrowserVoice } from "./browser-voice";
 import { planLesson } from "./plan-lesson";
+// The starter questions are exactly the ones a stored lesson can answer, so the
+// example stays coherent before a key is set.
+import { storedQuestions } from "./lesson";
 import { defaultTheme, themeById, themes } from "./themes";
 import { Warmup } from "./warmup";
 import "./styles.css";
 
 const templates = createTemplateRegistry({ definitions });
-
-const OPENING_QUESTIONS = [
-  "Why do some animals walk on two legs?",
-  "How does an atom hold itself together?",
-  "What makes ocean waves break?",
-  "Why does the Moon always show one face?",
-];
 
 interface Answer {
   index: number;
@@ -102,7 +98,7 @@ function App() {
 
   const current = answers.at(-1);
   const shown = viewing === undefined ? current : answers.find((answer) => answer.index === viewing) ?? current;
-  const suggestions = followups.length > 0 ? followups : OPENING_QUESTIONS;
+  const suggestions = followups.length > 0 ? followups : storedQuestions;
   // Asking mid-lesson cuts the tutor off, so there is nothing to ask with until
   // it has finished - only a deliberate way to cut in.
   const answering = composing || narration.speaking;
@@ -134,7 +130,7 @@ function App() {
         </select>
       </label>
       <div className="suggestions wide">
-        {OPENING_QUESTIONS.map((question) => <button key={question} type="button" onClick={() => void ask(question)}>{question}</button>)}
+        {storedQuestions.map((question) => <button key={question} type="button" onClick={() => void ask(question)}>{question}</button>)}
       </div>
       {error && <p className="error">{error}</p>}
     </main>;
