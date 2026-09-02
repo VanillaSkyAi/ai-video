@@ -102,6 +102,16 @@ function lessonHandler(filmedScenes: number) {
       system: systemPrompt,
       prompt: userPrompt,
       abortSignal: signal,
+      // Planning is structure, not reasoning, and the current models think
+      // adaptively unless told otherwise. Left on the default this took over a
+      // minute to emit its first planned scene; off, the whole plan streams in
+      // under ten seconds.
+      providerOptions: {
+        anthropic: {
+          thinking: { type: "disabled" },
+          output_config: { effort: "medium" },
+        },
+      },
     }),
     maxResolvedMedia: filmedScenes,
     // Beats film in parallel: waiting for each in turn would make a five-scene

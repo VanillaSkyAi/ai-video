@@ -54,7 +54,7 @@ export async function streamLesson(options: {
   mode: VisualMode;
   signal?: AbortSignal;
   /** Called with each scene once its line has been written. */
-  onScene: (scene: VideoScene) => void;
+  onScene: (scene: VideoScene) => void | Promise<void>;
   onStyle: (style: Video["style"]) => void;
 }): Promise<{ video: Video; followups: string[] }> {
   const response = await fetch(`/api/lesson?filmed=${options.mode.filmedScenes}`, {
@@ -120,7 +120,7 @@ export async function streamLesson(options: {
       if (line) lines.push(line);
       const scene = line ? { ...planned, narration: line } : planned;
       scenes.push(scene);
-      options.onScene(scene);
+      await options.onScene(scene);
     }
     if (done) break;
   }

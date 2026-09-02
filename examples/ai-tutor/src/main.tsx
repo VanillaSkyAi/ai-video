@@ -27,15 +27,18 @@ interface Answer {
   video?: Video;
 }
 
-/** Hold a scene for as long as its line takes to say. */
-function pacedScene(scene: VideoScene): VideoScene {
-  return {
-    ...scene,
-    timing: {
-      ...scene.timing,
-      fixedDuration: getSceneDuration(scene, templates.getTemplateMetadata(scene.templateId)),
-    },
-  };
+/**
+ * Hold a scene for exactly as long as its line takes to say.
+ *
+ * `spokenSeconds` is the measured length of the generated audio, so there is no
+ * estimate involved. The template's own readable time is still the floor: a
+ * six-word line must not cut a five-step list short, and the small tail is the
+ * breath between one scene and the next.
+ */
+function pacedScene(scene: VideoScene, spokenSeconds?: number): VideoScene {
+  const readable = getSceneDuration({ ...scene, narration: undefined }, templates.getTemplateMetadata(scene.templateId));
+  const held = spokenSeconds ? Math.max(readable, spokenSeconds + 0.5) : getSceneDuration(scene, templates.getTemplateMetadata(scene.templateId));
+  return { ...scene, timing: { ...scene.timing, fixedDuration: held } };
 }
 
 const EMPTY_VIDEO = { schemaVersion: "0.1", orientation: "landscape", scenes: [], style: undefined } as unknown as Video;
@@ -102,12 +105,13 @@ function App() {
         },
         // Each scene is appended the moment its line is written, so the first
         // one plays in seconds rather than after the whole lesson.
-        onScene: (scene) => {
+        onScene: async (scene) => {
           setPlanned((count) => count + 1);
-          // Generated while the scene before it is still playing, so the line
-          // is ready by the time its scene arrives.
-          if (scene.narration) voice.prefetch(scene.narration);
-          timeline?.add(pacedScene(scene));
+          // The audio is generated before the scene is appended, because its
+          // length is what the scene's duration is set from. It costs a second
+          // or so, spent while the scene before it is still playing.
+          const spoken = scene.narration ? await voice.prepare(scene.narration) : undefined;
+          timeline?.add(pacedScene(scene, spoken?.seconds));
           setAnswers((current) => current.map((answer) => (answer.index === index
             ? { ...answer, video: { ...(answer.video ?? EMPTY_VIDEO), scenes: [...(answer.video?.scenes ?? []), scene] } }
             : answer)));
