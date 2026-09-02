@@ -7,11 +7,15 @@
     "runtimeExports": [
       "VideoValidationError",
       "createSceneTimeline",
+      "getSceneDuration",
+      "getSceneDurationBounds",
+      "getSpokenDuration",
       "getVideoDuration",
       "parseVideo",
       "resolveVideoBrand"
     ],
     "typeExports": [
+      "SceneDurationBounds",
       "SceneTimeline",
       "SceneTimelineOptions",
       "Video",

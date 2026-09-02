@@ -9,6 +9,30 @@
           "declare function createSceneTimeline(options: SceneTimelineOptions): SceneTimeline;"
         ]
       },
+      "getSceneDuration": {
+        "kinds": [
+          "value"
+        ],
+        "declaration": [
+          "declare function getSceneDuration(scene: Pick<VideoScene, \"variables\" | \"narration\">, metadata: VideoTemplatePacing | undefined): number;"
+        ]
+      },
+      "getSceneDurationBounds": {
+        "kinds": [
+          "value"
+        ],
+        "declaration": [
+          "declare function getSceneDurationBounds(scene: Pick<VideoScene, \"variables\">, metadata: VideoTemplatePacing | undefined): SceneDurationBounds;"
+        ]
+      },
+      "getSpokenDuration": {
+        "kinds": [
+          "value"
+        ],
+        "declaration": [
+          "declare function getSpokenDuration(narration: string): number;"
+        ]
+      },
       "getVideoDuration": {
         "kinds": [
           "value"
@@ -31,6 +55,14 @@
         ],
         "declaration": [
           "declare function resolveVideoBrand(input?: VideoBrandInput): VideoBrand;"
+        ]
+      },
+      "SceneDurationBounds": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface SceneDurationBounds {\n    minimum: number;\n    readable: number;\n}"
         ]
       },
       "SceneTimeline": {
@@ -178,6 +210,7 @@
       "interface VideoCapabilities {\n    templates?: string[];\n    extensions?: string[];\n}",
       "interface VideoEventDataMap {\n    \"response.start\": {\n        requestId: string;\n        format: {\n            orientation: VideoOrientation;\n        };\n        style: VideoStyle;\n        meta?: Video[\"meta\"];\n        capabilities?: VideoCapabilities;\n    };\n    \"audio.set\": {\n        audio: VideoAudio;\n    };\n    \"scene.add\": {\n        scene: VideoScene;\n        position: number;\n    };\n    \"response.warning\": {\n        warning: VideoWarning;\n    };\n    \"response.complete\": {\n        finishReason: VideoFinishReason;\n        snapshot: Video;\n        checksum: string;\n    };\n    \"response.error\": {\n        error: {\n            code: string;\n            message: string;\n            recoverable: boolean;\n        };\n        terminal: boolean;\n        snapshot?: Video;\n    };\n    \"response.abort\": {\n        reason: string;\n        snapshot?: Video;\n    };\n}",
       "interface VideoEventEnvelope<TType extends string, TData> {\n    protocolVersion: typeof VIDEO_PROTOCOL_VERSION;\n    runId: string;\n    sequence: number;\n    eventId: string;\n    type: TType;\n    data: TData;\n}",
+      "interface VideoTemplatePacing {\n    jobs?: readonly string[];\n    schema?: {\n        readonly properties: Readonly<Record<string, {\n            readonly default?: unknown;\n        }>>;\n    };\n    minDuration?: number;\n    preferredDuration?: number;\n    timing?: {\n        readonly contentFields: readonly string[];\n        readonly contentUnit: \"words\" | \"characters\" | \"items\";\n    };\n}",
       "interface VideoTiming {\n    beatStart?: number;\n    beatEnd?: number;\n    startTime?: number;\n    endTime?: number;\n    fixedDuration?: number;\n    durationWeight?: number;\n}",
       "interface VideoWarning {\n    code: VideoWarningCode;\n    category: VideoWarningCategory;\n    message: string;\n    sceneId?: string;\n    recoverable: boolean;\n}",
       "type VideoBackgroundInput = VideoBackgroundPreset | {\n    color: string;\n} | {\n    colors: [\n        string,\n        string\n    ];\n};",
