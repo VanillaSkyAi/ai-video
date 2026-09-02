@@ -4,6 +4,16 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds `getSceneDuration`, `getSceneDurationBounds` and `getSpokenDuration`.
+  Templates already declare `minDuration`, `preferredDuration` and which fields
+  hold their content, and the runtime already computed a content-aware readable
+  duration from them - but internally, so applications reached for `minDuration`
+  instead. That is a compression bound, the least a template survives being
+  squeezed to when a video must fit a fixed length: 1 second for `media`, 1.5
+  for `bigNumber`. A narrated lesson built on it flashes past. `getSceneDuration`
+  answers the real question, taking a scene's `narration` into account, since
+  speech is slower than reading.
+
 - Adds `generatedLook` to the video style and to `VideoInput.style`: the visual
   language generated media is produced in. A style has two halves once media can
   be generated - the brand decides how captions are drawn, this decides what the

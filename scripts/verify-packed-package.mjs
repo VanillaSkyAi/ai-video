@@ -97,7 +97,7 @@ void [createVideoHandler, createServerTemplateRegistry, options, summary, usage,
   writeFileSync(join(serverConsumer, "root.mjs"), `
 import { VideoValidationError, getVideoDuration, parseVideo } from "@vanillaskyai/video";
 import * as root from "@vanillaskyai/video";
-if (Object.keys(root).join() !== "VideoValidationError,createSceneTimeline,getVideoDuration,parseVideo,resolveVideoBrand") throw new Error("Unexpected React-free root API");
+if (Object.keys(root).join() !== "VideoValidationError,createSceneTimeline,getSceneDuration,getSceneDurationBounds,getSpokenDuration,getVideoDuration,parseVideo,resolveVideoBrand") throw new Error("Unexpected React-free root API");
 const stored = {
   schemaVersion: "0.1",
   scenes: [{ id: "stored", templateId: "notification", variables: { message: "Stored" }, timing: { fixedDuration: 4 } }],
@@ -407,7 +407,7 @@ import * as server from "@vanillaskyai/video/server";
 import * as react from "@vanillaskyai/video/react";
 import * as templates from "@vanillaskyai/video/templates";
 import { builtinTemplates } from "@vanillaskyai/video/templates/catalog";
-if (Object.keys(root).join() !== "VideoValidationError,createSceneTimeline,getVideoDuration,parseVideo,resolveVideoBrand") throw new Error("Unexpected root API");
+if (Object.keys(root).join() !== "VideoValidationError,createSceneTimeline,getSceneDuration,getSceneDurationBounds,getSpokenDuration,getVideoDuration,parseVideo,resolveVideoBrand") throw new Error("Unexpected root API");
 const resolvedStyle = { brand: { font: "Inter", scriptFont: "Caveat", background: { type: "gradient", colors: ["#8711C1", "#2167E3"] }, colors: { primary: "#00E5A0", secondary: "#006BE5", foreground: "#FFFFFF", surface: "#0A0A14", surfaceElevated: "#14152A", muted: "#A7A6B0" } } };
 const rootVideo = root.parseVideo({ schemaVersion: "0.1", scenes: [{ id: "one", templateId: "notification", variables: {}, timing: { fixedDuration: 4 } }], style: resolvedStyle });
 if (root.getVideoDuration(rootVideo) !== 4 || !Object.isFrozen(rootVideo)) {
