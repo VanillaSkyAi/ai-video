@@ -7,6 +7,7 @@ describe("public API", () => {
       "getVideoDuration",
       "resolveVideoBrand",
       "parseVideo",
+      "createSceneTimeline",
     ]);
   });
   it("exposes one obvious server path", async () => {
