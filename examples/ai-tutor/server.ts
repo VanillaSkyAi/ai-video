@@ -1,7 +1,8 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { createFal } from "@ai-sdk/fal";
 import { experimental_generateVideo as generateVideo, generateText, streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/video/server";
+import { createServerTemplateRegistry, createVideoHandler } from "@vanillaskyai/video/server";
+import { templateMetadata } from "./src/template-metadata";
 import type { VideoScene } from "@vanillaskyai/video";
 
 /**
@@ -65,6 +66,10 @@ function lessonHandler(filmedScenes: number) {
 
   const handler = createVideoHandler({
     authorize: (request) => new URL(request.url).hostname === "localhost",
+    // Without this the planner chooses from the built-in catalog and returns
+    // scenes this page has no component for: a lesson that plans and narrates
+    // perfectly, then shows nothing.
+    templates: createServerTemplateRegistry({ templates: templateMetadata }),
     streamText: ({ systemPrompt, userPrompt, signal }) => streamText({
       model: anthropic(PLANNER_MODEL),
       system: systemPrompt,
@@ -111,6 +116,10 @@ export async function narrateLesson(request: Request): Promise<Response> {
 
   const { text } = await generateText({
     model: anthropic(NARRATION_MODEL),
+    // The reply is one line per scene plus three follow-ups; the default output
+    // ceiling truncates that on a long lesson, and truncated JSON parses as
+    // nothing at all.
+    maxOutputTokens: 2_048,
     system: NARRATION_SYSTEM,
     prompt: [
       `QUESTION: ${payload.question ?? ""}`,
@@ -128,8 +137,11 @@ export async function narrateLesson(request: Request): Promise<Response> {
       .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
       .slice(0, limit);
     return Response.json({ lines: strings(parsed.lines, scenes.length), followups: strings(parsed.followups, 3) });
-  } catch {
-    // A lesson with no narration is still a lesson.
+  } catch (cause) {
+    // A lesson with no narration is still a lesson, but a lesson that silently
+    // lost its narration looks like a bug in the player. Say so here.
+    console.error("[ai-tutor] narration did not parse:", cause instanceof Error ? cause.message : cause);
+    console.error("[ai-tutor] model returned:", text.slice(0, 300));
     return Response.json({ lines: [], followups: [] });
   }
 }

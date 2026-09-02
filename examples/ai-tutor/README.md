@@ -23,6 +23,16 @@ says so rather than replaying somebody else's answer.
 Add `FAL_KEY` to film the beats. Without it, the filmed modes still plan and
 narrate normally — the scenes simply keep their copy on the brand background.
 
+## Running it with keys
+
+```bash
+ANTHROPIC_API_KEY=... FAL_KEY=... npm run dev
+```
+
+`FAL_KEY` is only needed for the filmed modes. Restart after changing `server.ts`:
+the dev server caches one handler per visual mode, so an edit there does not take
+effect until the process restarts.
+
 ## Visuals
 
 Three modes, and each is a ceiling rather than a flag, because that is what it
@@ -34,6 +44,17 @@ billed.
 | Templates only | `0` | Rendered scenes. Free and instant. |
 | Some AI video | `1` | The opening beat is filmed. |
 | Full AI video | `4` | Every beat filmed, up to the ceiling. |
+
+## Known rough edges
+
+**Planning takes 30 to 90 seconds.** The whole lesson is composed before a word
+is spoken, and that is the wait. Nothing is wrong when the warm-up runs for a
+minute.
+
+**Lessons come out shorter than asked for** - often one to three scenes rather
+than the four or five the instructions request. A question is short input, and
+the planner reads short input as sparse material; the instructions push back on
+that but do not always win.
 
 ## How an answer is made
 

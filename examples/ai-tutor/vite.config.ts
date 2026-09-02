@@ -23,6 +23,7 @@ function tutorRoutes(): Plugin {
           return;
         }
 
+        try {
         const chunks: Buffer[] = [];
         for await (const chunk of request) chunks.push(chunk as Buffer);
         const { planLesson, narrateLesson } = await server.ssrLoadModule("/server.ts");
@@ -40,6 +41,15 @@ function tutorRoutes(): Plugin {
         if (!result.body) return void response.end();
         for await (const chunk of result.body as unknown as AsyncIterable<Uint8Array>) response.write(chunk);
         response.end();
+        } catch (cause) {
+          // A route that throws must not take the dev server with it: an
+          // unhandled rejection here kills the process, and the page is left
+          // talking to nothing with no clue why.
+          const message = cause instanceof Error ? cause.message : String(cause);
+          server.config.logger.error(`[ai-tutor] ${path} failed: ${message}`);
+          if (!response.headersSent) response.statusCode = 500;
+          response.end(message.slice(0, 300));
+        }
       });
     },
   };

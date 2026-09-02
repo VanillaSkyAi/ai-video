@@ -16,10 +16,17 @@ export interface Lesson {
   followups: string[];
 }
 
+/**
+ * A question is short input, and the planner reads short input as sparse
+ * material - so without being told, it answers a whole question in one or two
+ * scenes. The material here is the answer, not the question, and the shape of a
+ * good answer is worth stating outright.
+ */
 const PLANNER_INSTRUCTIONS = [
   "The input is a question from a learner. Answer it as a short explainer video.",
-  "Develop the answer in clear visual beats: open on what the question is really asking, build through the mechanism, and close on the point that makes it stick.",
-  "Choose the template that fits each beat honestly - a figure belongs in a number scene, an ordered process in steps - rather than repeating one shape.",
+  "The material is the answer, not the question: a one-line question still deserves a full explanation.",
+  "Use four or five scenes. Open on what the question is really asking, spend two or three scenes on the mechanism, and close on the point that makes it stick.",
+  "Choose the template that fits each beat honestly - a figure belongs in a number scene, an ordered process in steps, something physical worth watching in a filmed beat - rather than repeating one shape.",
   "Never invent statistics. Never mention the video, the scenes, or yourself.",
 ].join("\n");
 
@@ -59,6 +66,10 @@ export async function planLesson(
     body: JSON.stringify({
       protocolVersion: "0.5",
       requestId: `tutor-${Date.now()}`,
+      // The templates this page can actually render. Without it the planner
+      // reaches for names it knows from elsewhere, and a scene arrives that
+      // there is no component for.
+      capabilities: { templates: ["point", "steps", "figure", "media"] },
       input: {
         input: question,
         instructions: PLANNER_INSTRUCTIONS,
