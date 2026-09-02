@@ -81,3 +81,4 @@ body { margin: 0; background: #00001a; color: #fff; font-family: Inter, system-u
 .setup label { display: grid; gap: 0.35rem; justify-items: center; }
 .setup-note { flex-basis: 100%; text-align: center; margin: 0; font-size: 0.8rem; color: #aaa5b8; }
 .scene.media { position: relative; overflow: hidden; align-content: end; justify-items: start; text-align: left; }
+.warmup-clock { position: relative; margin: 0.6rem 0 0; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.85rem; color: rgba(255,255,255,0.6); }

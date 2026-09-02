@@ -30,7 +30,7 @@ const PLANNER_INSTRUCTIONS = [
   "Never invent statistics. Never mention the video, the scenes, or yourself.",
 ].join("\n");
 
-async function readPlan(response: Response): Promise<Video> {
+async function readPlan(response: Response, onScene?: (count: number) => void): Promise<Video> {
   const scenes: Video["scenes"] = [];
   let style: Video["style"] | undefined;
   const reader = response.body!.getReader();
@@ -45,7 +45,12 @@ async function readPlan(response: Response): Promise<Video> {
       if (!line.startsWith("data: ") || line === "data: [DONE]") continue;
       const event = JSON.parse(line.slice(6)) as { type?: string; data?: Record<string, unknown> };
       if (event.type === "response.start") style = event.data?.style as Video["style"];
-      if (event.type === "scene.add" && event.data?.scene) scenes.push(event.data.scene as Video["scenes"][number]);
+      if (event.type === "scene.add" && event.data?.scene) {
+        scenes.push(event.data.scene as Video["scenes"][number]);
+        // Scenes arrive one at a time over a slow minute. Saying how many have
+        // landed is the difference between waiting and wondering.
+        onScene?.(scenes.length);
+      }
     }
     if (done) break;
   }
@@ -57,12 +62,12 @@ export async function planLesson(
   question: string,
   theme: Theme,
   mode: VisualMode,
-  signal?: AbortSignal,
+  options: { signal?: AbortSignal; onScene?: (count: number) => void } = {},
 ): Promise<Lesson> {
   const response = await fetch(`/api/lesson?filmed=${mode.filmedScenes}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    signal,
+    signal: options.signal,
     body: JSON.stringify({
       protocolVersion: "0.5",
       requestId: `tutor-${Date.now()}`,
@@ -92,11 +97,11 @@ export async function planLesson(
     throw new Error((await response.text()).slice(0, 300) || `Planning failed (${response.status})`);
   }
 
-  const video = await readPlan(response);
+  const video = await readPlan(response, options.onScene);
   const narrated = await fetch("/api/narration", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    signal,
+    signal: options.signal,
     body: JSON.stringify({ question, scenes: video.scenes }),
   })
     .then(async (result) => (result.ok ? result.json() : { lines: [], followups: [] }))

@@ -48,6 +48,7 @@ function App() {
   const [viewing, setViewing] = useState<number>();
   const [followups, setFollowups] = useState<string[]>([]);
   const [composing, setComposing] = useState(false);
+  const [planned, setPlanned] = useState(0);
   const [error, setError] = useState<string>();
 
   const voice = useMemo(createBrowserVoice, []);
@@ -67,6 +68,10 @@ function App() {
     inFlightRef.current?.abort();
     const inFlight = new AbortController();
     inFlightRef.current = inFlight;
+    // Composing takes thirty to ninety seconds, so there is no honest way to
+    // tell a slow lesson from a stalled one by watching. Past three minutes it
+    // is stalled: say so rather than animating forever.
+    const deadline = window.setTimeout(() => inFlight.abort(new Error("stalled")), 180_000);
 
     narration.interrupt();
     setError(undefined);
@@ -75,11 +80,12 @@ function App() {
     setReplaying(undefined);
     setStream(undefined);
     setComposing(true);
+    setPlanned(0);
     const index = (answerRef.current += 1);
     setAnswers((current) => [...current, { index, question }]);
 
     try {
-      const lesson = await planLesson(question, theme, mode, inFlight.signal);
+      const lesson = await planLesson(question, theme, mode, { signal: inFlight.signal, onScene: setPlanned });
       if (inFlight.signal.aborted) return;
       const video = paced(lesson.video);
 
@@ -94,9 +100,15 @@ function App() {
       setAnswers((current) => current.map((answer) => (answer.index === index ? { ...answer, video } : answer)));
       setFollowups(lesson.followups);
     } catch (cause) {
+      if (inFlight.signal.reason instanceof Error && inFlight.signal.reason.message === "stalled") {
+        setComposing(false);
+        setError("The lesson did not come back within three minutes. Check the dev server output and ask again.");
+        return;
+      }
       if (inFlight.signal.aborted) return;
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
+      window.clearTimeout(deadline);
       if (!inFlight.signal.aborted) setComposing(false);
     }
   }, [narration, theme, mode]);
@@ -181,7 +193,7 @@ function App() {
             : stream
               ? <VideoPlayer stream={stream as never} templates={templates} orientation="landscape" autoPlay onSceneChange={narration.onSceneChange} onError={(cause) => setError(cause.message)} ariaLabel="The lesson" />
               : null}
-          <Warmup visible={composing && !error} />
+          <Warmup visible={composing && !error} scenes={planned} />
           {narration.speaking && <span className="live"><span aria-hidden="true">●</span> Speaking</span>}
         </div>
 
