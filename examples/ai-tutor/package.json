@@ -14,7 +14,9 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^5.9.3",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "@ai-sdk/anthropic": "^3.0.0",
+    "ai": "^7.0.77"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

@@ -1,8 +1,12 @@
 # AI tutor example
 
-A question, answered as a narrated video. The lesson is composed first — scenes
-and words planned together — so the voice and the picture start together and
-stay together.
+Ask a question and get the answer as a narrated video: the scenes and the words
+are planned together, so the voice and the picture start together and stay
+together.
+
+This is the tutor, not a sketch of one — the landing page, the theme picker, the
+session with the script beside the video, session history, follow-up questions,
+and the two routes behind it.
 
 <!-- verify:start -->
 ```bash
@@ -12,33 +16,42 @@ npm run dev
 ```
 <!-- verify:end -->
 
-It runs with no key and no provider: `src/lesson.ts` holds a lesson exactly as a
-planner would return it. Point `/api/video` at your own `createVideoHandler`
-route to plan live ones.
+It runs with no key: without one, `/api/lesson` answers 404 and the page shows
+the lesson checked into `src/lesson.ts`, which is exactly what a planner
+returns. Set `ANTHROPIC_API_KEY` and restart to plan live ones.
 
-## What it shows
+## How an answer is made
 
-**`narration` on the scene.** The line said while a scene is showing belongs to
-that scene, so the words and the picture travel together through planning,
-playback and storage rather than being two lists kept in step by index.
+1. **`/api/lesson`** plans the whole answer through `createVideoHandler`. The
+   planner sees the entire question at once, so it can choose the template that
+   fits each beat instead of repeating one shape.
+2. **`/api/narration`** writes one line per scene — from the scenes, never from
+   the question, because a script written from the question drifts from the
+   composition that was actually chosen. It returns the follow-ups too.
+3. Each line is attached to its scene as `narration`, so the words travel with
+   the picture from here on: through pacing, playback, storage and replay.
+4. `getSceneDuration` holds every scene for as long as its line takes to say.
+5. `createSceneTimeline` turns the finished lesson into a stream the player
+   accepts, and `useNarration` says each line as its scene begins.
 
-**`useNarration`.** The player already reports which scene is showing, which is
-the only cue a narrator needs. The line begins when its scene does, stops when
-the picture moves on, and can be interrupted.
+Nothing plays until both the scenes and the words exist, which is what lets the
+voice and the picture begin together.
 
-**Any voice.** `src/browser-voice.ts` is the browser's own speech synthesiser in
-thirty lines — chosen because it needs no key and costs nothing. A production
-tutor passes a speech model instead: the lesson is composed before it plays, so
-every line is known in advance and can be generated ahead of being needed, and
-nothing else about the page changes.
+## The voice
 
-**`getSceneDuration`.** A scene is held for as long as its line takes to say.
-These templates declare no pacing metadata, so the narration alone decides; pass
-a built-in catalog entry and the template's own readable time becomes the floor
-as well.
+`src/browser-voice.ts` is the browser's own speech synthesiser in thirty lines,
+chosen because it costs nothing and needs no key. It is also the whole contract:
+anything that can say a line and stop when told is a voice.
 
-## What a live tutor adds
+A production tutor passes a speech model instead. The lesson is composed before
+it plays, so every line is known in advance and can be generated ahead of being
+needed — which is why a realtime session is the wrong tool here, despite being
+the obvious one. Nothing else about the page changes.
 
-Plan the lesson through `createVideoHandler`, write the narration from the
-scenes it chose rather than from the question, and set `maxResolvedMedia` if the
-scenes resolve generated media, since every one of those is billed.
+## Generated video
+
+Not enabled, deliberately: every generated scene is billed, and an example
+should be free to run. To add it, give `createVideoHandler` a `resolveMedia`
+that calls a video model, set `style.generatedLook` so the footage matches the
+captions, and keep `maxResolvedMedia` set — the planner decides how many scenes
+there are, and each one is a clip.
