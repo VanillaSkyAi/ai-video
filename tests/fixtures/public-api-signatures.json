@@ -1,6 +1,14 @@
 {
   "@vanillaskyai/video": {
     "exports": {
+      "createSceneTimeline": {
+        "kinds": [
+          "value"
+        ],
+        "declaration": [
+          "declare function createSceneTimeline(options: SceneTimelineOptions): SceneTimeline;"
+        ]
+      },
       "getVideoDuration": {
         "kinds": [
           "value"
@@ -23,6 +31,22 @@
         ],
         "declaration": [
           "declare function resolveVideoBrand(input?: VideoBrandInput): VideoBrand;"
+        ]
+      },
+      "SceneTimeline": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface SceneTimeline {\n    stream: AsyncIterable<VideoEvent>;\n    add(scene: VideoScene): void;\n    setAudio(audio: VideoAudio | undefined): void;\n    complete(): void;\n}"
+        ]
+      },
+      "SceneTimelineOptions": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface SceneTimelineOptions {\n    style: VideoStyle;\n    orientation?: VideoOrientation;\n    audio?: VideoAudio;\n    awaitAudio?: boolean;\n    requestId?: string;\n    runId?: string;\n}"
         ]
       },
       "Video": {
@@ -148,11 +172,24 @@
       }
     },
     "support": [
+      "declare const VIDEO_PROTOCOL_VERSION: \"0.5\";",
       "declare const VIDEO_SCHEMA_VERSION: \"0.1\";",
       "interface VideoBrandColors {\n    primary: string;\n    secondary: string;\n    foreground: string;\n    surface: string;\n    surfaceElevated: string;\n    muted: string;\n}",
+      "interface VideoCapabilities {\n    templates?: string[];\n    extensions?: string[];\n}",
+      "interface VideoEventDataMap {\n    \"response.start\": {\n        requestId: string;\n        format: {\n            orientation: VideoOrientation;\n        };\n        style: VideoStyle;\n        meta?: Video[\"meta\"];\n        capabilities?: VideoCapabilities;\n    };\n    \"audio.set\": {\n        audio: VideoAudio;\n    };\n    \"scene.add\": {\n        scene: VideoScene;\n        position: number;\n    };\n    \"response.warning\": {\n        warning: VideoWarning;\n    };\n    \"response.complete\": {\n        finishReason: VideoFinishReason;\n        snapshot: Video;\n        checksum: string;\n    };\n    \"response.error\": {\n        error: {\n            code: string;\n            message: string;\n            recoverable: boolean;\n        };\n        terminal: boolean;\n        snapshot?: Video;\n    };\n    \"response.abort\": {\n        reason: string;\n        snapshot?: Video;\n    };\n}",
+      "interface VideoEventEnvelope<TType extends string, TData> {\n    protocolVersion: typeof VIDEO_PROTOCOL_VERSION;\n    runId: string;\n    sequence: number;\n    eventId: string;\n    type: TType;\n    data: TData;\n}",
       "interface VideoTiming {\n    beatStart?: number;\n    beatEnd?: number;\n    startTime?: number;\n    endTime?: number;\n    fixedDuration?: number;\n    durationWeight?: number;\n}",
+      "interface VideoWarning {\n    code: VideoWarningCode;\n    category: VideoWarningCategory;\n    message: string;\n    sceneId?: string;\n    recoverable: boolean;\n}",
       "type VideoBackgroundInput = VideoBackgroundPreset | {\n    color: string;\n} | {\n    colors: [\n        string,\n        string\n    ];\n};",
-      "type VideoBackgroundPreset = \"cosmic\" | \"horizon\" | \"twilight\" | \"meadow\" | \"velvet\" | \"flamingo\" | \"peach\" | \"saffron\" | \"black\" | \"midnight\" | \"aubergine\" | \"coal\" | \"navy\";"
+      "type VideoBackgroundPreset = \"cosmic\" | \"horizon\" | \"twilight\" | \"meadow\" | \"velvet\" | \"flamingo\" | \"peach\" | \"saffron\" | \"black\" | \"midnight\" | \"aubergine\" | \"coal\" | \"navy\";",
+      "type VideoCoreEvent = {\n    [TType in VideoCoreEventType]: VideoEventEnvelope<TType, VideoEventDataMap[TType]>;\n}[VideoCoreEventType];",
+      "type VideoCoreEventType = keyof VideoEventDataMap;",
+      "type VideoEvent = VideoCoreEvent | VideoExtensionEvent;",
+      "type VideoExtensionEvent<TData = unknown> = VideoEventEnvelope<VideoExtensionEventType, TData>;",
+      "type VideoExtensionEventType = `data.${string}`;",
+      "type VideoFinishReason = \"stop\" | \"length\" | \"content-filter\" | \"error\" | \"other\";",
+      "type VideoWarningCategory = \"validation\" | \"readability\" | \"grounding\" | \"provider\" | \"media\" | \"protocol\";",
+      "type VideoWarningCode = \"scene_duration_adjusted\" | \"scene_omitted_unreadable\" | \"scene_omitted_for_closer\" | \"chart_scale_imbalance\" | \"plan_incomplete\" | \"plan_missing_closer\" | \"provider_warning\" | \"provider_diagnostics_unavailable\";"
     ]
   },
   "@vanillaskyai/video/server": {

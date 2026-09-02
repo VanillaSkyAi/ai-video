@@ -6,11 +6,14 @@
     "environment": "universal",
     "runtimeExports": [
       "VideoValidationError",
+      "createSceneTimeline",
       "getVideoDuration",
       "parseVideo",
       "resolveVideoBrand"
     ],
     "typeExports": [
+      "SceneTimeline",
+      "SceneTimelineOptions",
       "Video",
       "VideoAudio",
       "VideoBackground",
