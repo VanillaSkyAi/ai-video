@@ -15,6 +15,8 @@ own entry point rather than being left out.
 
 ## Export a readable scene duration, and make it a range
 
+**Done in #17 — `getSceneDuration`, `getSceneDurationBounds`, `getSpokenDuration`. No maximum: once every word is on screen and read, holding longer adds nothing, and a line too long for its scene is a composition problem. `minDuration` is documented as the compression bound it is.**
+
 `getReadableSceneDuration` in `src/server/pacing.ts` already computes how long a
 scene needs from `timing.contentFields` - 2s plus a second an item, or a second
 plus words over 4.5 - but it is internal. Consumers reach for the metadata
@@ -30,6 +32,8 @@ number.
 
 ## Carry the narration on the scene
 
+**Done in #11 — `VideoScene.narration`.**
+
 `VideoScene` has no field for what is said over it, so a narrated video is two
 arrays kept in step by index. Every alignment bug in the tutor came from that:
 the script drifting from the composition, replay needing a parallel `script[]`
@@ -40,6 +44,12 @@ One optional `narration` field on the scene. The planner writes it, duration
 derives from it, replay carries it, and the transcript follows for free.
 
 ## A continuous timeline that never goes blank
+
+**Half done in #14 — `createSceneTimeline` composes the stream, including the
+`awaitAudio` trap. What is left is the playback discipline: hold the last
+decoded scene while the next generates, hand off on decode rather than on
+arrival, keep a bounded prefetch queue, and cancel stale generation on an
+interrupt without stopping playback.**
 
 Composing a growing video that the player accepts is pure protocol - sequence
 numbering, `eventId` shape, 0-based `position`, the completion checksum - and
@@ -64,6 +74,13 @@ scratch: `git show 670206d^:examples/rich-media-poc/src/lib/adaptive-channel/`.
 
 ## Plan one scene at a time, with context
 
+**Worth re-deciding before building. This existed so a lesson could start
+speaking before the whole video was composed, because composing meant waiting
+for every scene's media in turn. `mediaConcurrency` (#15) removed most of that
+wait: the text plan is fast, and the media now overlaps. What remains is the
+plan call itself, a second or two. Measure that against a real lesson before
+paying for a second planning path.**
+
 The planner only plans whole videos. That forces a choice between composing
 everything up front - correct, validated, and a ~25s wait before anything plays
 - and letting a voice model invent scenes beat by beat, which cannot vary its
@@ -78,12 +95,16 @@ two-phase tutor design stands on.
 
 ## Media resolution that runs in parallel
 
+**Done in #15 — `mediaConcurrency`, ordered and bounded.**
+
 `resolveMedia` resolves one part at a time inside the plan stream, so five
 generated backdrops cost five sequential round trips. The scene director route
 in the site had to rebuild the planner to film in parallel. The scheduling is
 the SDK's concern, not the consumer's.
 
 ## The generated half of style
+
+**Done in #16 — `style.generatedLook`, reaching `resolveMedia` on the context.**
 
 A style now has two halves: the brand the templates render with, and the look
 the video model films in. They have to move together - pale illustrated ground
@@ -96,6 +117,12 @@ footage that clashes with the captions becomes structurally impossible. Ship the
 four looks the tutor uses as presets, the way brands already ship as presets.
 
 ## A voice contract, with a fal adapter in the box
+
+**Done in #18 — `useNarration`. No adapter ships: the AI SDK already abstracts
+realtime, speech and video models uniformly, and `@ai-sdk/fal` supplies them, so
+the application passes a voice the way it passes a planner and the package keeps
+its zero dependencies. An adapter here would have added a dependency to solve a
+problem the provider layer had already solved.**
 
 Voice is not next to the video in this product, it is the clock. The coupling is
 all video-side and all of it was a bug at least once: voice and picture starting
@@ -122,6 +149,8 @@ with zod schemas, safety policy included, and is better for it. Shippable and
 overridable, not baked in.
 
 ## Budget caps as a first-class option
+
+**Done in #19 — `maxResolvedMedia`, claimed before the provider is called, reported through `onWarning`.**
 
 Filmed scenes cost real money per beat and nothing in the SDK bounds them. The
 tutor can be made to spend by holding down a suggestion chip. Per-session and
