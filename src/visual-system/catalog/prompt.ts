@@ -65,7 +65,7 @@ const COMMON_MEDIA_VARIABLES = {
   mediaType: "enum(auto|photo|video|gradient)",
   mediaPoster: "media",
   mediaPosition: "enum(center|top|bottom|left|right)",
-  mediaTreatment: "enum(subtle|cinematic|text-safe)",
+  mediaTreatment: "enum(none|subtle|cinematic|text-safe)",
 } as const;
 
 function plannerCatalog(templates: SceneTemplateMetadata[], mediaResolverAvailable: boolean) {
@@ -112,16 +112,31 @@ export function createTemplateSystemPrompt(options: {
   knowledgeMode?: VideoKnowledgeMode;
   /** Expose host-resolved semantic media intent without exposing a provider. */
   mediaResolverAvailable?: boolean;
+  /**
+   * Whether the first scene may carry media.
+   *
+   * Media is normally kept off the opening beat so that playback can start
+   * without waiting on a provider. A host that declined the runtime's opening
+   * card has taken that wait on itself, and its first beat is then an ordinary
+   * scene - which is the only way a fully filmed answer can film its opener.
+   */
+  mediaOnFirstScene?: boolean;
+  /** Ask the planner for each scene's spoken line, rather than a second call. */
+  narrate?: boolean;
 }): string {
   const templates = options.kit.listTemplateMetadata();
   const resolverMediaAvailable = options.mediaResolverAvailable === true &&
     templates.some(({ schema }) => getStandardMediaResolverContract(schema) != null);
   const ids = new Set(templates.map(({ id }) => id));
   const fields = new Set(templates.flatMap(({ schema }) => Object.keys(schema.properties)));
-  const basePrompt = createVideoSystemPrompt(options.knowledgeMode)
+  const basePrompt = createVideoSystemPrompt(options.knowledgeMode, options.narrate === true)
     .split("\n")
     .filter((line) =>
       !line.includes("Never use media, ctaMedia, or reaction as the first generated body template") &&
+      // The rule that keeps the opening beat asset-free belongs to the same
+      // pair as the one below it: both exist so playback can start without
+      // waiting on a provider, and both go when the host owns that wait.
+      !(options.mediaOnFirstScene === true && line.includes("The first generated body scene must be asset-free")) &&
       !(resolverMediaAvailable && line.includes("Never expose a loading placeholder or unresolved media keyword"))
     )
     .join("\n");
@@ -167,7 +182,7 @@ export function createTemplateSystemPrompt(options: {
     templates.some(({ schema }) => (schema["x-vanillasky"]?.requiredAnyOf?.length ?? 0) > 0)
       ? "requiredAnyOf is a hard presence gate: satisfy every listed group with at least one non-empty value."
       : undefined,
-    mediaTemplates.length > 0
+    mediaTemplates.length > 0 && options.mediaOnFirstScene !== true
       ? `For streaming startup, ${mediaTemplateNames} ${mediaTemplates.length === 1 ? "is" : "are"} forbidden as the first generated body template, even when mediaType is gradient. Start with a content-fit non-media template.`
       : undefined,
     listFields.length > 0
@@ -177,11 +192,19 @@ export function createTemplateSystemPrompt(options: {
       ? 'For bars, emit an actual JSON array of 2–6 grounded objects with "label" and "value" fields. Use comparable units and avoid a largest-to-smallest positive ratio above 20. Do not encode bars as a string.'
       : undefined,
     resolverMediaAvailable
-      ? "Prefer a relevant resolved image or video background on later media-capable scenes whenever the permitted factual basis names a concrete person, place, product context, activity, or outcome that can be depicted honestly. Emit mediaKeyword on scene.add as a specific 2–8 word semantic query of at most 80 characters. The host removes mediaKeyword before the complete scene reaches the browser and replaces it with an approved asset. Use mediaType=gradient for abstract, sensitive, unsafe, or visually ambiguous material. Never emit or invent mediaUrl or mediaPoster."
+      ? `Prefer a relevant resolved image or video background on ${options.mediaOnFirstScene === true ? "every media-capable scene, the first included," : "later media-capable scenes"} whenever the permitted factual basis names a concrete person, place, product context, activity, or outcome that can be depicted honestly. Emit mediaKeyword on scene.add as a specific 2–8 word semantic query of at most 80 characters. The host removes mediaKeyword before the complete scene reaches the browser and replaces it with an approved asset. Use mediaType=gradient for abstract, sensitive, unsafe, or visually ambiguous material. Never emit or invent mediaUrl or mediaPoster.`
       : mediaTemplates.length > 0
       ? `Use exact grounded values for required fields. mediaUrl must come verbatim from supplied input. Stock queries are not available. Do not select ${mediaTemplateNames} without a supplied mediaUrl; if another template has no mediaUrl, explicitly use mediaType=gradient. mediaType auto detects a URL, while gradient deliberately uses no external asset.`
       : "Use exact grounded values for required fields.",
     "Catalog guidance describes composition; it is not a factual source and must never replace the permitted factual basis.",
     JSON.stringify(plannerCatalog(templates, resolverMediaAvailable)),
+    // Last, because the catalogue is thousands of tokens of per-scene field
+    // lists and it is what the model matches when it emits a scene. The wire
+    // format above says narration belongs there; said only above, a third of
+    // the way through, it loses to the schema the model has just finished
+    // reading, and every scene comes back silent.
+    options.narrate === true
+      ? '\nThe catalog lists variables only. Every scene.add also carries "narration" beside "variables" and "timing", as specified in the wire format above. A scene without it is incomplete.'
+      : undefined,
   ].filter((line): line is string => line != null).join("\n");
 }

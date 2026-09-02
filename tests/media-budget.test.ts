@@ -31,7 +31,7 @@ function plan(sceneCount: number) {
   };
 }
 
-async function run(options: { scenes: number; maxResolvedMedia?: number }) {
+async function run(options: { scenes: number; maxResolvedMedia?: number; opening?: string | false }) {
   const { createVideoHandler } = await import("../src/server");
   let calls = 0;
   const warnings: Array<{ code: string; message: string }> = [];
@@ -51,7 +51,7 @@ async function run(options: { scenes: number; maxResolvedMedia?: number }) {
     body: JSON.stringify({
       protocolVersion: "0.5",
       requestId: "request-media-budget",
-      input: { input: "A question whose answer runs to several beats." },
+      input: { input: "A question whose answer runs to several beats.", ...(options.opening === undefined ? {} : { opening: options.opening }) },
       capabilities: { templates: ["media"] },
     }),
   }));
@@ -98,6 +98,93 @@ describe("media budget", () => {
   it("warns once, however many scenes go without", async () => {
     const { warnings } = await run({ scenes: 8, maxResolvedMedia: 1 });
     expect(warnings.filter((warning) => warning.code === "media_budget_reached")).toHaveLength(1);
+  });
+
+  // Media resolution waits for the runtime's opening card to be on screen, so
+  // that nothing is waiting on a provider with a blank frame showing. A host
+  // that asked for no opening card owns that wait itself - and until this, its
+  // first beat could never be filmed however much it was willing to spend.
+  it("films the first scene when there is no opening card to wait for", async () => {
+    const { calls, scenes } = await run({ scenes: 3, opening: false });
+    expect(calls).toBe(3);
+    expect(scenes).toHaveLength(3);
+    expect(typeof scenes[0].variables.mediaUrl).toBe("string");
+  });
+
+  // The gate and the planner's brief have to agree. Letting the first scene
+  // resolve media while still telling the planner to keep media off the
+  // opening beat films nothing, which is exactly what happened.
+  it("tells the planner the first scene may carry media, when it may", async () => {
+    const { createVideoHandler } = await import("../src/server");
+    const prompts: string[] = [];
+    const handler = createVideoHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      resolveMedia: () => ({ url: "https://media.example.test/a.mp4", type: "video" as const }),
+      streamText: ({ systemPrompt }) => {
+        prompts.push(systemPrompt);
+        return plan(1)();
+      },
+    });
+    const ask = (opening: string | false) => handler(new Request("https://app.example/api/video", {
+      method: "POST",
+      body: JSON.stringify({
+        protocolVersion: "0.5",
+        requestId: "request-first-scene-media",
+        input: { input: "A question worth filming.", opening },
+        capabilities: { templates: ["media"] },
+      }),
+    })).then(async (response) => {
+      for await (const _event of decodeVideoSse(response.body!)) void _event;
+    });
+
+    await ask(false);
+    expect(prompts[0]).toContain("the first included");
+    expect(prompts[0]).not.toContain("forbidden as the first generated body template");
+
+    await ask("Creating your video...");
+    expect(prompts[1]).toContain("later media-capable scenes");
+    expect(prompts[1]).toContain("forbidden as the first generated body template");
+  });
+
+  // A narrated video otherwise costs a round trip per scene, chained, because
+  // each line is written knowing the ones before it.
+  it("asks the planner for the spoken line only when the host wants it", async () => {
+    const { createVideoHandler } = await import("../src/server");
+    const prompts: string[] = [];
+    const run = (narrate: boolean) => createVideoHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      narrate,
+      streamText: ({ systemPrompt }) => {
+        prompts.push(systemPrompt);
+        return plan(1)();
+      },
+    })(new Request("https://app.example/api/video", {
+      method: "POST",
+      body: JSON.stringify({
+        protocolVersion: "0.5",
+        requestId: "request-narrate",
+        input: { input: "A question worth saying something about." },
+        capabilities: { templates: ["media"] },
+      }),
+    })).then(async (response) => {
+      for await (const _event of decodeVideoSse(response.body!)) void _event;
+    });
+
+    await run(true);
+    expect(prompts[0]).toContain('"narration"');
+    expect(prompts[0]).toContain("Narration rules:");
+    // After the catalogue, not only before it. The catalogue is the last and
+    // largest thing the planner reads, and it lists variables only - said
+    // once, early, the requirement loses to it and every scene comes back
+    // silent, which is exactly what happened.
+    expect(prompts[0].trimEnd().endsWith("A scene without it is incomplete.")).toBe(true);
+
+    await run(false);
+    expect(prompts[1]).not.toContain('"narration"');
+    expect(prompts[1]).not.toContain("Narration rules:");
+    expect(prompts[1]).not.toContain("A scene without it is incomplete.");
   });
 
   it("never resolves media when the ceiling is zero", async () => {
