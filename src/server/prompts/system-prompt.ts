@@ -1,11 +1,24 @@
 import type { VideoKnowledgeMode } from "../../protocol/types.js";
 
-export const VIDEO_PLAN_INSTRUCTION = `Wire format: newline-delimited JSON (NDJSON), exactly one complete JSON object per line.
+/**
+ * The wire format, with or without a spoken line on each scene.
+ *
+ * A narrated video otherwise costs a second round trip per scene: the host
+ * hands a model the scene it has just planned and asks what to say over it.
+ * The planner already knows - it wrote the scene - so asking for the line in
+ * the same breath removes a whole call from the critical path.
+ */
+export function videoPlanInstruction(narrate = false): string {
+  const narration = narrate ? `,"narration":"one sentence said aloud over this scene"` : "";
+  return `Wire format: newline-delimited JSON (NDJSON), exactly one complete JSON object per line.
 Allowed plan parts:
-{"type":"scene.add","scene":{"id":"stable-id","templateId":"trusted-template-id","variables":{},"timing":{"fixedDuration":4}}}
-{"type":"scene.add","placement":"closer","scene":{"id":"closer","templateId":"trusted-closer-template-id","variables":{},"timing":{"fixedDuration":3}}}
+{"type":"scene.add","scene":{"id":"stable-id","templateId":"trusted-template-id","variables":{},"timing":{"fixedDuration":4}${narration}}}
+{"type":"scene.add","placement":"closer","scene":{"id":"closer","templateId":"trusted-closer-template-id","variables":{},"timing":{"fixedDuration":3}${narration}}}
 {"type":"plan.complete","finishReason":"stop"}
 Do not emit protocol envelopes, Markdown fences, comments, prose, partial objects, audio, generated source, or any part type not listed above.`;
+}
+
+export const VIDEO_PLAN_INSTRUCTION = videoPlanInstruction();
 
 function knowledgeRules(mode: VideoKnowledgeMode): string {
   return mode === "general"
@@ -18,7 +31,14 @@ function knowledgeRules(mode: VideoKnowledgeMode): string {
 - The supplied input is the complete factual basis. Do not add outside claims.`;
 }
 
-export function createVideoSystemPrompt(knowledgeMode: VideoKnowledgeMode = "input-only"): string {
+const NARRATION_RULES = `
+Narration rules:
+- Every scene.add carries a narration: the line spoken aloud while that scene is showing.
+- One sentence, 10-16 words, plain spoken English. It is heard, never drawn.
+- Say what the scene shows and why it matters. Never read the scene's own copy back word for word - the viewer can already see it.
+- The lines are one continuous explanation: each follows from the ones before it. Never mention scenes, videos, slides, or yourself.`;
+
+export function createVideoSystemPrompt(knowledgeMode: VideoKnowledgeMode = "input-only", narrate = false): string {
   return `You are a video director.
 
 Turn the supplied input into a concise, coherent sequence using trusted scene templates. Never return prose as the deliverable and never generate HTML, React, JavaScript, CSS, or animation source.
@@ -48,7 +68,9 @@ Streaming rules:
 - End explicitly with plan.complete. A truncated stream is never treated as complete.
 - Return only plan parts accepted by the provided schema.
 
-${VIDEO_PLAN_INSTRUCTION}`;
+${narrate ? NARRATION_RULES : ""}
+
+${videoPlanInstruction(narrate)}`;
 }
 
 export const DEFAULT_VIDEO_SYSTEM_PROMPT = createVideoSystemPrompt();
