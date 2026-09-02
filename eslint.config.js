@@ -9,8 +9,10 @@ export default tseslint.config(
       "dist/**",
       "coverage/**",
       "examples/*/.next/**",
-      "examples/react-vite/dist/**",
-      "examples/server-integrations/dist/**",
+      // Every example's build output, not the two that happened to exist when
+      // this list was written - a stale local build in a third one made `npm
+      // run lint` fail with a thousand errors in minified code.
+      "examples/*/dist/**",
       "tests/fixtures/nextjs-provider-app/**",
       "test-results/**",
     ],
