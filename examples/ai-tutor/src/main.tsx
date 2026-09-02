@@ -30,14 +30,18 @@ interface Answer {
 /**
  * Hold a scene for exactly as long as its line takes to say.
  *
- * `spokenSeconds` is the measured length of the generated audio, so there is no
- * estimate involved. The template's own readable time is still the floor: a
- * six-word line must not cut a five-step list short, and the small tail is the
- * breath between one scene and the next.
+ * The voice decides, not the template. `spokenSeconds` is the measured length
+ * of the generated audio, so a scene ends when its sentence does - the picture
+ * follows the narration rather than the narration being fitted to the picture.
+ * The small tail is the breath between one scene and the next.
+ *
+ * A scene with no line falls back to how long its own content takes to read,
+ * because something has to decide.
  */
 function pacedScene(scene: VideoScene, spokenSeconds?: number): VideoScene {
-  const readable = getSceneDuration({ ...scene, narration: undefined }, templates.getTemplateMetadata(scene.templateId));
-  const held = spokenSeconds ? Math.max(readable, spokenSeconds + 0.5) : getSceneDuration(scene, templates.getTemplateMetadata(scene.templateId));
+  const held = spokenSeconds && spokenSeconds > 0
+    ? spokenSeconds + 0.4
+    : getSceneDuration(scene, templates.getTemplateMetadata(scene.templateId));
   return { ...scene, timing: { ...scene.timing, fixedDuration: held } };
 }
 

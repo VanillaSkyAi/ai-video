@@ -18,13 +18,25 @@ const templateIds = definitions.map((template) => template.id);
  * into one explanation rather than four unrelated remarks. What it cannot do is
  * set up a payoff it has not seen yet - the price of not waiting.
  */
-const PLANNER_INSTRUCTIONS = [
-  "The input is a question from a learner. Answer it as a short explainer video.",
-  "The material is the answer, not the question: a one-line question still deserves a full explanation.",
-  "Use four or five scenes. Open on what the question is really asking, spend two or three scenes on the mechanism, and close on the point that makes it stick.",
-  "Choose the template that fits each beat honestly - a figure belongs in a number scene, an ordered process in steps, a comparison in a chart - rather than repeating one shape.",
-  "Never invent statistics. Never mention the video, the scenes, or yourself.",
-].join("\n");
+/**
+ * The brief, which depends on how much of the answer is filmed.
+ *
+ * A planner told only that a media template exists will not reach for it: the
+ * cheaper templates always look like a reasonable choice. If the application is
+ * willing to pay for footage, it has to ask for footage.
+ */
+function plannerInstructions(filmedScenes: number): string {
+  return [
+    "The input is a question from a learner. Answer it as a short explainer video.",
+    "The material is the answer, not the question: a one-line question still deserves a full explanation.",
+    "Use four or five scenes. Open on what the question is really asking, spend two or three scenes on the mechanism, and close on the point that makes it stick.",
+    "Choose the template that fits each beat honestly - a figure belongs in a number scene, an ordered process in steps, a comparison in a chart - rather than repeating one shape.",
+    filmedScenes > 0
+      ? `Use the media template for ${filmedScenes === 1 ? "the single beat" : `the ${filmedScenes} beats`} most worth watching happen, and give each one a mediaKeyword: a concrete, filmable subject, a real object doing a real thing, never a diagram or an abstraction.`
+      : "Do not use the media template: there is no footage available, and it would leave an empty frame.",
+    "Never invent statistics. Never mention the video, the scenes, or yourself.",
+  ].join("\n");
+}
 
 export interface StreamedLesson {
   /** Resolves when the last scene has been planned and narrated. */
@@ -71,7 +83,7 @@ export async function streamLesson(options: {
       capabilities: { templates: templateIds },
       input: {
         input: options.question,
-        instructions: PLANNER_INSTRUCTIONS,
+        instructions: plannerInstructions(options.mode.filmedScenes),
         // The opening scene is composed by the runtime, not the model, so it
         // reaches the page in about a second. Without it nothing is on screen
         // until the planner finishes - which is what made this feel broken.

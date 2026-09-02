@@ -57,8 +57,15 @@ export async function speakLine(request: Request): Promise<Response> {
  * writes its own text into the frame competes with the caption over it, and one
  * that adds a voice talks over the narrator.
  */
+const SHOT_DEADLINE_MS = 120_000;
+
 async function filmScene(subject: string, generatedLook: string | undefined, signal: AbortSignal) {
   const fal = createFal({ apiKey: process.env.FAL_KEY });
+  const started = Date.now();
+  console.log(`[ai-tutor] filming: ${subject.slice(0, 70)}`);
+  // A generation that never returns would hold the whole lesson open, and the
+  // page would show one scene and wait forever.
+  const deadline = AbortSignal.any([signal, AbortSignal.timeout(SHOT_DEADLINE_MS)]);
   const result = await generateVideo({
     model: fal.video(VIDEO_MODEL),
     prompt: [
@@ -73,10 +80,17 @@ async function filmScene(subject: string, generatedLook: string | undefined, sig
     // The clip stays where the provider put it: a scene stores an address, so
     // pulling the bytes through this process would be wasted work.
     download: async () => ({ data: new Uint8Array(), mediaType: "video/mp4" }),
-    abortSignal: signal,
+    abortSignal: deadline,
+  }).catch((cause: unknown) => {
+    // A provider error stringifies to little more than its status, which hides
+    // whether a 403 is moderation, a concurrency ceiling, or an empty balance.
+    const detail = (cause as { responseBody?: string })?.responseBody ?? "";
+    console.error(`[ai-tutor] filming failed after ${Date.now() - started}ms:`, cause instanceof Error ? cause.message : cause, detail.slice(0, 200));
+    throw cause;
   });
   const url = result.providerMetadata?.fal?.videos?.[0]?.url;
   if (typeof url !== "string") throw new Error("the video provider returned no url");
+  console.log(`[ai-tutor] filmed in ${Date.now() - started}ms`);
   return url;
 }
 
@@ -102,6 +116,10 @@ function lessonHandler(filmedScenes: number) {
       system: systemPrompt,
       prompt: userPrompt,
       abortSignal: signal,
+      // A whole plan is several thousand tokens of scene JSON. Left at the
+      // default this was truncated mid-scene, which fails the entire run - and
+      // the browser is told only that generation failed.
+      maxOutputTokens: 8_192,
       // Planning is structure, not reasoning, and the current models think
       // adaptively unless told otherwise. Left on the default this took over a
       // minute to emit its first planned scene; off, the whole plan streams in
@@ -113,6 +131,14 @@ function lessonHandler(filmedScenes: number) {
         },
       },
     }),
+    // A lesson still ends on something. The registry has to contain a template
+    // that can close - one with an `ask` or `payoff` job - or the planner marks
+    // a closer anyway, the scene is rejected for being ineligible, and the run
+    // fails with nothing but its opening scene showing.
+    // The browser is told only that generation failed, which is right for a
+    // public route and useless while building one.
+    onError: (error) => console.error("[ai-tutor] planning failed:", error.message),
+    onWarning: (warning) => console.warn(`[ai-tutor] ${warning.code}: ${warning.message}`),
     maxResolvedMedia: filmedScenes,
     // Beats film in parallel: waiting for each in turn would make a five-scene
     // lesson half a minute of nothing.

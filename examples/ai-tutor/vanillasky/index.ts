@@ -5,9 +5,10 @@ import { beforeAfterTemplate as template1 } from "./templates/beforeAfter";
 import { bigNumberTemplate as template2 } from "./templates/bigNumber";
 import { cardListTemplate as template3 } from "./templates/cardList";
 import { mediaTemplate as template4 } from "./templates/media";
-import { problemSolutionTemplate as template5 } from "./templates/problemSolution";
-import { stepsTemplate as template6 } from "./templates/steps";
-import { tripleStatsTemplate as template7 } from "./templates/tripleStats";
+import { milestoneTemplate as template5 } from "./templates/milestone";
+import { problemSolutionTemplate as template6 } from "./templates/problemSolution";
+import { stepsTemplate as template7 } from "./templates/steps";
+import { tripleStatsTemplate as template8 } from "./templates/tripleStats";
 
-export const definitions = [template0, template1, template2, template3, template4, template5, template6, template7];
+export const definitions = [template0, template1, template2, template3, template4, template5, template6, template7, template8];
 export const templates = createTemplateRegistry({ definitions });
