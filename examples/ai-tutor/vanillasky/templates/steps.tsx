@@ -134,7 +134,8 @@ export const stepsTemplate = defineTemplate({
         "type": "string",
         "title": "Text",
         "description": "Title text",
-        "default": "How it works."
+        "default": "How it works.",
+        "maxLength": 48
       },
       "steps": {
         "type": "array",

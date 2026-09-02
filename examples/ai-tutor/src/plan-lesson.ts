@@ -57,14 +57,22 @@ function plannerInstructions(filmedScenes: number): string {
       ? "Use the media template for every scene, including the first and the closer. Every scene must set mediaType to video and carry a mediaKeyword: a concrete, filmable subject, a real object doing a real thing, never a diagram or an abstraction. Never use mediaType gradient and never omit mediaKeyword - a scene without one has nothing to film. If a beat seems too abstract to film, film the closest real thing that shows it."
       : filmedScenes > 0
         ? `Choose the template that fits each beat honestly - a figure belongs in a number scene, an ordered process in steps, a comparison in a chart - rather than repeating one shape. Use the media template for ${filmedScenes === 1 ? "the single beat" : `the ${filmedScenes} beats`} most worth watching happen, and give each one a mediaKeyword: a concrete, filmable subject, a real object doing a real thing, never a diagram or an abstraction.`
-        : "Choose the template that fits each beat honestly - a figure belongs in a number scene, an ordered process in steps, a comparison in a chart - rather than repeating one shape. Do not use the media template: there is no footage available, and it would leave an empty frame.",
+        // Stock footage rather than none. A lesson of cards on a brand gradient
+        // is the least a template set can look like, and a search costs a few
+        // hundred milliseconds - so the media template is available here too,
+        // for the beats that are worth watching happen.
+        : "Choose the template that fits each beat honestly - a figure belongs in a number scene, an ordered process in steps, a comparison in a chart - rather than repeating one shape. Give any scene that would be stronger over real footage a mediaKeyword: a concrete, filmable subject, a real object doing a real thing, never a diagram or an abstraction. Use the media template for the one or two beats most worth watching happen.",
     // Without this the plan comes back with no closer, and the runtime drops
     // every scene it was holding for one - five planned, three delivered. Only
     // a template with a payoff job may close, and naming it is the difference
     // between a lesson that ends and a lesson that stops.
     everyBeatFilmed
       ? 'Mark the final scene placement:"closer". Use the media template for it, as for every other beat.'
-      : 'Mark the final scene placement:"closer" and use the milestone template for it. It is the only template here that may close, so the lesson must end on one.',
+      // Only a template with a payoff job may close, and there are two: media
+      // and milestone. Naming them is the difference between a lesson that
+      // ends and a lesson that stops - without it the plan comes back with no
+      // closer and the runtime drops every scene it was holding for one.
+      : 'Mark the final scene placement:"closer" and use either the milestone or the media template for it. Those are the only two here that may close, so the lesson must end on one.',
     "Every scene must carry a timing object, even an empty one. A scene without it fails the whole lesson.",
     "Never invent statistics. Never mention the video, the scenes, or yourself.",
   ].join("\n");
@@ -241,13 +249,19 @@ export async function streamLesson(options: {
       narrating = narrated.catch(() => "");
 
       pending.push(narrated.then(async (line) => {
-        // A filmed beat shows the film and nothing else - no caption, no
+        // A generated beat shows the film and nothing else - no caption, no
         // contrast wash, no confetti, and no background effect panning a clip
         // that already has a camera move of its own. Every one of those exists
         // to make a still photograph carry type, and this scene carries none:
         // the line is being spoken, and anything laid over the picture is what
         // makes generated video look like a slide.
-        const filmed = typeof (planned.variables as { mediaUrl?: unknown }).mediaUrl === "string";
+        //
+        // Stock footage is the opposite case. It is a backdrop the template was
+        // designed to sit on, and stripping the copy off it leaves a scene that
+        // says nothing - so this applies to the modes that generate, not to
+        // every scene that happens to have found a picture.
+        const filmed = options.mode.filmedScenes > 0
+          && typeof (planned.variables as { mediaUrl?: unknown }).mediaUrl === "string";
         const shown = filmed
           ? {
               ...planned,

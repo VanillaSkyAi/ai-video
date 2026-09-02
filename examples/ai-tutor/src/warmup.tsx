@@ -9,56 +9,54 @@ import { useEffect, useState } from "react";
  * lesson's own brand within a tenth of a second, and a voice opens on it a
  * couple of seconds later.
  *
- * While that voice is talking there is nothing else to say, so nothing else is
- * shown. The fallback below is for a warm-up with no voice - the hook failed,
- * or speech is unavailable - where a still card and no sound is
- * indistinguishable from a hang. There it says the elapsed time and how many
- * scenes have arrived, which is the difference between waiting and wondering.
+ * The question, and a line that keeps moving. No clock and no scene count: at
+ * eight seconds a number counting up measures the wait rather than filling it,
+ * and a scene tally is the composing machinery narrating itself to someone who
+ * asked about the Moon. The shimmer is what says the page has not stopped, and
+ * it is enough at this length.
  *
  * There is no progress bar because there is no progress to report - the planner
  * does not say how far through it is, and a bar that moves on a timer is a lie.
  */
+/**
+ * Short, and unmistakably about a camera.
+ *
+ * The wait is about seven seconds and these change every three, so line one
+ * and half of line two are all anyone reads - and line one is the only one
+ * seen before the voice starts. "Choosing the beats" was our own jargon, and
+ * "writing the narration" reads like a text answer is coming. A rolling camera
+ * does not.
+ */
 const STEPS = [
-  "Reading the question…",
-  "Choosing the beats…",
-  "Filling in the scenes…",
-  "Writing what to say…",
+  "Rolling camera…",
+  "Framing the shots…",
+  "Filming your answer…",
+  "Still filming…",
 ];
 
-export function Warmup({ visible, question, speaking, scenes }: {
+export function Warmup({ visible, question, background, foreground }: {
   visible: boolean;
   question?: string;
-  /** A hook line is being spoken over the card, so the card says nothing more. */
-  speaking: boolean;
-  scenes: number;
+  /** The ground the lesson's own scenes are composed on. */
+  background: string;
+  foreground: string;
 }) {
   const [step, setStep] = useState(0);
-  const [seconds, setSeconds] = useState(0);
 
   useEffect(() => {
     if (!visible) {
       setStep(0);
-      setSeconds(0);
       return;
     }
-    const stepper = window.setInterval(() => setStep((current) => current + 1), 4000);
-    const clock = window.setInterval(() => setSeconds((current) => current + 1), 1000);
-    return () => {
-      window.clearInterval(stepper);
-      window.clearInterval(clock);
-    };
+    const stepper = window.setInterval(() => setStep((current) => current + 1), 3000);
+    return () => window.clearInterval(stepper);
   }, [visible]);
 
-  return <div className={`warmup${visible ? "" : " done"}`} aria-hidden={!visible}>
+  return <div className={`warmup${visible ? "" : " done"}`} aria-hidden={!visible} style={{ background, color: foreground }}>
     <div className="warmup-drift" />
     {question && <p className="warmup-question">{question}</p>}
-    {!speaking && <>
-      <p key={step} className="warmup-step" aria-live="polite">
-        {STEPS[Math.min(step, STEPS.length - 1)]}
-      </p>
-      <p className="warmup-clock">
-        {scenes > 0 ? `${scenes} scene${scenes === 1 ? "" : "s"} so far · ${seconds}s` : `${seconds}s`}
-      </p>
-    </>}
+    <p key={step} className="warmup-step" aria-live="polite">
+      {STEPS[Math.min(step, STEPS.length - 1)]}
+    </p>
   </div>;
 }

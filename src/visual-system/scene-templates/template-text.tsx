@@ -390,6 +390,12 @@ export const TemplateText: React.FC<TemplateTextProps> = ({
     : baseTypo;
   const presetWeight = tt ? Math.min(900, Math.max(100, fontWeight + tt.weightDelta)) : fontWeight;
   const presetSize = tt ? fontSize * tt.sizeScale : fontSize;
+  // Type over a photograph is light type, whatever the brand's foreground is.
+  // Everything under it assumes so: the vignette and scrims darken the plate,
+  // and MEDIA_TEXT_SHADOW is a dark halo sized to hold white at 4.5:1. A brand
+  // with a dark foreground otherwise puts black words over footage with a
+  // black glow behind them, which is unreadable on any frame.
+  const overMediaColor = overMedia && isLikelyDark(color) ? "#FFFFFF" : color;
   const textShadow = overMedia ? MEDIA_TEXT_SHADOW : dropShadowFor(color);
 
   const containerStyle: React.CSSProperties = {
@@ -399,7 +405,7 @@ export const TemplateText: React.FC<TemplateTextProps> = ({
     display: "flex",
     justifyContent: "center",
     padding: `0 ${safeZone.right}px 0 ${safeZone.left}px`,
-    color,
+    color: overMediaColor,
     fontFamily: font,
     fontWeight: presetWeight,
     fontSize: presetSize,

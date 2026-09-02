@@ -157,7 +157,8 @@ export const barChartTemplate = defineTemplate({
         "type": "string",
         "title": "Text",
         "description": "Title text shown above the chart",
-        "default": "Revenue up 300%."
+        "default": "Revenue up 300%.",
+        "maxLength": 48
       },
       "bars": {
         "type": "array",

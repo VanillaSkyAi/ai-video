@@ -46,8 +46,9 @@ body { margin: 0; background: #00001a; color: #fff; font-family: Inter, system-u
 .stage[data-theme="blueprint"] { background: #0b2545; }
 .live { position: absolute; top: 0.9rem; right: 0.9rem; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 999px; background: rgba(0,0,0,0.55); font-size: 0.75rem; }
 .live span { color: #ff4d6d; }
-.answering { display: flex; align-items: center; gap: 0.9rem; margin: 0; min-height: 3.2rem; color: #aaa5b8; }
-.answering button { border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.03); color: inherit; border-radius: 999px; padding: 0.45rem 1rem; font: inherit; font-size: 0.85rem; cursor: pointer; }
+/* Composing is not broadcasting, so the dot waits rather than burning red. */
+.live[data-state="loading"] span { color: #aaa5b8; animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
 .script { min-width: 0; height: 0; min-height: 100%; overflow-y: auto; padding: 2rem 2.25rem; border-radius: 20px; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.07); }
 .script h1 { margin: 0 0 1.5rem; font-size: clamp(1.5rem, 2.2vw, 2.1rem); line-height: 1.15; }
@@ -56,7 +57,7 @@ body { margin: 0; background: #00001a; color: #fff; font-family: Inter, system-u
 @media (max-width: 1100px) { .columns { grid-template-columns: minmax(0, 1fr); } .script { height: auto; min-height: 0; } }
 
 /* The wait, named rather than measured. */
-.warmup { position: absolute; inset: 0; z-index: 3; display: grid; place-content: center; justify-items: center; gap: 1.1rem; padding: 8%; text-align: center; overflow: hidden; background: linear-gradient(160deg, #6d28d9, #4f6ae0 55%, #3f83e8); transition: opacity 700ms ease; }
+.warmup { position: absolute; inset: 0; z-index: 3; display: grid; place-content: center; justify-items: center; gap: 1.1rem; padding: 8%; text-align: center; overflow: hidden; transition: opacity 700ms ease; }
 /* The question, up before anything is composed - it is the one thing already
    known when the lesson is asked for, so it costs nothing and it is what the
    opening line is spoken over. */
@@ -85,4 +86,3 @@ body { margin: 0; background: #00001a; color: #fff; font-family: Inter, system-u
 .setup label { display: grid; gap: 0.35rem; justify-items: center; }
 .setup-note { flex-basis: 100%; text-align: center; margin: 0; font-size: 0.8rem; color: #aaa5b8; }
 .scene.media { position: relative; overflow: hidden; align-content: end; justify-items: start; text-align: left; }
-.warmup-clock { position: relative; margin: 0.6rem 0 0; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.85rem; color: rgba(255,255,255,0.6); }

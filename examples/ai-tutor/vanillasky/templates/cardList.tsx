@@ -109,7 +109,8 @@ export const cardListTemplate = defineTemplate({
         "type": "string",
         "title": "Text",
         "description": "Title text",
-        "default": "What you get."
+        "default": "What you get.",
+        "maxLength": 48
       },
       "items": {
         "type": "array",
