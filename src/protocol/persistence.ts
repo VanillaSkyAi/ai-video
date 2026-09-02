@@ -347,6 +347,7 @@ function validateStyle(value: unknown, path: string): VideoStyle {
     "defaultTransition",
     "density",
     "motion",
+    "generatedLook",
   ], path);
 
   const brandValue = requiredField(result, "brand", `${path}.brand`);
@@ -356,6 +357,12 @@ function validateStyle(value: unknown, path: string): VideoStyle {
     if (field.present) nonEmptyString(field.value, `${path}.brand.${key}`);
   }
   validateVideoBrand(brandValue, `${path}.brand`);
+
+  // A description of a visual language, so longer than the token-like fields
+  // beside it, and bounded because it is untrusted input that reaches a
+  // provider prompt.
+  const look = ownField(result, "generatedLook", `${path}.generatedLook`);
+  if (look.present) nonEmptyString(look.value, `${path}.generatedLook`, 1_000);
 
   for (const key of [
     "preset",

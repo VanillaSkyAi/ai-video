@@ -134,6 +134,7 @@ export function buildInitialComposition(
         defaultBackgroundEffect: input.style?.backgroundEffect ?? "static",
         defaultTextArchetype: input.style?.textArchetype ?? "subtle",
         defaultTransition: "crossfade",
+        ...(input.style?.generatedLook ? { generatedLook: input.style.generatedLook } : {}),
       },
       meta,
     },

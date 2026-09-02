@@ -26,6 +26,12 @@ export interface MediaResolverContext {
   scene: Readonly<VideoScene>;
   templateId: string;
   preferredType: "image" | "video" | "any";
+  /**
+   * The visual language generated media must match, when the application set
+   * one. Append it to a provider prompt; a shot that ignores it is the
+   * mismatch this exists to prevent.
+   */
+  generatedLook?: string;
   signal: AbortSignal;
 }
 
@@ -101,6 +107,7 @@ async function resolveVariables(options: {
       scene: { ...options.scene, variables },
       templateId: options.templateId,
       preferredType: preferredType(variables.mediaType),
+      generatedLook: options.input.style?.generatedLook,
       signal: options.signal,
     });
   } catch (error) {
