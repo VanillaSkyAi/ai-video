@@ -39,8 +39,10 @@ interface Answer {
  * because something has to decide.
  */
 function pacedScene(scene: VideoScene, spokenSeconds?: number): VideoScene {
+  // The tail covers the moment between a scene starting and its audio actually
+  // playing, plus a beat of silence before the next line begins.
   const held = spokenSeconds && spokenSeconds > 0
-    ? spokenSeconds + 0.4
+    ? spokenSeconds + 0.8
     : getSceneDuration(scene, templates.getTemplateMetadata(scene.templateId));
   return { ...scene, timing: { ...scene.timing, fixedDuration: held } };
 }
@@ -109,12 +111,15 @@ function App() {
         onStyle: (style) => {
           timeline = createSceneTimeline({ style, orientation: "landscape" });
           setStream(timeline.stream);
-          setComposing(false);
         },
         // Each scene is appended the moment its line is written, so the first
         // one plays in seconds rather than after the whole lesson.
         onScene: async (scene) => {
           setPlanned((count) => count + 1);
+          // The player shows its own cover while a stream has no scenes yet.
+          // The warm-up stays over the top of it until there is something to
+          // watch, so the wait has one appearance rather than two.
+          setComposing(false);
           // The audio is generated before the scene is appended, because its
           // length is what the scene's duration is set from. It costs a second
           // or so, spent while the scene before it is still playing.

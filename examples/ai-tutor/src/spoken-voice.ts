@@ -16,6 +16,31 @@ export interface SpokenLine {
  *
  * Lines are fetched once and kept, so replaying an answer costs nothing.
  */
+let sharedContext: AudioContext | undefined;
+
+/**
+ * How long the audio runs, in seconds.
+ *
+ * Decoding is exact, but an AudioContext is not always available - a browser
+ * that has seen no user gesture yet may refuse one - and the MP3 header's own
+ * duration is an estimate that runs short. Falling back to the file's length at
+ * its bitrate is arithmetic rather than a guess, and being a little long is
+ * harmless where being short cuts the sentence off.
+ */
+const FALLBACK_BITS_PER_SECOND = 128_000;
+
+async function measureSeconds(bytes: ArrayBuffer): Promise<number> {
+  try {
+    sharedContext ??= new AudioContext();
+    // decodeAudioData consumes the buffer, so it gets a copy of its own.
+    const decoded = await sharedContext.decodeAudioData(bytes.slice(0));
+    if (decoded.duration > 0) return decoded.duration;
+  } catch {
+    // Fall through to the arithmetic.
+  }
+  return (bytes.byteLength * 8) / FALLBACK_BITS_PER_SECOND;
+}
+
 export function createSpokenVoice(): NarrationVoice & {
   prepare: (text: string) => Promise<SpokenLine | undefined>;
 } {
@@ -32,16 +57,12 @@ export function createSpokenVoice(): NarrationVoice & {
     })
       .then(async (response) => {
         if (!response.ok) return undefined;
-        const src = URL.createObjectURL(await response.blob());
-        // Metadata is enough; there is no need to decode the whole file to
-        // learn how long it is.
-        const seconds = await new Promise<number>((resolve) => {
-          const probe = new Audio();
-          probe.preload = "metadata";
-          probe.onloadedmetadata = () => resolve(Number.isFinite(probe.duration) ? probe.duration : 0);
-          probe.onerror = () => resolve(0);
-          probe.src = src;
-        });
+        const bytes = await response.arrayBuffer();
+        const src = URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
+        // Decoded rather than read from the file's metadata. An MP3 header
+        // carries an estimate, and an estimate a few hundred milliseconds short
+        // means the next scene starts over the end of the sentence.
+        const seconds = await measureSeconds(bytes);
         return { src, seconds };
       })
       // No voice is a quiet lesson, not a broken one.
