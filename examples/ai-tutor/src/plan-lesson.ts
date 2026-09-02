@@ -1,6 +1,9 @@
 import type { Video, VideoScene } from "@vanillaskyai/video";
 import type { Theme } from "./themes";
 import type { VisualMode } from "./modes";
+import { definitions } from "../vanillasky";
+
+const templateIds = definitions.map((template) => template.id);
 
 /**
  * Stream a lesson, narrating each scene as it arrives.
@@ -61,6 +64,11 @@ export async function streamLesson(options: {
     body: JSON.stringify({
       protocolVersion: "0.5",
       requestId: `tutor-${Date.now()}`,
+      // Belt and braces. The handler's registry shapes the planner's prompt but
+      // does not reject a scene for a template it does not know - unknown ones
+      // are passed through sanitized - so a scene can still arrive that this
+      // page has no component for. Naming the templates here closes that.
+      capabilities: { templates: templateIds },
       input: {
         input: options.question,
         instructions: PLANNER_INSTRUCTIONS,

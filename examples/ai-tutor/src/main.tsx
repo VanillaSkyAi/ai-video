@@ -11,7 +11,7 @@ const OPENING_QUESTIONS = [
 ];
 import { createTemplateRegistry } from "@vanillaskyai/video/templates";
 import { definitions } from "../vanillasky";
-import { createBrowserVoice } from "./browser-voice";
+import { createSpokenVoice } from "./spoken-voice";
 import { streamLesson } from "./plan-lesson";
 import { defaultMode, modeById, visualModes } from "./modes";
 import { defaultTheme, themeById, themes } from "./themes";
@@ -53,7 +53,7 @@ function App() {
   const [planned, setPlanned] = useState(0);
   const [error, setError] = useState<string>();
 
-  const voice = useMemo(createBrowserVoice, []);
+  const voice = useMemo(createSpokenVoice, []);
   const narration = useNarration({ voice });
   const theme = themeById(themeId);
   const mode = modeById(modeId);
@@ -104,6 +104,9 @@ function App() {
         // one plays in seconds rather than after the whole lesson.
         onScene: (scene) => {
           setPlanned((count) => count + 1);
+          // Generated while the scene before it is still playing, so the line
+          // is ready by the time its scene arrives.
+          if (scene.narration) voice.prefetch(scene.narration);
           timeline?.add(pacedScene(scene));
           setAnswers((current) => current.map((answer) => (answer.index === index
             ? { ...answer, video: { ...(answer.video ?? EMPTY_VIDEO), scenes: [...(answer.video?.scenes ?? []), scene] } }
