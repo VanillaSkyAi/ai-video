@@ -86,6 +86,8 @@ async function resolveVariables(options: {
   resolveMedia?: MediaResolver;
   approveUrl: (input: VideoInput, url: string) => void;
   openingReady: boolean;
+  /** Returns false once this request has resolved as much media as it may. */
+  claimBudget?: () => boolean;
 }): Promise<Record<string, unknown>> {
   if (!Object.hasOwn(options.variables, "mediaKeyword")) return options.variables;
 
@@ -98,6 +100,8 @@ async function resolveVariables(options: {
   if (!options.openingReady || !options.resolveMedia || !queryIsBounded(rawQuery)) {
     return fallbackVariables(variables);
   }
+  // Claimed before the provider is called, not after: the point is to not spend.
+  if (options.claimBudget && !options.claimBudget()) return fallbackVariables(variables);
 
   let resolved: ResolvedMedia | null;
   try {
@@ -170,6 +174,7 @@ async function resolvePartVariables(options: {
   resolveMedia?: MediaResolver;
   approveUrl: (input: VideoInput, url: string) => void;
   openingReady: boolean;
+  claimBudget?: () => boolean;
 }): Promise<VideoPlanPart> {
   if (!options.templateId) return sanitizeUnknownTemplatePart(options.part);
   const shared = {
@@ -180,6 +185,7 @@ async function resolvePartVariables(options: {
     resolveMedia: options.resolveMedia,
     approveUrl: options.approveUrl,
     openingReady: options.openingReady,
+    claimBudget: options.claimBudget,
   };
   if (options.part.type === "scene.add") {
     const variables = await resolveVariables({
@@ -210,6 +216,18 @@ export function createMediaResolvingPlanner(options: {
    */
   mediaConcurrency?: number;
   /**
+   * How many scenes in one request may resolve media at all.
+   *
+   * Nothing bounded this. The planner decides how many scenes a video has, and
+   * every one of them may resolve media - free when it is searched for, a paid
+   * clip each when it is generated. Past the ceiling a scene falls back to the
+   * brand gradient: the video is poorer, it is not broken, and nobody is billed
+   * for the difference.
+   */
+  maxResolvedMedia?: number;
+  /** Told once when the ceiling stops a scene from being filled. */
+  onBudgetReached?: () => void;
+  /**
    * Whether this part is the one that makes the opening ready.
    *
    * The flag is normally set downstream, while a scene is validated, and read
@@ -222,6 +240,20 @@ export function createMediaResolvingPlanner(options: {
   const limit = Math.max(1, Math.floor(options.mediaConcurrency ?? 1));
 
   return async function* resolveMediaPlan(context) {
+    let remaining = options.maxResolvedMedia;
+    let announced = false;
+    const claimBudget = remaining === undefined ? undefined : () => {
+      if ((remaining as number) > 0) {
+        remaining = (remaining as number) - 1;
+        return true;
+      }
+      if (!announced) {
+        announced = true;
+        options.onBudgetReached?.();
+      }
+      return false;
+    };
+
     const resolveOne = (part: VideoPlanPart, openingReady?: boolean) => resolvePartVariables({
       part,
       requestId: context.request.requestId,
@@ -232,6 +264,7 @@ export function createMediaResolvingPlanner(options: {
       resolveMedia: options.resolveMedia,
       approveUrl: options.approveUrl,
       openingReady: openingReady ?? options.isOpeningReady(context.request.input),
+      claimBudget,
     });
 
     if (limit === 1) {

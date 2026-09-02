@@ -4,6 +4,14 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds `maxResolvedMedia` to `createVideoHandler`: how many scenes in one
+  request may resolve media at all. Unbounded by default, which is right when
+  media is searched for and wrong when it is generated - the planner decides the
+  scene count and every scene is then a paid clip. Past the ceiling a scene keeps
+  its copy on the brand gradient, and a `media_budget_reached` warning reaches
+  `onWarning` once, since a spend policy is the application's business rather
+  than the browser's.
+
 - Adds `useNarration` to the React entry: say a video's narration as it plays.
   The line belongs to the scene, so it begins when that scene does, stops when
   the picture moves on, and can be interrupted. The provider stays with the
