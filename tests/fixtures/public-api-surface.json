@@ -66,9 +66,13 @@
     "runtimeExports": [
       "VideoError",
       "VideoPlayer",
+      "useNarration",
       "useVideo"
     ],
     "typeExports": [
+      "Narration",
+      "NarrationOptions",
+      "NarrationVoice",
       "UseVideoOptions",
       "UseVideoResult",
       "VideoError",

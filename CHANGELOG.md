@@ -4,6 +4,14 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds `useNarration` to the React entry: say a video's narration as it plays.
+  The line belongs to the scene, so it begins when that scene does, stops when
+  the picture moves on, and can be interrupted. The provider stays with the
+  application - it supplies anything that can `speak(text, { signal })`, whether
+  a realtime session, a speech model, or the browser's own synthesiser - so the
+  package gains no dependency and the choice of voice sits where the choice of
+  model already does.
+
 - Adds `getSceneDuration`, `getSceneDurationBounds` and `getSpokenDuration`.
   Templates already declare `minDuration`, `preferredDuration` and which fields
   hold their content, and the runtime already computed a content-aware readable

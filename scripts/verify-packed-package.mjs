@@ -414,7 +414,7 @@ if (root.getVideoDuration(rootVideo) !== 4 || !Object.isFrozen(rootVideo)) {
   throw new Error("Packed duration helper returned an unexpected timeline");
 }
 if (Object.keys(server).sort().join() !== "createServerTemplateRegistry,createVideoHandler") throw new Error("Unexpected server API");
-if (Object.keys(react).sort().join() !== "VideoError,VideoPlayer,useVideo") throw new Error("Unexpected React API");
+if (Object.keys(react).sort().join() !== "VideoError,VideoPlayer,useNarration,useVideo") throw new Error("Unexpected React API");
 if (Object.keys(templates).sort().join() !== "createTemplateRegistry,defineTemplate") throw new Error("Unexpected template API");
 if (builtinTemplates.length !== 28) throw new Error("Unexpected built-in template manifest");
 try {
