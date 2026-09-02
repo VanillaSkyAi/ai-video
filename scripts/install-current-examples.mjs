@@ -28,7 +28,7 @@ try {
   const tarball = selectedArtifact.path;
   const candidateVersion = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
 
-  for (const example of ["react-vite", "server-integrations", "nextjs-quickstart"]) {
+  for (const example of ["react-vite", "ai-tutor", "server-integrations", "nextjs-quickstart"]) {
     const cwd = join(root, "examples", example);
     execFileSync("npm", [
       "install", "--package-lock=false", "--ignore-scripts", "--no-audit", "--no-fund", "--no-save", tarball,
