@@ -84,6 +84,11 @@ export async function streamLesson(options: {
       input: {
         input: options.question,
         instructions: plannerInstructions(options.mode.filmedScenes),
+        // Without this the planner refuses outright, and says why: a question
+        // carries no facts, and it will not invent what the input does not
+        // contain. A tutor is the case where the answer has to come from the
+        // model's own knowledge rather than from the material handed to it.
+        knowledgeMode: "general",
         // The opening scene is composed by the runtime, not the model, so it
         // reaches the page in about a second. Without it nothing is on screen
         // until the planner finishes - which is what made this feel broken.

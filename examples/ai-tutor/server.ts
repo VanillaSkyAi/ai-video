@@ -130,6 +130,13 @@ function lessonHandler(filmedScenes: number) {
           output_config: { effort: "medium" },
         },
       },
+      // The planner explains itself when it refuses, and that explanation is
+      // not in the error the browser receives. It is the difference between
+      // "generation failed" and "a question carries no facts, and I will not
+      // invent them" - which is what this turned out to be.
+      onFinish: ({ finishReason, text }) => {
+        if (finishReason !== "stop") console.warn(`[planner] ${finishReason}: ${text.slice(0, 300)}`);
+      },
     }),
     // A lesson still ends on something. The registry has to contain a template
     // that can close - one with an `ask` or `payoff` job - or the planner marks
