@@ -49,6 +49,13 @@ interrupt without stopping playback. `gokayfem/h3-max-education` spends about
 1,600 lines on exactly this, which is the clearest evidence it is not something
 a consumer should be rebuilding.
 
+There is prior art in this repository's own history. The `rich-media-poc`
+example, removed before launch, had a `src/lib/adaptive-channel/` with a
+startup-buffer gate that holds events until enough duration has accumulated
+before opening playback, a scene scheduler, and media continuity that carries a
+keyframe from one scene into the next. Worth reading before writing this from
+scratch: `git show 670206d^:examples/rich-media-poc/src/lib/adaptive-channel/`.
+
 ## Plan one scene at a time, with context
 
 The planner only plans whole videos. That forces a choice between composing
