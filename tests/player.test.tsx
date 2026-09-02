@@ -221,6 +221,34 @@ describe("VideoPlayer", () => {
     expect(view.queryByTestId("video-replay-button")).not.toBeNull();
   });
 
+  it("renders no controls and no replay when controls are off", async () => {
+    let nextFrame: FrameRequestCallback | undefined;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      nextFrame = callback;
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", () => undefined);
+
+    const { VideoPlayer } = await import("../src/react");
+    const video: Video = {
+      schemaVersion: "0.1",
+      orientation: "portrait",
+      scenes: [{ id: "only", templateId: "bigNumber", variables: { value: "1", label: "only" }, timing: { fixedDuration: 2 } }],
+      style: TEST_VIDEO_STYLE,
+    };
+
+    const view = render(createElement(VideoPlayer, { video, autoPlay: true, controls: false }));
+    expect(view.queryByTestId("video-controls")).toBeNull();
+
+    // The replay goes with them. A host driving playback itself would other-
+    // wise have the answer covered by a scrim the moment it finished.
+    act(() => nextFrame?.(performance.now() + 2_500));
+    act(() => nextFrame?.(performance.now() + 5_000));
+    await waitFor(() => expect(view.getByTestId("video-player").getAttribute("data-ended")).toBe("true"));
+    expect(view.queryByTestId("video-replay-button")).toBeNull();
+    expect(view.queryByTestId("video-ended-scrim")).toBeNull();
+  });
+
   it("rejects an unsupported saved schema before invoking a renderer", async () => {
     const renderTemplate = vi.fn(() => createElement("span", null, "must not render"));
     const customerTemplates = createRenderTemplateRegistry({ templates: [defineTemplate({

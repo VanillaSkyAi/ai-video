@@ -54,6 +54,15 @@ export interface VideoHandlerOptions extends Omit<
    * gradient, and a `media_budget_reached` warning says it happened.
    */
   maxResolvedMedia?: number;
+  /**
+   * Ask the planner to write each scene's spoken line, on the scene itself.
+   *
+   * A narrated video otherwise costs a round trip per scene - handing a model
+   * the scene that was just planned and asking what to say over it - and those
+   * calls have to be chained, because a line is written knowing the ones
+   * before it. The planner already knows the scene and the ones around it.
+   */
+  narrate?: boolean;
 }
 
 /**
@@ -78,6 +87,7 @@ export function createVideoHandler(
     resolveMedia,
     mediaConcurrency,
     maxResolvedMedia,
+    narrate,
     requireCloser = true,
     ...handlerOptions
   } = options;
@@ -106,7 +116,13 @@ export function createVideoHandler(
       templates,
       resolveMedia,
       approveUrl,
-      isOpeningReady: (input) => openingReadyInputs.has(input),
+      // An opening that was never asked for is ready from the start. The gate
+      // exists so the runtime's opening card is on screen before anything waits
+      // on a provider; `opening: false` says there is no card, the host owns
+      // the wait, and the first scene is then an ordinary scene - which is what
+      // a filmed answer needs, since otherwise its first beat can never be
+      // filmed however much the host is willing to spend.
+      isOpeningReady: (input) => input.opening === false || openingReadyInputs.has(input),
       mediaConcurrency,
       maxResolvedMedia,
       // The ceiling is a spend policy, so it is reported to the application
@@ -131,6 +147,11 @@ export function createVideoHandler(
         basePrompt,
         knowledgeMode: request.input.knowledgeMode,
         mediaResolverAvailable: resolveMedia != null,
+        // The same condition the resolver gate uses. The two have to agree:
+        // letting the first scene resolve media while still telling the
+        // planner not to put any there films nothing.
+        mediaOnFirstScene: request.input.opening === false && resolveMedia != null,
+        narrate,
       });
     },
     supportedCapabilities: templates.capabilities,

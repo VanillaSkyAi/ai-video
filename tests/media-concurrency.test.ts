@@ -60,20 +60,21 @@ async function run(options: { mediaConcurrency?: number; scenes: number }) {
 }
 
 describe("media resolution concurrency", () => {
-  // The first scene never resolves media: the opening has to appear without
-  // waiting on a round trip, so four scenes mean three resolutions.
+  // These requests set `opening: false`, so every scene resolves - including
+  // the first. The wait the opening gate protects is the host's to own once it
+  // has declined the runtime's card.
   it("resolves one scene at a time by default", async () => {
     const { scenes, elapsed, started } = await run({ scenes: 4 });
     expect(scenes).toHaveLength(4);
-    expect(started).toHaveLength(3);
-    expect(elapsed).toBeGreaterThanOrEqual(SLOW_MS * 3);
+    expect(started).toHaveLength(4);
+    expect(elapsed).toBeGreaterThanOrEqual(SLOW_MS * 4);
   });
 
   it("overlaps resolution when the host allows it", async () => {
     const { scenes, elapsed, started } = await run({ scenes: 4, mediaConcurrency: 4 });
     expect(scenes).toHaveLength(4);
-    expect(started).toHaveLength(3);
-    // Three at once costs about one, not three.
+    expect(started).toHaveLength(4);
+    // Four at once costs about one, not four.
     expect(elapsed).toBeLessThan(SLOW_MS * 2.5);
   });
 
@@ -83,7 +84,7 @@ describe("media resolution concurrency", () => {
       "scene-1", "scene-2", "scene-3", "scene-4", "scene-5",
     ]);
     expect(scenes.map((scene) => scene.variables.mediaUrl)).toEqual([
-      undefined,
+      "https://media.example.test/subject%201.mp4",
       "https://media.example.test/subject%202.mp4",
       "https://media.example.test/subject%203.mp4",
       "https://media.example.test/subject%204.mp4",
@@ -93,7 +94,7 @@ describe("media resolution concurrency", () => {
 
   it("never runs more than the host allowed at once", async () => {
     const { started } = await run({ scenes: 7, mediaConcurrency: 2 });
-    expect(started).toHaveLength(6);
+    expect(started).toHaveLength(7);
     // With two in flight, the third can only start once the first has returned.
     expect(started[2] - started[0]).toBeGreaterThanOrEqual(SLOW_MS - 15);
   });
