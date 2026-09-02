@@ -57,10 +57,10 @@ export { SceneVideoBackdrop } from "./scene-video-backdrop";
 export type { ResolvedMediaType };
 
 export type { MediaPosition };
-export type MediaTreatment = "subtle" | "cinematic" | "text-safe";
+export type MediaTreatment = "none" | "subtle" | "cinematic" | "text-safe";
 
 export function resolveMediaTreatment(value: string): MediaTreatment {
-  return value === "subtle" || value === "text-safe" ? value : "cinematic";
+  return value === "none" || value === "subtle" || value === "text-safe" ? value : "cinematic";
 }
 
 export interface MediaTreatmentLayer {
@@ -132,6 +132,11 @@ export function getMediaTreatmentLayers(
   anchor: MediaTextAnchor = "full",
 ): MediaTreatmentLayer[] {
   const treatment = resolveMediaTreatment(value);
+  // Nothing over the picture at all. Every other treatment exists to carry
+  // type across a photograph; where the scene has no type - a generated clip
+  // that is the whole point of the beat - even a vignette is something the
+  // viewer did not ask to look through.
+  if (treatment === "none") return [];
   const vignette: MediaTreatmentLayer = {
     id: "vignette",
     background:

@@ -17,7 +17,7 @@ export interface VisualMode {
 export const visualModes: VisualMode[] = [
   { id: "templates", label: "Templates only", filmedScenes: 0, note: "Rendered scenes · free and instant" },
   { id: "some", label: "Some AI video", filmedScenes: 1, note: "The opening beat is filmed" },
-  { id: "full", label: "Full AI video", filmedScenes: 4, note: "Every beat filmed · billed per clip" },
+  { id: "full", label: "Full AI video", filmedScenes: 5, note: "Every beat filmed · billed per clip" },
 ];
 
 export const defaultMode = visualModes[0];

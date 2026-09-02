@@ -20,6 +20,12 @@ import type { VideoScene } from "@vanillaskyai/video";
  * one command. In production these are ordinary routes on your own server; the
  * only thing that must not move is the key.
  */
+// Planning is three quarters of the wait before anything plays - 5.9s of an
+// 8s start. Haiku was measured 1.4s faster and is not worth it: it planned
+// four body scenes as cardList where Sonnet used tripleStats, steps, cardList
+// and barChart. Choosing the shape that fits each beat is what templates mode
+// is for, so the slower planner is the right one. ANTHROPIC_PLANNER_MODEL
+// overrides it.
 const PLANNER_MODEL = process.env.ANTHROPIC_PLANNER_MODEL ?? "claude-sonnet-5";
 const NARRATION_MODEL = process.env.ANTHROPIC_NARRATION_MODEL ?? "claude-haiku-4-5";
 // The provider names its own models; a fal endpoint path is not a model id
@@ -140,6 +146,11 @@ function lessonHandler(filmedScenes: number) {
       // adaptively unless told otherwise. Left on the default this took over a
       // minute to emit its first planned scene; off, the whole plan streams in
       // under ten seconds.
+      // Most of the wait before anything plays is this model writing the first
+      // scene - measured at 6s of the 9s. It is generation, not prompt
+      // processing: the catalogue is only ~3k tokens. Effort was tried at low
+      // and measured slower than medium, so the lever that is left is the
+      // model, which `ANTHROPIC_PLANNER_MODEL` selects.
       providerOptions: {
         anthropic: {
           thinking: { type: "disabled" },
@@ -152,6 +163,18 @@ function lessonHandler(filmedScenes: number) {
       // invent them" - which is what this turned out to be.
       onFinish: ({ finishReason, text }) => {
         if (finishReason !== "stop") console.warn(`[planner] ${finishReason}: ${text.slice(0, 300)}`);
+        // Did the planner write the lines, or is the fallback call doing it?
+        // The scene reaching the browser carries no narration either way, and
+        // the two causes - a model that ignored the instruction, and a field
+        // dropped somewhere between - need opposite fixes.
+        // Which scene went without one. A first scene that is planned as media
+        // and comes back unfilmed is either a model that skipped the keyword
+        // or a pipeline that dropped it, and the two need opposite fixes.
+        // A filmed lesson depends on the planner asking for footage, and a
+        // scene that never asks is indistinguishable downstream from one that
+        // was refused. This says which it was.
+        const keyed = (text.match(/"mediaKeyword"/g) ?? []).length;
+        console.log(`[planner] ${(text.match(/"scene\.add"/g) ?? []).length} scenes, ${keyed} asked for footage`);
       },
     }),
     // A lesson still ends on something. The registry has to contain a template
@@ -162,10 +185,17 @@ function lessonHandler(filmedScenes: number) {
     // public route and useless while building one.
     onError: (error) => console.error("[ai-tutor] planning failed:", error.message),
     onWarning: (warning) => console.warn(`[ai-tutor] ${warning.code}: ${warning.message}`),
+    // Off, but untested rather than rejected. It was measured as "0 scenes
+    // narrated" on both Sonnet 5 and Haiku 4.5 - against a dev server whose
+    // Node process had cached the SDK from before the option existed, so the
+    // planner was never actually asked. Turn it on and measure again: if it
+    // holds, it removes a round trip per scene from the critical path.
+    narrate: false,
     maxResolvedMedia: filmedScenes,
-    // Beats film in parallel: waiting for each in turn would make a five-scene
-    // lesson half a minute of nothing.
-    mediaConcurrency: 4,
+    // Every beat films at once, not four of five. At four, the fifth scene
+    // waited for a free slot and arrived six seconds after the fourth - the
+    // whole gap between scene 3 landing and scene 4 in a measured run.
+    mediaConcurrency: Math.max(1, filmedScenes),
     allowMediaUrl: (url) => new URL(url).hostname.endsWith(".fal.media"),
     resolveMedia: filmedScenes === 0 || !process.env.FAL_KEY
       ? undefined
@@ -195,7 +225,10 @@ const NARRATION_SYSTEM = [
   "You are given the scene about to be shown, and the lines already said before it.",
   "",
   "Return only the line to say over this scene. No JSON, no quotes, no preamble.",
-  "One or two sentences, 12-30 words, plain spoken English.",
+  // A filmed beat is a five-second clip, and the scene is held for as long as
+  // its line takes to say. Thirty words is twelve seconds, which is the same
+  // clip playing two and a half times. One sentence fits the shot.
+  "One sentence, 10-16 words, plain spoken English.",
   "Say what the scene shows and why it matters. Never read the on-screen text back word for word - the viewer can already see it.",
   "Continue naturally from the lines before it. Never mention scenes, videos or slides.",
 ].join("\n");
@@ -216,6 +249,58 @@ export async function narrateLesson(request: Request): Promise<Response> {
     ].join("\n"),
   });
   return Response.json({ line: text.trim().replace(/^["']|["']$/g, "") });
+}
+
+/**
+ * The line said while the lesson is still being composed.
+ *
+ * Planning takes about six seconds and that is not moving - it is the model
+ * writing the plan, not prompt processing or anything the client controls. So
+ * the wait stops being a wait instead: the question goes up immediately and
+ * this is spoken over it within a couple of seconds.
+ *
+ * It sharpens the question rather than answering it. Answering would spoil the
+ * video and collide with its closer, which is the beat meant to make the point
+ * stick; restating the question is audibly stalling. The move between them is
+ * the one every explainer opens on - say what makes the question interesting,
+ * then stop.
+ */
+const HOOK_SYSTEM = [
+  "You speak the opening line of a short explainer video, over the learner's own question.",
+  "",
+  "Return only the line. No JSON, no quotes, no preamble.",
+  "One sentence, 12-20 words, plain spoken English.",
+  "Say what makes the question interesting - the part that is surprising, or easy to miss, or not what the asker expects.",
+  // Forbidding the formula alone pushes it straight into answering: three of
+  // eight gave the mechanism away outright. The test has to be explicit,
+  // because "make it interesting" and "do not answer" pull against each other
+  // and the model resolves the tension by answering.
+  "Pose the puzzle. Never resolve it. State no cause, mechanism, or reason - those are the video's job, and saying one here spoils it and repeats the ending.",
+  "Test every sentence: if someone could stop listening after it and already know why, it is wrong. Rewrite it.",
+  "Vary the shape. Do not lean on \"yet\" or \"but\" as the hinge of every sentence.",
+  "Never state a number, statistic, name, date, or measurement.",
+  "Never mention the video, the wait, an answer that is coming, or yourself.",
+  // Left to itself the model writes "Most people think X, but actually Y"
+  // every time - five of the first eight questions, which is a tic a viewer
+  // hears by the second lesson. Naming the formula is what stops it.
+  "Never use a received-wisdom formula. Do not open with \"Most people think\", \"It turns out\", \"You might assume\", \"Contrary to\", \"Believe it or not\", or any variation. Never tell the learner what they or most people think.",
+  "Open on the subject itself. State the interesting thing plainly, as an observation about the world rather than about the audience.",
+].join("\n");
+
+export async function hookLine(request: Request): Promise<Response> {
+  const { question } = await request.json() as { question?: string };
+  if (!question?.trim()) return Response.json({ error: "No question to open on." }, { status: 400 });
+
+  const started = Date.now();
+  const { text } = await generateText({
+    model: anthropic(process.env.ANTHROPIC_HOOK_MODEL ?? "claude-sonnet-5"),
+    system: HOOK_SYSTEM,
+    maxOutputTokens: 128,
+    prompt: `QUESTION: ${question.trim()}`,
+  });
+  const line = text.trim().replace(/^["']|["']$/g, "");
+  console.log(`[hook] ${Date.now() - started}ms  ${line}`);
+  return Response.json({ line });
 }
 
 const FOLLOWUPS_SYSTEM = [
