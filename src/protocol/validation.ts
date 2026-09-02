@@ -115,8 +115,10 @@ function style(value: unknown, path: string): VideoStyle {
     "defaultTransition",
     "density",
     "motion",
+    "generatedLook",
   ], path);
   validateVideoBrand(result.brand, `${path}.brand`);
+  if (result.generatedLook != null) string(result.generatedLook, `${path}.generatedLook`);
   return result as unknown as VideoStyle;
 }
 

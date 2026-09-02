@@ -13,6 +13,9 @@ import {
   string,
 } from "../protocol/json-validation.js";
 
+/** A visual language for a provider prompt, not a token: longer, still bounded. */
+const MAX_GENERATED_LOOK_LENGTH = 1_000;
+
 function boundedString(value: unknown, path: string): string {
   const result = string(value, path);
   if (result.length > MAX_RETAINED_MEDIA_URL_LENGTH) {
@@ -159,7 +162,15 @@ export function parseVideoRequest(value: unknown): VideoRequest {
   }
   if (input.style != null) {
     const visual = record(input.style, "request.input.style");
-    allowedKeys(visual, ["density", "motion", "textArchetype", "backgroundEffect"], "request.input.style");
+    allowedKeys(visual, ["density", "motion", "textArchetype", "backgroundEffect", "generatedLook"], "request.input.style");
+    if (visual.generatedLook != null) {
+      // Free text rather than an enum: it describes a visual language for a
+      // provider prompt. Bounded because it is untrusted request input.
+      const look = string(visual.generatedLook, "request.input.style.generatedLook");
+      if (look.length > MAX_GENERATED_LOOK_LENGTH) {
+        throw new Error(`request.input.style.generatedLook must be at most ${MAX_GENERATED_LOOK_LENGTH} characters`);
+      }
+    }
     if (visual.density != null) {
       enumValue(visual.density, ["airy", "normal", "packed"], "airy, normal, or packed", "request.input.style.density");
     }

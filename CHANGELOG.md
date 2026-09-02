@@ -4,6 +4,15 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds `generatedLook` to the video style and to `VideoInput.style`: the visual
+  language generated media is produced in. A style has two halves once media can
+  be generated - the brand decides how captions are drawn, this decides what the
+  footage behind them looks like - and they have to travel together, or a pale
+  illustrated ground ends up under dark documentary footage. It reaches
+  `resolveMedia` on the resolver context, so a provider prompt no longer has to
+  be threaded with it by hand, and it is stored with the video so a replay keeps
+  its look. Nothing is rendered from it.
+
 - Adds `mediaConcurrency` to `createVideoHandler`: how many scenes may resolve
   media at once, defaulting to one. Media resolution ran strictly in turn, which
   is invisible for a stock search and costly for generated video - five clips at

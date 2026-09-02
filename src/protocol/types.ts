@@ -63,9 +63,24 @@ export interface VideoStyle {
   defaultTransition?: string;
   density?: string;
   motion?: string;
+  /**
+   * The visual language generated media is produced in.
+   *
+   * A style has two halves once media can be generated: the brand decides how
+   * captions are drawn, and this decides what the footage behind them looks
+   * like. They have to travel together - pale illustrated ground under dark
+   * documentary footage is unreadable - so this belongs on the style rather
+   * than being threaded into each provider call by hand.
+   *
+   * Nothing is rendered from it. It reaches `resolveMedia`, which is where a
+   * provider prompt is written.
+   */
+  generatedLook?: string;
 }
 
 export interface VideoStyleOptions {
+  /** The visual language generated media is produced in. See `VideoStyle`. */
+  generatedLook?: string;
   density?: "airy" | "normal" | "packed";
   motion?: "calm" | "normal" | "punchy";
   textArchetype?: "subtle" | "typewriter" | "wordStagger" | "slam" | "cinematic" | "heroWord";
