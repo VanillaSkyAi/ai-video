@@ -16,12 +16,19 @@ function tutorRoutes(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const path = request.url?.split("?")[0];
-        if (!["/api/lesson", "/api/narration", "/api/followups", "/api/speech"].includes(path ?? "")) return next();
+        if (!["/api/lesson", "/api/narration", "/api/followups", "/api/speech", "/api/hook"].includes(path ?? "")) return next();
         if (!process.env.ANTHROPIC_API_KEY) {
           response.statusCode = 503;
           response.end("Set ANTHROPIC_API_KEY and restart. This example plans real lessons; there is nothing canned to fall back to.");
           return;
         }
+
+        // Where the wait goes, written where it can be read without a browser
+        // open. Every route is one of the four waits between a question and
+        // the first frame, and the streaming one is timed to its first byte as
+        // well as its last - that gap is the planner thinking.
+        const startedAt = Date.now();
+        const since = () => `${String(Date.now() - startedAt).padStart(6)}ms`;
 
         try {
         const chunks: Buffer[] = [];
@@ -36,11 +43,15 @@ function tutorRoutes(): Plugin {
         const handle = path === "/api/lesson" ? routes.planLesson
           : path === "/api/narration" ? routes.narrateLesson
           : path === "/api/speech" ? routes.speakLine
+          : path === "/api/hook" ? routes.hookLine
           : routes.suggestFollowups;
         const result: Response = await handle(incoming);
         response.statusCode = result.status;
         result.headers.forEach((value, key) => response.setHeader(key, value));
-        if (!result.body) return void response.end();
+        if (!result.body) {
+          server.config.logger.info(`[ai-tutor] ${since()}  ${path}`);
+          return void response.end();
+        }
 
         // A planned lesson streams: the page appends each scene as it arrives
         // and plays the first one within seconds. Node holds small writes back
@@ -50,9 +61,15 @@ function tutorRoutes(): Plugin {
         response.setHeader("cache-control", "no-cache, no-transform");
         response.flushHeaders();
         response.socket?.setNoDelay(true);
+        let firstChunk = true;
         for await (const chunk of result.body as unknown as AsyncIterable<Uint8Array>) {
+          if (firstChunk) {
+            firstChunk = false;
+            server.config.logger.info(`[ai-tutor] ${since()}  ${path} first byte`);
+          }
           response.write(chunk);
         }
+        server.config.logger.info(`[ai-tutor] ${since()}  ${path} complete`);
         response.end();
         } catch (cause) {
           // A route that throws must not take the dev server with it: an
