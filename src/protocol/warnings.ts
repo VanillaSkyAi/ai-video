@@ -14,7 +14,8 @@ export type VideoWarningCode =
   | "plan_incomplete"
   | "plan_missing_closer"
   | "provider_warning"
-  | "provider_diagnostics_unavailable";
+  | "provider_diagnostics_unavailable"
+  | "media_budget_reached";
 
 export const VIDEO_WARNING_CATEGORIES: Readonly<Record<VideoWarningCode, VideoWarningCategory>> = {
   scene_duration_adjusted: "readability",
@@ -25,6 +26,7 @@ export const VIDEO_WARNING_CATEGORIES: Readonly<Record<VideoWarningCode, VideoWa
   plan_missing_closer: "provider",
   provider_warning: "provider",
   provider_diagnostics_unavailable: "provider",
+  media_budget_reached: "media",
 };
 
 export const MAX_PUBLIC_DIAGNOSTIC_LENGTH = 160;
@@ -58,4 +60,14 @@ export interface VideoWarning {
   message: string;
   sceneId?: string;
   recoverable: boolean;
+}
+
+/** The request resolved as much media as it was allowed to. */
+export function createMediaBudgetWarning(limit: number): VideoWarning {
+  return {
+    code: "media_budget_reached",
+    category: VIDEO_WARNING_CATEGORIES.media_budget_reached,
+    message: `Resolved media for ${limit} scene${limit === 1 ? "" : "s"}; later scenes keep their copy on the brand gradient.`,
+    recoverable: true,
+  };
 }

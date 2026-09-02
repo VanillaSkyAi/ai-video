@@ -7,6 +7,7 @@ import {
   type VideoStreamHandler,
   type VideoStreamHandlerOptions,
 } from "./video-stream-handler.js";
+import { createMediaBudgetWarning } from "../protocol/warnings.js";
 import { createTemplateSystemPrompt } from "../visual-system/catalog/prompt.js";
 import type { ServerTemplateRegistry } from "../visual-system/catalog/server-kit.js";
 import { overlayServerTemplateRegistry } from "../visual-system/catalog/server-kit.js";
@@ -44,6 +45,15 @@ export interface VideoHandlerOptions extends Omit<
    * planned; only the waiting overlaps.
    */
   mediaConcurrency?: number;
+  /**
+   * How many scenes in one request may resolve media at all.
+   *
+   * Unbounded by default, which is right when media is searched for and wrong
+   * when it is generated: the planner decides the scene count, and every scene
+   * is then a paid clip. Past the ceiling a scene keeps its copy on the brand
+   * gradient, and a `media_budget_reached` warning says it happened.
+   */
+  maxResolvedMedia?: number;
 }
 
 /**
@@ -67,6 +77,7 @@ export function createVideoHandler(
     allowMediaUrl,
     resolveMedia,
     mediaConcurrency,
+    maxResolvedMedia,
     requireCloser = true,
     ...handlerOptions
   } = options;
@@ -97,6 +108,12 @@ export function createVideoHandler(
       approveUrl,
       isOpeningReady: (input) => openingReadyInputs.has(input),
       mediaConcurrency,
+      maxResolvedMedia,
+      // The ceiling is a spend policy, so it is reported to the application
+      // that set it rather than to the browser, which cannot act on it.
+      onBudgetReached: maxResolvedMedia === undefined
+        ? undefined
+        : () => { void handlerOptions.onWarning?.(createMediaBudgetWarning(maxResolvedMedia)); },
       // The same rule the scene validator applies, answered from the part
       // rather than from what the validator has already seen.
       marksOpeningReady: (part) => part.type === "scene.add"
