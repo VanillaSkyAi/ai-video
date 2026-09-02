@@ -192,20 +192,60 @@ export function createMediaResolvingPlanner(options: {
   resolveMedia?: MediaResolver;
   approveUrl: (input: VideoInput, url: string) => void;
   isOpeningReady: (input: VideoInput) => boolean;
+  /**
+   * How many scenes may have media in flight at once.
+   *
+   * One - the default - resolves strictly in turn, which is invisible when
+   * media is searched for and costly when it is generated: a stock photo takes
+   * a couple of hundred milliseconds, a generated clip takes seconds, and five
+   * of those in a row is half a minute of nothing. Raising this overlaps the
+   * waiting without reordering anything.
+   */
+  mediaConcurrency?: number;
+  /**
+   * Whether this part is the one that makes the opening ready.
+   *
+   * The flag is normally set downstream, while a scene is validated, and read
+   * on the next scene. That works when parts are resolved strictly in turn.
+   * Once several are in flight the downstream write has not happened yet, so
+   * the same rule has to be answered from the parts themselves.
+   */
+  marksOpeningReady?: (part: VideoPlanPart) => boolean;
 }): VideoPlanner {
+  const limit = Math.max(1, Math.floor(options.mediaConcurrency ?? 1));
+
   return async function* resolveMediaPlan(context) {
-    for await (const part of options.planner(context)) {
-      yield await resolvePartVariables({
-        part,
-        requestId: context.request.requestId,
-        templateId: part.type === "scene.add" ? part.scene.templateId : undefined,
-        input: context.request.input,
-        signal: context.signal,
-        templates: options.templates,
-        resolveMedia: options.resolveMedia,
-        approveUrl: options.approveUrl,
-        openingReady: options.isOpeningReady(context.request.input),
-      });
+    const resolveOne = (part: VideoPlanPart, openingReady?: boolean) => resolvePartVariables({
+      part,
+      requestId: context.request.requestId,
+      templateId: part.type === "scene.add" ? part.scene.templateId : undefined,
+      input: context.request.input,
+      signal: context.signal,
+      templates: options.templates,
+      resolveMedia: options.resolveMedia,
+      approveUrl: options.approveUrl,
+      openingReady: openingReady ?? options.isOpeningReady(context.request.input),
+    });
+
+    if (limit === 1) {
+      for await (const part of options.planner(context)) yield await resolveOne(part);
+      return;
     }
+
+    // Tracked here rather than read from downstream, which has not seen these
+    // parts yet. The opening still resolves no media: it has to appear without
+    // waiting on a round trip.
+    let openingReady = options.isOpeningReady(context.request.input);
+
+    // Parts are resolved as they arrive but yielded in order, so a slow scene
+    // delays only itself rather than everything planned after it. The queue is
+    // bounded, so a planner that runs ahead cannot start unlimited work.
+    const pending: Array<Promise<VideoPlanPart>> = [];
+    for await (const part of options.planner(context)) {
+      pending.push(resolveOne(part, openingReady));
+      if (!openingReady && options.marksOpeningReady?.(part) === true) openingReady = true;
+      while (pending.length >= limit) yield await pending.shift()!;
+    }
+    while (pending.length > 0) yield await pending.shift()!;
   };
 }

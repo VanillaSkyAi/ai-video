@@ -4,6 +4,13 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds `mediaConcurrency` to `createVideoHandler`: how many scenes may resolve
+  media at once, defaulting to one. Media resolution ran strictly in turn, which
+  is invisible for a stock search and costly for generated video - five clips at
+  a few seconds each is half a minute of nothing, and the only way around it was
+  to plan the shots and generate them outside the plan stream. Scenes are still
+  emitted in the order they were planned; only the waiting overlaps.
+
 - Adds `createSceneTimeline`: compose a playable video from scenes the
   application builds itself, appended through the player's `stream` prop.
   `VideoInput.opening` holds a single line of copy, and replacing the `video`
