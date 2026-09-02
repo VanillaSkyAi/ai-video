@@ -7,7 +7,7 @@ describe("packed package verification", () => {
     const script = readFileSync(new URL("../scripts/verify-packed-package.mjs", import.meta.url), "utf8");
 
     expect(script).toContain('join(serverConsumer, "root.mjs")');
-    expect(script).toContain("VideoValidationError,getVideoDuration,parseVideo");
+    expect(script).toContain("VideoValidationError,createSceneTimeline,getVideoDuration,parseVideo");
     expect(script).toContain('schemaVersion: "0.1"');
     expect(script).toContain("fnv1a32:de1aa1a5");
     expect(script).toContain("Packed terminal snapshot lost its default opening");
