@@ -58,6 +58,7 @@ export function VideoPlayerRuntime({
   className,
   style,
   ariaLabel = "Video response",
+  controls = true,
   loop = false,
   onComplete,
   onError,
@@ -508,9 +509,9 @@ export function VideoPlayerRuntime({
           loop={loop || state.status === "streaming" || introPlaying}
         />
       ) : null}
-      <EndedOverlay ended={ended} onReplay={togglePlayback} />
+      <EndedOverlay ended={controls && ended} onReplay={togglePlayback} />
       <PlayerControls
-        visible={!generationCoverVisible && !showStartPoster && Boolean(config?.scenes.length)}
+        visible={controls && !generationCoverVisible && !showStartPoster && Boolean(config?.scenes.length)}
         displayWidth={displayWidth}
         ended={ended}
         isPlaying={isPlaying}

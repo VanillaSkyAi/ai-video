@@ -29,6 +29,16 @@ interface VideoPlayerSharedProps {
   style?: CSSProperties;
   /** Accessible name for the player region. */
   ariaLabel?: string;
+  /**
+   * Show the player's own controls: play, mute, fullscreen, and the replay
+   * offered when the video ends. Default true.
+   *
+   * Turn them off where the host drives playback itself and a second set of
+   * controls would contradict it - a narrated answer whose voice and picture
+   * are one thing, where pausing the picture alone desynchronises them, and
+   * where a replay scrim would cover the answer the moment it finished.
+   */
+  controls?: boolean;
   /** Repeat the saved video and its soundtrack instead of showing the replay affordance. */
   loop?: boolean;
   onComplete?: (video: Video) => void;
