@@ -387,6 +387,38 @@
   },
   "@vanillaskyai/video/react": {
     "exports": {
+      "Narration": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface Narration {\n    onSceneChange: (scene: VideoScene, index: number) => void;\n    interrupt: () => void;\n    speaking: boolean;\n}"
+        ]
+      },
+      "NarrationOptions": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface NarrationOptions {\n    voice: NarrationVoice;\n    enabled?: boolean;\n}"
+        ]
+      },
+      "NarrationVoice": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface NarrationVoice {\n    speak(text: string, options: {\n        signal: AbortSignal;\n    }): void | Promise<void>;\n}"
+        ]
+      },
+      "useNarration": {
+        "kinds": [
+          "value"
+        ],
+        "declaration": [
+          "declare function useNarration(options: NarrationOptions): Narration;"
+        ]
+      },
       "useVideo": {
         "kinds": [
           "value"
