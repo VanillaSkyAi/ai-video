@@ -108,10 +108,11 @@ export async function streamLesson(options: {
         // contain. A tutor is the case where the answer has to come from the
         // model's own knowledge rather than from the material handed to it.
         knowledgeMode: "general",
-        // The opening scene is composed by the runtime, not the model, so it
-        // reaches the page in about a second. Without it nothing is on screen
-        // until the planner finishes - which is what made this feel broken.
-        opening: options.question,
+        // The opening scene is composed by the runtime rather than the model,
+        // so it reaches the page in about a second and covers the wait. A
+        // filmed lesson does not want it: it is a rendered card, and it would
+        // play before the first actual clip.
+        opening: options.mode.filmedScenes > 0 ? false : options.question,
         orientation: "landscape",
         maxDurationSec: 40,
         brand: options.theme.brand,
@@ -154,7 +155,14 @@ export async function streamLesson(options: {
       // first scene playable in seconds instead of a minute.
       const line = await narrateScene(options.question, planned, lines, options.signal);
       if (line) lines.push(line);
-      const scene = line ? { ...planned, narration: line } : planned;
+      // A filmed beat shows the film. The caption belongs to the rendered
+      // modes; over footage it is the thing that makes generated video look
+      // like a slide, and the line is being spoken anyway.
+      const filmed = typeof (planned.variables as { mediaUrl?: unknown }).mediaUrl === "string";
+      const shown = filmed
+        ? { ...planned, variables: { ...planned.variables, texts: "" } }
+        : planned;
+      const scene = line ? { ...shown, narration: line } : shown;
       scenes.push(scene);
       await options.onScene(scene);
     }

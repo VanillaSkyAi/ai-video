@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createRoot } from "react-dom/client";
 import { createSceneTimeline, getSceneDuration, type Video, type VideoScene } from "@vanillaskyai/video";
 import { VideoPlayer, useNarration } from "@vanillaskyai/video/react";
@@ -49,6 +49,29 @@ function pacedScene(scene: VideoScene, spokenSeconds?: number): VideoScene {
 
 const EMPTY_VIDEO = { schemaVersion: "0.1", orientation: "landscape", scenes: [], style: undefined } as unknown as Video;
 
+/**
+ * Pause the narration when the video is paused.
+ *
+ * The player owns playback and has no way to say so - it reports which scene is
+ * showing, not whether it is running - so this reads the state off its own
+ * control, which is labelled for exactly this reason. An affordance on the
+ * player would be better; this is what exists.
+ */
+function usePausedWithVideo(stage: RefObject<HTMLDivElement | null>, voice: { pause: () => void; resume: () => void }) {
+  useEffect(() => {
+    const container = stage.current;
+    if (!container) return;
+    const observer = new MutationObserver(() => {
+      const control = container.querySelector('button[aria-label*="video response"]');
+      const label = control?.getAttribute("aria-label") ?? "";
+      if (label.startsWith("Pause")) voice.resume();
+      else if (label.startsWith("Play")) voice.pause();
+    });
+    observer.observe(container, { subtree: true, attributes: true, attributeFilter: ["aria-label"] });
+    return () => observer.disconnect();
+  }, [stage, voice]);
+}
+
 function App() {
   const [draft, setDraft] = useState("");
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -63,11 +86,13 @@ function App() {
   const [error, setError] = useState<string>();
 
   const voice = useMemo(createSpokenVoice, []);
+  const stageRef = useRef<HTMLDivElement>(null);
   const narration = useNarration({ voice });
   // Read inside the async run, which was created before the speaking state it
   // needs to wait on existed.
   const speakingRef = useRef(false);
   speakingRef.current = narration.speaking;
+  usePausedWithVideo(stageRef, voice);
   const theme = themeById(themeId);
   const mode = modeById(modeId);
   const answerRef = useRef(0);
@@ -100,30 +125,33 @@ function App() {
     setAnswers((current) => [...current, { index, question }]);
 
     let timeline: ReturnType<typeof createSceneTimeline> | undefined;
+    let pendingStyle: Video["style"] | undefined;
     try {
       const lesson = await streamLessonWithRetry({
         question,
         theme,
         mode,
         signal: inFlight.signal,
-        // The style arrives first, so the timeline can open before any scene
-        // exists and the player has something to attach to.
-        onStyle: (style) => {
-          timeline = createSceneTimeline({ style, orientation: "landscape" });
-          setStream(timeline.stream);
-        },
+        // The style arrives first, but the timeline is not opened yet: a
+        // player handed a stream with no scenes shows its own generation
+        // cover, and there is nothing to watch until the first scene is
+        // genuinely ready. The warm-up owns the whole wait.
+        onStyle: (style) => { pendingStyle = style; },
         // Each scene is appended the moment its line is written, so the first
         // one plays in seconds rather than after the whole lesson.
         onScene: async (scene) => {
           setPlanned((count) => count + 1);
-          // The player shows its own cover while a stream has no scenes yet.
-          // The warm-up stays over the top of it until there is something to
-          // watch, so the wait has one appearance rather than two.
-          setComposing(false);
           // The audio is generated before the scene is appended, because its
           // length is what the scene's duration is set from. It costs a second
           // or so, spent while the scene before it is still playing.
           const spoken = scene.narration ? await voice.prepare(scene.narration) : undefined;
+          // Opened on the first scene, not before it: playback begins with
+          // something real on screen - in a filmed mode, an actual clip.
+          if (!timeline && pendingStyle) {
+            timeline = createSceneTimeline({ style: pendingStyle, orientation: "landscape" });
+            setStream(timeline.stream);
+            setComposing(false);
+          }
           timeline?.add(pacedScene(scene, spoken?.seconds));
           setAnswers((current) => current.map((answer) => (answer.index === index
             ? { ...answer, video: { ...(answer.video ?? EMPTY_VIDEO), scenes: [...(answer.video?.scenes ?? []), scene] } }
@@ -237,7 +265,7 @@ function App() {
 
     <div className="columns">
       <div className="stage-column">
-        <div className="stage" data-theme={theme.id}>
+        <div className="stage" data-theme={theme.id} ref={stageRef}>
           {replaying
             ? <VideoPlayer video={replaying} templates={templates} orientation="landscape" autoPlay onSceneChange={narration.onSceneChange} ariaLabel="Replay" />
             : stream

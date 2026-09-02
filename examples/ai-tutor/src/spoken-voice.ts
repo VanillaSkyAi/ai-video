@@ -43,8 +43,12 @@ async function measureSeconds(bytes: ArrayBuffer): Promise<number> {
 
 export function createSpokenVoice(): NarrationVoice & {
   prepare: (text: string) => Promise<SpokenLine | undefined>;
+  pause: () => void;
+  resume: () => void;
 } {
   const lines = new Map<string, Promise<{ src: string; seconds: number } | undefined>>();
+  // The line being said right now, so pausing the video can pause it too.
+  let playing: HTMLAudioElement | undefined;
 
   const load = (text: string) => {
     const existing = lines.get(text);
@@ -77,10 +81,17 @@ export function createSpokenVoice(): NarrationVoice & {
       const line = await load(text);
       return line ? { seconds: line.seconds } : undefined;
     },
+    pause() {
+      playing?.pause();
+    },
+    resume() {
+      void playing?.play().catch(() => undefined);
+    },
     async speak(text, { signal }) {
       const line = await load(text);
       if (!line || signal.aborted) return;
       const element = new Audio(line.src);
+      playing = element;
       await new Promise<void>((resolve) => {
         const finish = () => resolve();
         element.onended = finish;
@@ -91,6 +102,8 @@ export function createSpokenVoice(): NarrationVoice & {
           finish();
         }, { once: true });
         void element.play().catch(finish);
+      }).finally(() => {
+        if (playing === element) playing = undefined;
       });
     },
   };
