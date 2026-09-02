@@ -60,6 +60,25 @@ async function narrateScene(
   return typeof payload.line === "string" ? payload.line : "";
 }
 
+/**
+ * Ask once, and once more if the planner produced something invalid.
+ *
+ * The planner writes to tight schema limits and occasionally misses one - a
+ * headline two characters too long, a scene without timing - and a single
+ * invalid scene fails the entire run. A retry turns an occasional dead lesson
+ * into an occasional slow one.
+ */
+export async function streamLessonWithRetry(
+  options: Parameters<typeof streamLesson>[0],
+): Promise<{ video: Video; followups: string[] }> {
+  try {
+    return await streamLesson(options);
+  } catch (cause) {
+    if (options.signal?.aborted) throw cause;
+    return streamLesson(options);
+  }
+}
+
 export async function streamLesson(options: {
   question: string;
   theme: Theme;

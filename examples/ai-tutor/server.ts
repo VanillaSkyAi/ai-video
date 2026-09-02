@@ -107,6 +107,10 @@ function lessonHandler(filmedScenes: number) {
   const existing = handlers.get(filmedScenes);
   if (existing) return existing;
 
+  // One invalid scene fails the whole run, and a model writing to tight schema
+  // limits gets one wrong now and then - a headline two characters too long, a
+  // scene missing its timing. Retrying once turns an occasional dead lesson
+  // into an occasional slow one.
   const handler = createVideoHandler({
     authorize: (request) => new URL(request.url).hostname === "localhost",
     // The planner must only choose templates this page can render.

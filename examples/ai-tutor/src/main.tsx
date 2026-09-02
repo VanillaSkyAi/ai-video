@@ -12,7 +12,7 @@ const OPENING_QUESTIONS = [
 import { createTemplateRegistry } from "@vanillaskyai/video/templates";
 import { definitions } from "../vanillasky";
 import { createSpokenVoice } from "./spoken-voice";
-import { streamLesson } from "./plan-lesson";
+import { streamLessonWithRetry } from "./plan-lesson";
 import { defaultMode, modeById, visualModes } from "./modes";
 import { defaultTheme, themeById, themes } from "./themes";
 import { Warmup } from "./warmup";
@@ -62,6 +62,10 @@ function App() {
 
   const voice = useMemo(createSpokenVoice, []);
   const narration = useNarration({ voice });
+  // Read inside the async run, which was created before the speaking state it
+  // needs to wait on existed.
+  const speakingRef = useRef(false);
+  speakingRef.current = narration.speaking;
   const theme = themeById(themeId);
   const mode = modeById(modeId);
   const answerRef = useRef(0);
@@ -95,7 +99,7 @@ function App() {
 
     let timeline: ReturnType<typeof createSceneTimeline> | undefined;
     try {
-      const lesson = await streamLesson({
+      const lesson = await streamLessonWithRetry({
         question,
         theme,
         mode,
@@ -120,6 +124,21 @@ function App() {
             ? { ...answer, video: { ...(answer.video ?? EMPTY_VIDEO), scenes: [...(answer.video?.scenes ?? []), scene] } }
             : answer)));
         },
+      });
+      if (inFlight.signal.aborted) return;
+      // Completing the timeline is what ends playback and offers a replay, so
+      // doing it while the last line is still being said cuts the tutor off
+      // mid-sentence and invites the viewer to start again over the top of it.
+      await new Promise<void>((resolve) => {
+        const started = Date.now();
+        const poll = window.setInterval(() => {
+          const finished = !speakingRef.current && Date.now() - started > 400;
+          // A voice that never starts must not hold the video open forever.
+          if (finished || Date.now() - started > 30_000 || inFlight.signal.aborted) {
+            window.clearInterval(poll);
+            resolve();
+          }
+        }, 150);
       });
       if (inFlight.signal.aborted) return;
       timeline?.complete();
