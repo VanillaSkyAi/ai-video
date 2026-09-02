@@ -318,6 +318,7 @@ function validateScene(value: unknown, path: string): VideoScene {
     "textArchetype",
     "backgroundEffect",
     "timing",
+    "narration",
   ], path);
   nonEmptyString(requiredField(result, "id", `${path}.id`), `${path}.id`, 128);
   nonEmptyString(requiredField(result, "templateId", `${path}.templateId`), `${path}.templateId`, 128);
@@ -329,6 +330,10 @@ function validateScene(value: unknown, path: string): VideoScene {
     const field = ownField(result, key, `${path}.${key}`);
     if (field.present) nonEmptyString(field.value, `${path}.${key}`, 128);
   }
+  // A spoken line, not a document: long enough for a paragraph, bounded because
+  // this is untrusted input that a voice will be asked to read.
+  const narration = ownField(result, "narration", `${path}.narration`);
+  if (narration.present) nonEmptyString(narration.value, `${path}.narration`, 4_000);
   return result as unknown as VideoScene;
 }
 

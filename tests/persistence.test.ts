@@ -603,3 +603,32 @@ describe("resolveVideoBrand", () => {
     expect(Object.keys(brand.colors).length).toBeGreaterThanOrEqual(6);
   });
 });
+
+describe("scene narration", () => {
+  it("round-trips the line spoken over a scene", () => {
+    const value = completeVideo();
+    value.scenes[0].narration = "Tidal locking is why the Moon shows one face.";
+    const parsed = parseVideo(value);
+    expect(parsed.scenes[0].narration).toBe("Tidal locking is why the Moon shows one face.");
+    // A narrated video that survives a round trip is a video whose script can be
+    // replayed without the model that wrote it.
+    expect(parseVideo(JSON.parse(JSON.stringify(parsed))).scenes[0].narration)
+      .toBe(parsed.scenes[0].narration);
+  });
+
+  it("stays optional", () => {
+    expect(parseVideo(completeVideo()).scenes[1].narration).toBeUndefined();
+  });
+
+  it("rejects narration that is not a string", () => {
+    const value = completeVideo();
+    (value.scenes[0] as unknown as Record<string, unknown>).narration = 42;
+    expect(invalidError(value).message).toContain("scenes[0].narration");
+  });
+
+  it("bounds narration, since it is a spoken line and not a document", () => {
+    const value = completeVideo();
+    value.scenes[0].narration = "a".repeat(4_001);
+    expect(invalidError(value).message).toContain("scenes[0].narration");
+  });
+});
