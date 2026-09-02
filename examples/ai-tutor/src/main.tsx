@@ -2,13 +2,18 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createSceneTimeline, getSceneDuration, type Video } from "@vanillaskyai/video";
 import { VideoPlayer, useNarration } from "@vanillaskyai/video/react";
+
+const OPENING_QUESTIONS = [
+  "Why does the Moon always show one face?",
+  "What makes ocean waves break?",
+  "How does an atom hold itself together?",
+  "Why do some animals walk on two legs?",
+];
 import { createTemplateRegistry } from "@vanillaskyai/video/templates";
 import { definitions } from "./templates";
 import { createBrowserVoice } from "./browser-voice";
 import { planLesson } from "./plan-lesson";
-// The starter questions are exactly the ones a stored lesson can answer, so the
-// example stays coherent before a key is set.
-import { storedQuestions } from "./lesson";
+import { defaultMode, modeById, visualModes } from "./modes";
 import { defaultTheme, themeById, themes } from "./themes";
 import { Warmup } from "./warmup";
 import "./styles.css";
@@ -37,17 +42,18 @@ function App() {
   const [draft, setDraft] = useState("");
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [themeId, setThemeId] = useState(defaultTheme.id);
+  const [modeId, setModeId] = useState(defaultMode.id);
   const [stream, setStream] = useState<AsyncIterable<unknown>>();
   const [replaying, setReplaying] = useState<Video>();
   const [viewing, setViewing] = useState<number>();
   const [followups, setFollowups] = useState<string[]>([]);
   const [composing, setComposing] = useState(false);
   const [error, setError] = useState<string>();
-  const [stored, setStored] = useState(false);
 
   const voice = useMemo(createBrowserVoice, []);
   const narration = useNarration({ voice });
   const theme = themeById(themeId);
+  const mode = modeById(modeId);
   const answerRef = useRef(0);
   const inFlightRef = useRef<AbortController | undefined>(undefined);
 
@@ -73,7 +79,7 @@ function App() {
     setAnswers((current) => [...current, { index, question }]);
 
     try {
-      const lesson = await planLesson(question, theme, inFlight.signal);
+      const lesson = await planLesson(question, theme, mode, inFlight.signal);
       if (inFlight.signal.aborted) return;
       const video = paced(lesson.video);
 
@@ -87,18 +93,17 @@ function App() {
 
       setAnswers((current) => current.map((answer) => (answer.index === index ? { ...answer, video } : answer)));
       setFollowups(lesson.followups);
-      setStored(lesson.stored === true);
     } catch (cause) {
       if (inFlight.signal.aborted) return;
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       if (!inFlight.signal.aborted) setComposing(false);
     }
-  }, [narration, theme]);
+  }, [narration, theme, mode]);
 
   const current = answers.at(-1);
   const shown = viewing === undefined ? current : answers.find((answer) => answer.index === viewing) ?? current;
-  const suggestions = followups.length > 0 ? followups : storedQuestions;
+  const suggestions = followups.length > 0 ? followups : OPENING_QUESTIONS;
   // Asking mid-lesson cuts the tutor off, so there is nothing to ask with until
   // it has finished - only a deliberate way to cut in.
   const answering = composing || narration.speaking;
@@ -123,14 +128,23 @@ function App() {
         together.
       </p>
       {composer}
-      <label className="setup">
-        <span>Style</span>
-        <select value={themeId} onChange={(event) => setThemeId(event.target.value)}>
-          {themes.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-        </select>
-      </label>
+      <div className="setup">
+        <label>
+          <span>Style</span>
+          <select value={themeId} onChange={(event) => setThemeId(event.target.value)}>
+            {themes.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Visuals</span>
+          <select value={modeId} onChange={(event) => setModeId(event.target.value as typeof modeId)}>
+            {visualModes.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <p className="setup-note">{mode.note}</p>
+      </div>
       <div className="suggestions wide">
-        {storedQuestions.map((question) => <button key={question} type="button" onClick={() => void ask(question)}>{question}</button>)}
+        {OPENING_QUESTIONS.map((question) => <button key={question} type="button" onClick={() => void ask(question)}>{question}</button>)}
       </div>
       {error && <p className="error">{error}</p>}
     </main>;
@@ -184,10 +198,6 @@ function App() {
             </>}
 
         {error && <p className="error">{error}</p>}
-        {stored && <p className="note">
-          Showing the lesson checked into <code>src/lesson.ts</code>. Set
-          <code> ANTHROPIC_API_KEY</code> and restart to plan live ones.
-        </p>}
       </div>
 
       <article className="script" aria-label="What the tutor said">

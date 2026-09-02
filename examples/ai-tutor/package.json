@@ -16,7 +16,8 @@
     "typescript": "^5.9.3",
     "vite": "^8.2.2",
     "@ai-sdk/anthropic": "^3.0.0",
-    "ai": "^7.0.77"
+    "ai": "^7.0.77",
+    "@ai-sdk/fal": "^3.0.37"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

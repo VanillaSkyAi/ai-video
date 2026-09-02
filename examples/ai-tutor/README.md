@@ -4,9 +4,9 @@ Ask a question and get the answer as a narrated video: the scenes and the words
 are planned together, so the voice and the picture start together and stay
 together.
 
-This is the tutor, not a sketch of one — the landing page, the theme picker, the
-session with the script beside the video, session history, follow-up questions,
-and the two routes behind it.
+This is the tutor, not a sketch of one — the landing page, the style and visual
+pickers, the session with the script beside the video, session history,
+follow-up questions, and the two routes behind it.
 
 <!-- verify:start -->
 ```bash
@@ -16,17 +16,31 @@ npm run dev
 ```
 <!-- verify:end -->
 
-It runs with no key. Without one, `/api/lesson` answers 404 and the four starter
-questions are served from `src/lesson.ts` - one lesson each, exactly as a
-planner returns them. Ask a question of your own and it says it cannot plan one,
-rather than replying with somebody else's answer. Set `ANTHROPIC_API_KEY` and
-restart to plan live lessons for any question.
+Nothing here is canned. Set `ANTHROPIC_API_KEY` before `npm run dev` and every
+lesson is planned and narrated for the question you asked; without it the page
+says so rather than replaying somebody else's answer.
+
+Add `FAL_KEY` to film the beats. Without it, the filmed modes still plan and
+narrate normally — the scenes simply keep their copy on the brand background.
+
+## Visuals
+
+Three modes, and each is a ceiling rather than a flag, because that is what it
+costs: the planner decides how many scenes a lesson has, and each filmed one is
+billed.
+
+| Mode | `maxResolvedMedia` | |
+| --- | --- | --- |
+| Templates only | `0` | Rendered scenes. Free and instant. |
+| Some AI video | `1` | The opening beat is filmed. |
+| Full AI video | `4` | Every beat filmed, up to the ceiling. |
 
 ## How an answer is made
 
-1. **`/api/lesson`** plans the whole answer through `createVideoHandler`. The
-   planner sees the entire question at once, so it can choose the template that
-   fits each beat instead of repeating one shape.
+1. **`/api/lesson`** plans the whole answer through `createVideoHandler`, and
+   resolves media for as many scenes as the mode allows. Beats film in parallel
+   through `mediaConcurrency`, because waiting for each in turn would make a
+   five-scene lesson half a minute of nothing.
 2. **`/api/narration`** writes one line per scene — from the scenes, never from
    the question, because a script written from the question drifts from the
    composition that was actually chosen. It returns the follow-ups too.
@@ -39,6 +53,13 @@ restart to plan live lessons for any question.
 Nothing plays until both the scenes and the words exist, which is what lets the
 voice and the picture begin together.
 
+## The look
+
+A theme carries both halves of a style: the brand the captions are drawn with,
+and `generatedLook`, the visual language the footage is filmed in. They travel
+together on the style object, so a pale illustrated ground cannot end up under
+dark documentary footage.
+
 ## The voice
 
 `src/browser-voice.ts` is the browser's own speech synthesiser in thirty lines,
@@ -49,11 +70,3 @@ A production tutor passes a speech model instead. The lesson is composed before
 it plays, so every line is known in advance and can be generated ahead of being
 needed — which is why a realtime session is the wrong tool here, despite being
 the obvious one. Nothing else about the page changes.
-
-## Generated video
-
-Not enabled, deliberately: every generated scene is billed, and an example
-should be free to run. To add it, give `createVideoHandler` a `resolveMedia`
-that calls a video model, set `style.generatedLook` so the footage matches the
-captions, and keep `maxResolvedMedia` set — the planner decides how many scenes
-there are, and each one is a clip.

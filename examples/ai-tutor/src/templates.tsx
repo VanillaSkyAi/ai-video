@@ -78,4 +78,38 @@ const figure = defineTemplate({
   </section>,
 });
 
-export const definitions = [point, steps, figure];
+/**
+ * A filmed beat: the clip fills the frame and the caption sits over it.
+ *
+ * `mediaUrl` is filled in by `resolveMedia` on the server when the mode allows
+ * filming. Without it the scene keeps its caption on the brand background, so a
+ * shot that could not be filmed costs a picture rather than the lesson.
+ */
+const media = defineTemplate({
+  id: "media",
+  useWhen: "The beat is best shown as footage",
+  schema: {
+    type: "object",
+    properties: {
+      texts: { type: "string" },
+      mediaKeyword: { type: "string", description: "A concrete, filmable subject for this beat." },
+      mediaUrl: { type: "string" },
+    },
+    required: ["texts"],
+  } as const,
+  component: ({ variables, style, width }) => <section className="scene media" style={frame(style, width)}>
+    {variables.mediaUrl && <video
+      src={variables.mediaUrl}
+      autoPlay
+      muted
+      playsInline
+      loop
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+    />}
+    <h1 style={{ position: "relative", fontSize: "2em", textShadow: "0 2px 24px rgba(0,0,0,0.6)" }}>
+      {variables.texts}
+    </h1>
+  </section>,
+});
+
+export const definitions = [point, steps, figure, media];

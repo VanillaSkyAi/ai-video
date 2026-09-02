@@ -18,15 +18,15 @@ function tutorRoutes(): Plugin {
         const path = request.url?.split("?")[0];
         if (path !== "/api/lesson" && path !== "/api/narration") return next();
         if (!process.env.ANTHROPIC_API_KEY) {
-          response.statusCode = 404;
-          response.end("Set ANTHROPIC_API_KEY to plan live lessons");
+          response.statusCode = 503;
+          response.end("Set ANTHROPIC_API_KEY and restart. This example plans real lessons; there is nothing canned to fall back to.");
           return;
         }
 
         const chunks: Buffer[] = [];
         for await (const chunk of request) chunks.push(chunk as Buffer);
         const { planLesson, narrateLesson } = await server.ssrLoadModule("/server.ts");
-        const incoming = new Request(`http://localhost${path}`, {
+        const incoming = new Request(`http://localhost${request.url}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: Buffer.concat(chunks).toString("utf8"),
