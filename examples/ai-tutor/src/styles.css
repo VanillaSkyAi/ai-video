@@ -317,7 +317,10 @@ body {
 .welcome-title {
   margin: 0;
   font-size: clamp(1.6rem, 5.2cqw, 3.4rem);
-  line-height: 1.08;
+  /* Loose enough that the descenders on the first line clear the caps on the
+     second. At 1.08 the two lines were nearly touching, which reads as one
+     block rather than two lines of a sentence. */
+  line-height: 1.22;
   letter-spacing: var(--vs-track-display);
   font-weight: 600;
   text-wrap: balance;
