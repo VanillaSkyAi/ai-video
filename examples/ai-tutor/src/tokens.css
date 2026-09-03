@@ -27,12 +27,12 @@
 :root {
   /* Ground and type. `raised` is a control resting on the page - the chrome
      buttons, the composer, the chips; `pop` is a surface floating above it. */
-  --vs-bg: oklch(0.995 0.002 300);
-  --vs-fg: oklch(0.22 0.02 300);
-  --vs-fg-muted: oklch(0.52 0.02 300);
-  --vs-surface-raised: oklch(0.955 0.004 300);
-  --vs-surface-hover: oklch(0.915 0.006 300);
-  --vs-surface-selected: oklch(0.885 0.008 300);
+  --vs-bg: oklch(0.993 0.004 300);
+  --vs-fg: oklch(0.2 0.026 300);
+  --vs-fg-muted: oklch(0.5 0.026 300);
+  --vs-surface-raised: oklch(0.955 0.008 300);
+  --vs-surface-hover: oklch(0.915 0.012 300);
+  --vs-surface-selected: oklch(0.88 0.016 300);
   --vs-surface-pop: oklch(1 0 0 / 92%);
   /* Type drawn on the video's own brand gradient, which is dark in every
      theme because the lesson's palette is baked into its scenes. This is the
@@ -43,21 +43,66 @@
   --vs-border-strong: oklch(0.22 0.02 300 / 26%);
 
   --vs-accent: oklch(0.55 0.21 355);
-  /* The second stop of the send button's gradient. Named rather than derived:
-     `oklch(from ...)` relative colour syntax is recent enough that a consumer
-     on an older engine would get no gradient at all, and a token they can set
-     is friendlier than one they have to understand. */
+  /* The pressed and hovered accent. */
   --vs-accent-deep: oklch(0.48 0.2 330);
   --vs-accent-fg: oklch(1 0 0);
   --vs-accent-ring: oklch(0.55 0.21 355 / 55%);
   --vs-danger: oklch(0.52 0.2 25);
 
+  /*
+   * Type: nine steps, after Apple's SF text styles rather than a doubling
+   * ramp. Each carries its own leading and tracking because that is what
+   * makes a scale a system - tracking tightens as size grows, which is what
+   * keeps a large question from reading loose and a small label from reading
+   * cramped. Body is 17px, not 16: the single change that most affects how
+   * the subtitle line reads at arm's length.
+   */
+  --vs-text-caption2: 0.6875rem;   /* 11 - section labels */
+  --vs-lead-caption2: 1.18;
+  --vs-track-caption2: 0.09em;
+
+  --vs-text-caption: 0.75rem;      /* 12 - history index, notes */
+  --vs-lead-caption: 1.33;
+  --vs-track-caption: 0;
+
+  --vs-text-footnote: 0.8125rem;   /* 13 - chips, session pill */
+  --vs-lead-footnote: 1.38;
+  --vs-track-footnote: -0.006em;
+
+  --vs-text-subhead: 0.9375rem;    /* 15 - option descriptions */
+  --vs-lead-subhead: 1.33;
+  --vs-track-subhead: -0.015em;
+
+  --vs-text-body: 1.0625rem;       /* 17 - the subtitle line, composer, sheet */
+  --vs-lead-body: 1.47;
+  --vs-track-body: -0.022em;
+
+  --vs-lead-headline: 1.29;        /* 17 semibold - titles, option labels */
+  --vs-track-headline: -0.025em;
+
+  --vs-text-title3: 1.25rem;       /* 20 - sheet title */
+  --vs-lead-title3: 1.25;
+  --vs-track-title3: -0.019em;
+
+  --vs-text-display: clamp(1.75rem, 3.4vw, 2.75rem);  /* the question card */
+  --vs-lead-display: 1.05;
+  --vs-track-display: -0.03em;
+
   /* Shape and motion. */
   --vs-radius: 0.875rem;
   --vs-radius-lg: 1.25rem;
   --vs-radius-pill: 999px;
-  --vs-font: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --vs-shadow-panel: 0 -1px 0 var(--vs-border);
+  /*
+   * System faces only - nothing to download, nothing to license, and the
+   * chrome renders in whatever the reader's machine already draws its own
+   * interface in. SF where it exists, then Helvetica Neue, then Helvetica.
+   * All three share a grotesque skeleton, so the tracking below holds across
+   * the whole stack rather than being tuned for one face.
+   *
+   * The video keeps its own webfont: scenes must render identically for every
+   * viewer, where the chrome only has to look right where it is read.
+   */
+  --vs-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --vs-shadow-pop: 0 16px 48px -12px oklch(0.2 0.02 300 / 28%);
   --vs-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
