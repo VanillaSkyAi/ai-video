@@ -134,7 +134,9 @@ body {
      composer. That is what centring means, and a picture sitting in the middle
      of its space is worth more than two gaps that measure the same. */
   place-items: center;
-  padding: var(--vs-gutter) 1rem;
+  /* Nothing below: the gap under the picture is now owned by the panel, as a
+     single deliberate space rather than two gutters meeting at a line. */
+  padding: var(--vs-gutter) 1rem 0;
   container-type: size;
 }
 
@@ -466,7 +468,17 @@ body {
 
 /* ----------------------------------------------------------------- panel */
 
-.panel { flex: 0 0 auto; border-top: 1px solid var(--vs-border); background: var(--vs-bg); }
+/*
+ * No line under the picture.
+ *
+ * A divider separates two things that would otherwise be confused, and these
+ * two are not: the subtitle is what the video is saying and the composer is how
+ * you answer it. Drawing a rule between them cut the video off from its own
+ * voice, and gave the page a horizon it did not need - the picture is already a
+ * card with its own edges, floating on the page, so the page can simply
+ * continue underneath it.
+ */
+.panel { flex: 0 0 auto; background: var(--vs-bg); }
 .sheet, .settings, .history { color-scheme: inherit; }
 /*
  * The bar's rhythm, on an 8px grid.
@@ -483,10 +495,12 @@ body {
   gap: 0.5rem;
   width: min(48rem, 100%);
   margin: 0 auto;
+  /* Close to the picture at the top, because the subtitle is the picture's
+     own voice; the full margin at the bottom, because that edge is the window. */
   padding: var(--vs-gutter) 1rem max(1rem, env(safe-area-inset-bottom));
 }
 @media (min-width: 900px) {
-  .stage-area { padding: var(--vs-gutter) 1.5rem; }
+  .stage-area { padding: var(--vs-gutter) 1.5rem 0; }
   .panel-inner { padding: var(--vs-gutter) 1.5rem 1.25rem; }
 }
 
@@ -496,8 +510,9 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.4rem 0;
-  min-height: calc(2 * var(--vs-text-body) * var(--vs-lead-body) + 0.8rem);
+  /* Exactly two lines, and no padding of its own. The subtitle belongs to the
+     picture, so the space around it is the panel's to give. */
+  min-height: calc(2 * var(--vs-text-body) * var(--vs-lead-body));
 }
 
 /*
