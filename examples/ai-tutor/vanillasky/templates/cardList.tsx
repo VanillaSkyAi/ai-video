@@ -193,8 +193,9 @@ export const cardListTemplate = defineTemplate({
       "mediaTreatment": {
         "type": "string",
         "title": "Background contrast treatment",
-        "description": "subtle preserves a visual hero; cinematic adds balanced contrast; text-safe adds a stronger wash for copy-heavy scenes.",
+        "description": "none leaves the picture untouched, for a scene carrying no type; subtle preserves a visual hero; cinematic adds balanced contrast; text-safe adds a stronger wash for copy-heavy scenes.",
         "enum": [
+          "none",
           "subtle",
           "cinematic",
           "text-safe"

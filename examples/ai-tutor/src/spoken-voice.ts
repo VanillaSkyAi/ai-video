@@ -14,8 +14,14 @@ export interface SpokenLine {
  * measured, not estimated from a words-per-second constant that is wrong for
  * every particular sentence.
  *
- * Lines are fetched once and kept, so replaying an answer costs nothing.
+ * Lines are fetched once and kept, so replaying an answer costs nothing - but
+ * not kept forever. Each one holds an object URL over its audio, and a session
+ * that runs to twenty questions is a hundred of them: the browser cannot
+ * release the bytes while the URL exists, and nothing here was releasing the
+ * URL. The cache is bounded instead, oldest first, and an evicted line simply
+ * costs its fetch again the next time it is played.
  */
+const MAX_CACHED_LINES = 60;
 let sharedContext: AudioContext | undefined;
 
 /**
@@ -46,9 +52,27 @@ export function createSpokenVoice(): NarrationVoice & {
 } {
   const lines = new Map<string, Promise<{ src: string; seconds: number } | undefined>>();
 
+  const forgetOldest = () => {
+    while (lines.size > MAX_CACHED_LINES) {
+      const oldest = lines.keys().next();
+      if (oldest.done) return;
+      const evicted = lines.get(oldest.value);
+      lines.delete(oldest.value);
+      // Resolved by now - it was cached before the sixty lines after it - and
+      // revoked rather than dropped, because dropping the reference is what
+      // leaves the audio in memory.
+      void evicted?.then((line) => { if (line) URL.revokeObjectURL(line.src); }).catch(() => undefined);
+    }
+  };
+
   const load = (text: string) => {
     const existing = lines.get(text);
-    if (existing) return existing;
+    if (existing) {
+      // Re-inserted so the least recently played line is the one that goes.
+      lines.delete(text);
+      lines.set(text, existing);
+      return existing;
+    }
 
     const pending = fetch("/api/speech", {
       method: "POST",
@@ -69,6 +93,7 @@ export function createSpokenVoice(): NarrationVoice & {
       .catch(() => undefined);
 
     lines.set(text, pending);
+    forgetOldest();
     return pending;
   };
 

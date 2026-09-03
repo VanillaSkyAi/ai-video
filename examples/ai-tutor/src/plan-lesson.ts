@@ -34,17 +34,27 @@ const LESSON_SCENES = 5;
  * cheaper templates always look like a reasonable choice. If the application is
  * willing to pay for footage, it has to ask for footage.
  */
-function plannerInstructions(filmedScenes: number): string {
+export function plannerInstructions(filmedScenes: number): string {
   const everyBeatFilmed = filmedScenes >= LESSON_SCENES;
   return [
     "The input is a question from a learner. Answer it as a short explainer video.",
     "The material is the answer, not the question: a one-line question still deserves a full explanation.",
-    // The warm-up already says what makes the question interesting, spoken
-    // over the question itself while this plan is being written. A lesson that
-    // then opens by framing the question again says the same thing twice, so
-    // the opening beat is spent on the answer instead - the hook buys the
-    // lesson a scene rather than only filling time.
-    `Use exactly ${LESSON_SCENES} scenes. The question has already been put to the learner, so do not open by restating or reframing it: open on the first real step of the answer, spend three scenes on the mechanism, and close on the point that makes it stick.`,
+    // A scene count alone is not an arc. Asked for five scenes and "three on
+    // the mechanism", the planner put the whole mechanism in scene one as a
+    // three-step list and then paraphrased it four times - the lesson peaked
+    // on its first frame and circled. Naming a different job for each scene is
+    // what stops one of them swallowing the answer.
+    //
+    // The warm-up has already put the question to the learner and said what
+    // makes it interesting, so no scene spends itself framing it again.
+    `Use exactly ${LESSON_SCENES} scenes, and give each one a different job:`,
+    "1. The observation alone: what someone would notice for themselves without knowing any explanation. No cause, no mechanism, no rate, no measurement - naming one here is the answer, and it leaves the four scenes after it with nothing to add.",
+    "2. The cause: the one mechanism that explains it.",
+    "3. How it came to be that way, or what holds it that way now.",
+    "4. A consequence of it, or somewhere else the same thing happens.",
+    "5. The closer: the single thing worth remembering. Never a summary of the four before it.",
+    "No scene may contain the whole answer, and no fact may appear in two scenes. If a scene could be deleted without the lesson losing anything, it is the wrong scene.",
+    "The question is already on screen and has already been put to the learner, so never open by restating or reframing it.",
     // Two briefs, not one with a clause bolted on. Asking for template variety
     // and for everything to be filmed in the same breath gets a lesson that is
     // half of each, which is what "full AI video" was producing.
@@ -103,22 +113,37 @@ async function narrateScene(
 /**
  * Ask once, and once more if the planner produced something invalid.
  *
- * The planner writes to tight schema limits and occasionally misses one - a
- * headline two characters too long, a scene without timing - and a single
- * invalid scene fails the entire run. A retry turns an occasional dead lesson
- * into an occasional slow one.
+ * The planner writes to tight schema limits and occasionally misses one, and a
+ * plan that fails outright is a dead lesson. A retry turns that into an
+ * occasional slow one.
+ *
+ * Only while nothing has played, though. The second attempt numbers its scenes
+ * from zero like the first, so a run that already put scene one and two on
+ * screen would take scene three onwards from a different plan and splice two
+ * explanations together - each half coherent, the whole thing nonsense. Once
+ * the picture is up, a failure is a failure.
  */
 export async function streamLessonWithRetry(
-  options: Parameters<typeof streamLesson>[0],
+  options: Parameters<typeof streamLesson>[0] & {
+    /** False once scenes are on screen and a second plan can no longer replace them. */
+    canRetry?: () => boolean;
+    /** Drop what the failed attempt had staged, so positions line up again. */
+    onRetry?: () => void;
+  },
 ): Promise<{ video: Video; followups: string[] }> {
   try {
     return await streamLesson(options);
   } catch (cause) {
     if (options.signal?.aborted) throw cause;
+    if (options.canRetry?.() === false) {
+      console.warn("[tutor] the plan failed with the lesson already playing, so it stands:", cause instanceof Error ? cause.message : cause);
+      throw cause;
+    }
     // Loud, because a retry doubles the wait and interleaves two plans' marks
     // in the console - which reads as the tutor behaving randomly rather than
     // as one failed plan.
     console.warn("[tutor] the plan failed, asking again:", cause instanceof Error ? cause.message : cause);
+    options.onRetry?.();
     return streamLesson(options);
   }
 }
