@@ -83,6 +83,8 @@ body {
    */
   --vs-side: 1rem;
   --vs-frame: min(72rem, 100dvw - 2 * var(--vs-side), (100dvh - var(--vs-reserve)) * 16 / 9);
+  /* What the controls sit at when the picture is too narrow to hang them on. */
+  --vs-column: min(48rem, 100dvw - 2 * var(--vs-side));
   display: grid;
   grid-template-rows: auto auto 1fr;
   height: 100dvh;
@@ -113,7 +115,18 @@ body {
   gap: 0.75rem;
   /* The same width as the picture below it, so the buttons sit on its edges
      rather than on the window's. */
-  width: var(--vs-frame);
+  /*
+   * The picture's width, or the column's - whichever is wider.
+   *
+   * Hanging the bar on the picture is right while the picture is the widest
+   * thing on the page. Once the window is tall and narrow the picture becomes a
+   * portrait frame far narrower than the composer, and a bar cut to it floats
+   * in the middle above a control running the full column. The switch happens
+   * where the picture passes the column, so there is no breakpoint to pick.
+   */
+  /* The column minus its own gutters, so in column mode the buttons land on
+     the composer's edges rather than on the box around it. */
+  width: max(var(--vs-frame), var(--vs-column) - 2 * var(--vs-side));
   margin: 0 auto;
   padding: max(0.6rem, env(safe-area-inset-top)) 0 0.5rem;
 }
@@ -457,7 +470,7 @@ body {
 
 @media (max-width: 899px) {
   .welcome-body { gap: 0.7rem; padding: 1.75rem 1rem 1rem; }
-  .welcome-title { font-size: clamp(1.5rem, 7cqw, 2rem); }
+  .welcome-title { font-size: clamp(1.75rem, 9cqw, 2.25rem); }
   /* Wider cards, so a question reads in two or three lines rather than four
      stacked words. */
   .welcome-cards button { width: clamp(9rem, 42cqw, 11rem); }
@@ -552,7 +565,7 @@ body {
      field: the subtitle belongs to the picture above it, not to the control
      below, and at one step a two-line cue nearly touched the composer. */
   gap: 0.5rem;
-  width: min(48rem, 100%);
+  width: var(--vs-column);
   margin: 0 auto;
   /* Close to the picture at the top, because the subtitle is the picture's
      own voice; the full margin at the bottom, because that edge is the window. */
