@@ -27,27 +27,37 @@
 :root {
   /* Ground and type. `raised` is a control resting on the page - the chrome
      buttons, the composer, the chips; `pop` is a surface floating above it. */
-  --vs-bg: oklch(0.993 0.004 300);
-  --vs-fg: oklch(0.2 0.026 300);
-  --vs-fg-muted: oklch(0.5 0.026 300);
-  --vs-surface-raised: oklch(0.955 0.008 300);
-  --vs-surface-hover: oklch(0.915 0.012 300);
-  --vs-surface-selected: oklch(0.88 0.016 300);
+  /* Mixed from the brand's own ink (#10073C, hue 281) rather than a neutral
+     grey, so the chrome and the lesson belong to one palette. */
+  --vs-bg: oklch(0.994 0.004 281);
+  --vs-fg: oklch(0.21 0.05 281);
+  --vs-fg-muted: oklch(0.5 0.04 281);
+  --vs-surface-raised: oklch(0.955 0.009 281);
+  --vs-surface-hover: oklch(0.915 0.014 281);
+  --vs-surface-selected: oklch(0.88 0.018 281);
   --vs-surface-pop: oklch(1 0 0 / 92%);
   /* Type drawn on the video's own brand gradient, which is dark in every
      theme because the lesson's palette is baked into its scenes. This is the
      one pair that must not follow the page. */
   --vs-on-media: oklch(1 0 0);
 
-  --vs-border: oklch(0.22 0.02 300 / 14%);
-  --vs-border-strong: oklch(0.22 0.02 300 / 26%);
+  --vs-border: oklch(0.21 0.05 281 / 14%);
+  --vs-border-strong: oklch(0.21 0.05 281 / 26%);
 
-  --vs-accent: oklch(0.55 0.21 355);
-  /* The pressed and hovered accent. */
-  --vs-accent-deep: oklch(0.48 0.2 330);
-  --vs-accent-fg: oklch(1 0 0);
-  --vs-accent-ring: oklch(0.55 0.21 355 / 55%);
-  --vs-danger: oklch(0.52 0.2 25);
+  /*
+   * The brand pink (#FF3A71), with the gradient's magenta end (#FF006F) as
+   * its pressed state. The glyph on it is the brand ink rather than white:
+   * white on this pink is 3.45:1, which clears the bar for a graphical
+   * control and nothing more, where the ink is 5.45:1 and reads as deliberate
+   * rather than as the default choice.
+   */
+  --vs-accent: #FF3A71;
+  --vs-accent-deep: #FF006F;
+  --vs-accent-fg: #10073C;
+  --vs-accent-ring: oklch(0.664 0.231 10.5 / 55%);
+  /* Held away from the accent's hue on purpose - an error that looks like the
+     send button is not an error. */
+  --vs-danger: oklch(0.5 0.19 32);
 
   /*
    * Type: nine steps, after Apple's SF text styles rather than a doubling
@@ -103,7 +113,7 @@
    * viewer, where the chrome only has to look right where it is read.
    */
   --vs-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --vs-shadow-pop: 0 16px 48px -12px oklch(0.2 0.02 300 / 28%);
+  --vs-shadow-pop: 0 16px 48px -12px oklch(0.191 0.094 281 / 30%);
   --vs-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* One place to turn every transition off, which the reduced-motion block at
@@ -118,44 +128,46 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --vs-bg: oklch(0.155 0.032 300);
-    --vs-fg: oklch(0.975 0.006 300);
-    --vs-fg-muted: oklch(0.72 0.028 300);
-    --vs-surface-raised: oklch(0.235 0.03 300);
-    --vs-surface-hover: oklch(0.3 0.03 300);
-    --vs-surface-selected: oklch(0.35 0.032 300);
-    --vs-surface-pop: oklch(0.2 0.025 300 / 92%);
+    /* #10073C exactly. At this lightness the chroma reads as depth rather
+       than as hue, so it is a near-black that happens to be the brand's. */
+    --vs-bg: oklch(0.191 0.094 281);
+    --vs-fg: oklch(0.97 0.012 281);
+    --vs-fg-muted: oklch(0.73 0.035 281);
+    --vs-surface-raised: oklch(0.27 0.085 281);
+    --vs-surface-hover: oklch(0.33 0.082 281);
+    --vs-surface-selected: oklch(0.38 0.08 281);
+    --vs-surface-pop: oklch(0.245 0.09 281 / 92%);
 
-    --vs-border: oklch(1 0 0 / 12%);
-    --vs-border-strong: oklch(1 0 0 / 22%);
+    --vs-border: oklch(1 0 0 / 14%);
+    --vs-border-strong: oklch(1 0 0 / 24%);
 
-    --vs-accent: oklch(0.7 0.211 355);
-    --vs-accent-deep: oklch(0.6 0.21 330);
-    --vs-accent-fg: oklch(0.16 0.03 300);
-    --vs-accent-ring: oklch(0.7 0.211 355 / 60%);
-    --vs-danger: oklch(0.75 0.16 20);
+    --vs-accent: #FF3A71;
+    --vs-accent-deep: #FF006F;
+    --vs-accent-fg: #10073C;
+    --vs-accent-ring: oklch(0.664 0.231 10.5 / 60%);
+    --vs-danger: oklch(0.75 0.16 32);
 
     --vs-shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 60%);
   }
 }
 
 :root[data-theme="dark"] {
-  --vs-bg: oklch(0.155 0.032 300);
-  --vs-fg: oklch(0.975 0.006 300);
-  --vs-fg-muted: oklch(0.72 0.028 300);
-  --vs-surface-raised: oklch(0.235 0.03 300);
-  --vs-surface-hover: oklch(0.3 0.03 300);
-  --vs-surface-selected: oklch(0.35 0.032 300);
-  --vs-surface-pop: oklch(0.2 0.025 300 / 92%);
+  --vs-bg: oklch(0.191 0.094 281);
+  --vs-fg: oklch(0.97 0.012 281);
+  --vs-fg-muted: oklch(0.73 0.035 281);
+  --vs-surface-raised: oklch(0.27 0.085 281);
+  --vs-surface-hover: oklch(0.33 0.082 281);
+  --vs-surface-selected: oklch(0.38 0.08 281);
+  --vs-surface-pop: oklch(0.245 0.09 281 / 92%);
 
-  --vs-border: oklch(1 0 0 / 12%);
-  --vs-border-strong: oklch(1 0 0 / 22%);
+  --vs-border: oklch(1 0 0 / 14%);
+  --vs-border-strong: oklch(1 0 0 / 24%);
 
-  --vs-accent: oklch(0.7 0.211 355);
-  --vs-accent-deep: oklch(0.6 0.21 330);
-  --vs-accent-fg: oklch(0.16 0.03 300);
-  --vs-accent-ring: oklch(0.7 0.211 355 / 60%);
-  --vs-danger: oklch(0.75 0.16 20);
+  --vs-accent: #FF3A71;
+  --vs-accent-deep: #FF006F;
+  --vs-accent-fg: #10073C;
+  --vs-accent-ring: oklch(0.664 0.231 10.5 / 60%);
+  --vs-danger: oklch(0.75 0.16 32);
 
   --vs-shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 60%);
 }
