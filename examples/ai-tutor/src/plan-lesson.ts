@@ -103,22 +103,37 @@ async function narrateScene(
 /**
  * Ask once, and once more if the planner produced something invalid.
  *
- * The planner writes to tight schema limits and occasionally misses one - a
- * headline two characters too long, a scene without timing - and a single
- * invalid scene fails the entire run. A retry turns an occasional dead lesson
- * into an occasional slow one.
+ * The planner writes to tight schema limits and occasionally misses one, and a
+ * plan that fails outright is a dead lesson. A retry turns that into an
+ * occasional slow one.
+ *
+ * Only while nothing has played, though. The second attempt numbers its scenes
+ * from zero like the first, so a run that already put scene one and two on
+ * screen would take scene three onwards from a different plan and splice two
+ * explanations together - each half coherent, the whole thing nonsense. Once
+ * the picture is up, a failure is a failure.
  */
 export async function streamLessonWithRetry(
-  options: Parameters<typeof streamLesson>[0],
+  options: Parameters<typeof streamLesson>[0] & {
+    /** False once scenes are on screen and a second plan can no longer replace them. */
+    canRetry?: () => boolean;
+    /** Drop what the failed attempt had staged, so positions line up again. */
+    onRetry?: () => void;
+  },
 ): Promise<{ video: Video; followups: string[] }> {
   try {
     return await streamLesson(options);
   } catch (cause) {
     if (options.signal?.aborted) throw cause;
+    if (options.canRetry?.() === false) {
+      console.warn("[tutor] the plan failed with the lesson already playing, so it stands:", cause instanceof Error ? cause.message : cause);
+      throw cause;
+    }
     // Loud, because a retry doubles the wait and interleaves two plans' marks
     // in the console - which reads as the tutor behaving randomly rather than
     // as one failed plan.
     console.warn("[tutor] the plan failed, asking again:", cause instanceof Error ? cause.message : cause);
+    options.onRetry?.();
     return streamLesson(options);
   }
 }

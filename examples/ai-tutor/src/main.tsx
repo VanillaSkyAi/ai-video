@@ -64,18 +64,6 @@ function pacedScene(scene: VideoScene, spokenSeconds?: number): VideoScene {
 
 const EMPTY_VIDEO = { schemaVersion: "0.1", orientation: "landscape", scenes: [], style: undefined } as unknown as Video;
 
-/**
- * How many scenes must be ready before the first one plays.
- *
- * One, now that the planner writes the lines. A scene used to trail the one
- * before it by a whole narration call, so starting on scene one risked
- * reaching its end with nothing behind it; the only thing still trailing is
- * that scene's own speech, and every scene's runs at the same time. Scene two
- * lands about a second after scene one and scene one runs for five, so the
- * lead was buying insurance against a gap that can no longer open.
- */
-const SCENE_LEAD = 1;
-
 function App() {
   const [draft, setDraft] = useState("");
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -151,7 +139,6 @@ function App() {
     // slow scene two.
     const ready: (VideoScene | undefined)[] = [];
     let appended = 0;
-    let planComplete = false;
     // The opening line holds playback only while it is actually being said.
     // Cutting a sentence off two seconds in is worse than the second it costs
     // to let it land, and the lesson is rarely ready first: the line starts at
@@ -159,17 +146,16 @@ function App() {
     let speakingOpening = false;
 
     const flush = () => {
+      // A cancelled run must not put anything on screen. The opening line's
+      // own cleanup calls this after the question that asked for it was
+      // abandoned, and without the guard an abandoned lesson opens a timeline
+      // over the top of the one that replaced it.
+      if (inFlight.signal.aborted) return;
       let available = appended;
       while (ready[available]) available += 1;
       if (available === appended) return;
       if (!timeline) {
         if (!pendingStyle) return;
-        // A one-scene lead. Starting on scene one alone risks reaching its end
-        // before scene two exists; waiting for the whole lesson is the wait
-        // being removed. One scene in hand costs about a second, and it is
-        // enough, because every scene's line and audio were started within a
-        // moment of each other rather than one after the last.
-        if (available < SCENE_LEAD && !planComplete) return;
         if (speakingOpening) return;
         timeline = createSceneTimeline({ style: pendingStyle, orientation: "landscape" });
         playbackStartedAt = Date.now();
@@ -223,6 +209,10 @@ function App() {
         theme,
         mode,
         signal: inFlight.signal,
+        // A second plan numbers its scenes from zero, so it can only replace
+        // the first while nothing has been appended yet.
+        canRetry: () => timeline === undefined,
+        onRetry: () => { ready.length = 0; },
         // The style arrives before any scene, and the timeline needs it. The
         // player is still not given a stream yet: handed one with no scenes it
         // shows its own generation cover, and the warm-up owns that wait.
@@ -238,9 +228,9 @@ function App() {
         },
       });
       if (inFlight.signal.aborted) return;
-      // Whatever is still held goes in now, including the case of a lesson
-      // short enough to have never reached the lead.
-      planComplete = true;
+      // Whatever is still held goes in now: the last scene's audio may have
+      // landed after the stream closed, and the opening line may still have
+      // been speaking when the one before it was appended.
       flush();
 
       // Completing the timeline is what ends playback and offers a replay, so
