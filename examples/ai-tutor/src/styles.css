@@ -499,6 +499,14 @@ body {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
+  /* Two lines, like any subtitle. Reserving room for the longest cue only
+     works until a longer one arrives, and on a phone a sentence that is two
+     lines wide is three lines tall. Clamping makes the slot the same size at
+     every width and for every line; the whole sentence is in the sheet. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   font-size: var(--vs-text-body);
   line-height: var(--vs-lead-body);
   letter-spacing: var(--vs-track-body);
@@ -647,38 +655,32 @@ body {
  * instead of the muted grey a filled pill forces on it. It is also what a
  * suggestion looks like in every product that offers them well.
  */
+/*
+ * One row, always, at every width.
+ *
+ * Wrapping made the bar's height a function of how long the suggestions
+ * happened to be - two rows for the opening questions, three for a set of
+ * follow-ups - so the composer moved between answers. Reserving a fixed number
+ * of rows only moves the problem to the first set that needs one more.
+ *
+ * A single row that scrolls cannot do that: its height is one chip, whatever
+ * the words. The fade on the trailing edge is how it says there is more.
+ */
 .chips {
   display: flex;
+  flex-wrap: nowrap;
   gap: 0.5rem;
-  /* The negative margin lets the row bleed to the edges when it scrolls; the
-     vertical padding is room for the shadow, which a scroll container clips. */
+  /* The negative margin lets the row bleed to the edges; the vertical padding
+     is room for the chips' shadow, which a scroll container would clip. */
   margin: -0.35rem -1rem;
   padding: 0.35rem 1rem;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
+  mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 2.5rem), transparent 100%);
 }
 .chips::-webkit-scrollbar { display: none; }
-/*
- * Wrapped on a desktop, and always as tall as two rows.
- *
- * One scrolling row keeps a constant height but cuts a question in half, which
- * for a suggestion is the same as not offering it. Reserving both rows keeps
- * the bar from resizing when the suggestions change length or leave entirely,
- * and nothing is clipped either way.
- */
-@media (min-width: 900px) {
-  .chips {
-    flex-wrap: wrap;
-    align-content: flex-start;
-    margin: -0.35rem 0;
-    padding: 0.35rem 0;
-    overflow: visible;
-    min-height: calc(2 * 2.25rem + 0.5rem + 0.7rem);
-  }
-}
-/* Held open while the tutor talks rather than removed. A row that leaves takes
-   the bar's height with it, and a composer that moves under the pointer as the
-   answer starts is a composer you have to find again. */
+@media (min-width: 900px) { .chips { margin: -0.35rem 0; padding: 0.35rem 0; } }
 .chips.away { visibility: hidden; }
 .chips button {
   flex: 0 0 auto;
