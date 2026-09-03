@@ -67,6 +67,24 @@ body {
  * picture rather than at the far end of it.
  */
 .app {
+  /*
+   * One column, computed once, read by the bar and by the picture.
+   *
+   * Measured against the viewport rather than against `100%`. A custom property
+   * is substituted where it is *used*, so `100%` meant the window to the bar
+   * and the padded box to the picture - two different numbers from one
+   * expression, which drifted the two apart by the gutter on any window where
+   * the height bound sat close to the width bound.
+   *
+   * Bounded by the height left over once the bar and the controls have taken
+   * theirs, so the picture gives way on a short window and the bar goes with
+   * it: a bar that stayed behind is a bar that has come loose from the thing it
+   * belongs to.
+   */
+  --vs-side: 1rem;
+  --vs-frame: min(72rem, 100dvw - 2 * var(--vs-side), (100dvh - var(--vs-reserve)) * 16 / 9);
+  /* What the controls sit at when the picture is too narrow to hang them on. */
+  --vs-column: min(48rem, 100dvw - 2 * var(--vs-side));
   display: grid;
   grid-template-rows: auto auto 1fr;
   height: 100dvh;
@@ -95,9 +113,22 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  width: min(72rem, 100%);
+  /* The same width as the picture below it, so the buttons sit on its edges
+     rather than on the window's. */
+  /*
+   * The picture's width, or the column's - whichever is wider.
+   *
+   * Hanging the bar on the picture is right while the picture is the widest
+   * thing on the page. Once the window is tall and narrow the picture becomes a
+   * portrait frame far narrower than the composer, and a bar cut to it floats
+   * in the middle above a control running the full column. The switch happens
+   * where the picture passes the column, so there is no breakpoint to pick.
+   */
+  /* The column minus its own gutters, so in column mode the buttons land on
+     the composer's edges rather than on the box around it. */
+  width: max(var(--vs-frame), var(--vs-column) - 2 * var(--vs-side));
   margin: 0 auto;
-  padding: max(0.6rem, env(safe-area-inset-top)) 1rem 0.5rem;
+  padding: max(0.6rem, env(safe-area-inset-top)) 0 0.5rem;
 }
 .group { display: flex; align-items: center; gap: 0.5rem; }
 
@@ -152,7 +183,7 @@ body {
   /* Air above, nothing below: the space under the picture belongs to the row
      beneath, which centres the composer in it. Without this the picture sat
      directly under the bar, because the row that grows is now the one below. */
-  padding: 1.5rem 1rem 0;
+  padding: 1.5rem var(--vs-side) 0;
 }
 
 /*
@@ -177,16 +208,14 @@ body {
      have taken what they need. Measured against the viewport rather than
      against its parent, because the parent no longer grows to fill - and a
      size container cannot size itself from its own query. */
-  width: min(72rem, 100%, (100dvh - var(--vs-reserve)) * 16 / 9);
+  width: var(--vs-frame);
   overflow: hidden;
   border-radius: var(--vs-radius-lg);
   /* The welcome screen scales to the frame it sits in, which is this one. */
   container-type: size;
 }
-.stage[data-orientation="portrait"] {
-  aspect-ratio: 9 / 16;
-  width: min(100%, (100dvh - var(--vs-reserve)) * 9 / 16);
-}
+.app[data-orientation="portrait"] { --vs-frame: min(100dvw - 2 * var(--vs-side), (100dvh - var(--vs-reserve)) * 9 / 16); }
+.app[data-orientation="portrait"] .stage { aspect-ratio: 9 / 16; }
 @media (min-width: 900px) { .stage { border: 1px solid var(--vs-border); } }
 
 /*
@@ -303,67 +332,48 @@ body {
   flex-direction: column;
   align-items: flex-start;
   gap: clamp(0.9rem, 2.2cqh, 1.6rem);
-  padding: clamp(1.25rem, 5cqh, 3.25rem) clamp(1.25rem, 4cqw, 3.5rem);
+  /* More at the head than the foot: the headline reads against the top edge of
+     the frame, so it wants room the cards at the bottom do not. */
+  padding: clamp(2rem, 8cqh, 4.5rem) clamp(1.25rem, 4cqw, 3.5rem) clamp(1.25rem, 4cqh, 2.5rem);
   color: oklch(1 0 0);
 }
 
-.welcome-ready {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0.45rem 0.85rem;
-  border-radius: var(--vs-radius-pill);
-  background: oklch(0.2 0.02 280 / 55%);
-  backdrop-filter: blur(12px);
-  font-size: var(--vs-text-footnote);
-  line-height: var(--vs-lead-footnote);
-  letter-spacing: var(--vs-track-footnote);
-  font-weight: 500;
-}
-.welcome-ready .dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: var(--vs-radius-pill);
-  background: oklch(0.78 0.19 150);
-}
 
 .welcome-title {
   margin: 0;
   font-size: clamp(1.6rem, 5.2cqw, 3.4rem);
-  line-height: 1.08;
+  /* Loose enough that the descenders on the first line clear the caps on the
+     second. At 1.08 the two lines were nearly touching, which reads as one
+     block rather than two lines of a sentence. */
+  line-height: 1.22;
   letter-spacing: var(--vs-track-display);
   font-weight: 600;
   text-wrap: balance;
 }
-/* The third line is the promise rather than the request, so it is the one
+/* The second line is the difference rather than the category, so it is the one
    thing on the screen that is not white. */
 .welcome-title em { font-style: normal; color: oklch(0.8 0.11 268); }
 
-.welcome-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  margin: 0;
-  font-size: clamp(0.8rem, 1.35cqw, 0.95rem);
-  line-height: 1.45;
-  color: oklch(1 0 0 / 88%);
-}
-.welcome-note svg { flex: 0 0 auto; margin-top: 0.1rem; color: oklch(0.82 0.1 268); }
-/* Wrapped by its measure rather than by a hard break, so hiding the break on a
-   narrow screen cannot run two words together. */
-.welcome-note span { max-width: 30ch; }
 
 .welcome-cards {
   display: flex;
   gap: clamp(0.5rem, 1.2cqw, 0.9rem);
-  margin: clamp(0.25rem, 1.5cqh, 1rem) 0 0;
-  padding: 0;
+  /* Pushed to the foot of the frame: the invitation sits at the top and the
+     questions sit at the bottom, so the picture between them is the thing the
+     screen is actually showing off. */
+  margin: auto -0.4rem 0;
+  /* Room for the selected card's ring, which sits outside its box and would
+     otherwise be cut off on every side by this scroll container. The negative
+     margin cancels it, so the first card's edge still lines up with the
+     headline above it. */
+  padding: 0.4rem;
   list-style: none;
-  max-width: 100%;
+  max-width: calc(100% + 0.8rem);
   overflow-x: auto;
+  overflow-y: visible;
   scrollbar-width: none;
 }
+.welcome-cards::-webkit-scrollbar { display: none; }
 .welcome-cards::-webkit-scrollbar { display: none; }
 .welcome-cards button {
   position: relative;
@@ -381,10 +391,29 @@ body {
   border-radius: clamp(0.75rem, 1.3cqw, 1.1rem);
   background: oklch(0.16 0.04 280);
   box-shadow: 0 2px 6px -2px oklch(0 0 0 / 40%), 0 12px 28px -10px oklch(0 0 0 / 55%);
+  /* Reserved so the ring costs no layout when it arrives. */
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   color: oklch(1 0 0);
   cursor: pointer;
   text-align: left;
-  transition: transform var(--vs-duration) var(--vs-ease), box-shadow var(--vs-duration) ease;
+  transition: transform var(--vs-duration) var(--vs-ease), box-shadow var(--vs-duration) ease,
+    outline-color var(--vs-duration) ease;
+}
+/*
+ * The question in hand.
+ *
+ * A ring rather than a border: it is a state, not an edge, so it sits outside
+ * the card where it cannot be mistaken for part of the picture. The glow is
+ * what carries it over footage of any brightness, the same problem that made a
+ * hairline border unusable here.
+ */
+.welcome-cards button[data-active] {
+  outline-color: oklch(0.84 0.1 268);
+  box-shadow:
+    0 0 0 5px oklch(0.72 0.15 268 / 22%),
+    0 2px 6px -2px oklch(0 0 0 / 40%),
+    0 14px 32px -10px oklch(0 0 0 / 60%);
 }
 .welcome-cards button:hover {
   transform: translateY(-3px);
@@ -400,30 +429,52 @@ body {
   position: absolute;
   inset: auto 0 0;
   padding: 0.6rem 0.7rem;
-  font-size: clamp(0.65rem, 0.95cqw, 0.8rem);
-  line-height: 1.3;
+  /* The floor is the scale's smallest step rather than something smaller: on a
+     phone the container query resolves to a few pixels and the clamp's low end
+     is what actually renders, which put these under Apple's 11pt minimum. */
+  font-size: clamp(var(--vs-text-footnote), 0.95cqw, 0.9rem);
+  line-height: var(--vs-lead-footnote);
+  letter-spacing: var(--vs-track-footnote);
   font-weight: 500;
   text-wrap: balance;
 }
 
-.welcome-spark { color: oklch(0.84 0.1 268); }
 
 /* Where the cards are in a row that does not fit - a phone. */
-.welcome-dots { display: flex; gap: 0.4rem; margin-top: 0.2rem; }
-.welcome-dots span {
+/* Real buttons, so the row can be worked without a pointer. The hit area is
+   the WCAG minimum even though the dot itself is small. */
+/* Centred across the frame: the row of cards is left-aligned with the headline,
+   but the dots belong to the whole frame rather than to the row's start. */
+.welcome-dots { display: flex; gap: 0.15rem; margin-top: 0.6rem; align-self: center; }
+.welcome-dots button {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.welcome-dots button::before {
+  content: "";
   width: 0.45rem;
   height: 0.45rem;
   border-radius: var(--vs-radius-pill);
   background: oklch(1 0 0 / 35%);
   transition: width var(--vs-duration) var(--vs-ease), background-color var(--vs-duration) ease;
 }
-.welcome-dots span.on { width: 1.35rem; background: oklch(0.72 0.15 265); }
+.welcome-dots button:hover::before { background: oklch(1 0 0 / 60%); }
+.welcome-dots button.on::before { width: 1.35rem; background: oklch(0.84 0.1 268); }
 
 
 @media (max-width: 899px) {
-  .welcome-body { gap: 0.7rem; padding: 1rem; }
-  .welcome-title { font-size: clamp(1.35rem, 7cqw, 2rem); }
-  .welcome-note span { max-width: none; }
+  .welcome-body { gap: 0.7rem; padding: 1.75rem 1rem 1rem; }
+  .welcome-title { font-size: clamp(1.75rem, 9cqw, 2.25rem); }
+  /* Wider cards, so a question reads in two or three lines rather than four
+     stacked words. */
+  .welcome-cards button { width: clamp(9rem, 42cqw, 11rem); }
+  .welcome-card-question { padding: 0.7rem 0.75rem; }
 }
 
 /* --------------------------------------------------- history and settings */
@@ -514,15 +565,16 @@ body {
      field: the subtitle belongs to the picture above it, not to the control
      below, and at one step a two-line cue nearly touched the composer. */
   gap: 0.5rem;
-  width: min(48rem, 100%);
+  width: var(--vs-column);
   margin: 0 auto;
   /* Close to the picture at the top, because the subtitle is the picture's
      own voice; the full margin at the bottom, because that edge is the window. */
-  padding: var(--vs-gutter) 1rem max(1rem, env(safe-area-inset-bottom));
+  padding: var(--vs-gutter) var(--vs-side) max(1rem, env(safe-area-inset-bottom));
 }
 @media (min-width: 900px) {
-  .stage-area { padding: 2.5rem 1.5rem 0; }
-  .panel-inner { padding: var(--vs-gutter) 1.5rem 1.25rem; }
+  .app { --vs-side: 1.5rem; }
+  .stage-area { padding: 2.5rem var(--vs-side) 0; }
+  .panel-inner { padding: var(--vs-gutter) var(--vs-side) 1.25rem; }
 }
 
 /* Two lines' worth, always, once a session exists: most cues are one line and

@@ -44,17 +44,38 @@ export function useWelcome(active: boolean): WelcomeData | undefined {
   return data;
 }
 
-function Frame({ media, poster }: { media: WelcomeMedia | null; poster?: boolean }) {
+/**
+ * One frame of footage, playing only when it is being looked at.
+ *
+ * `playing` left undefined means always - the hero behind the invitation. A
+ * card passes it, so only the question in hand moves: four clips looping at
+ * once is four things competing for the eye on a screen whose whole argument is
+ * that one video is worth more than a page of text. It is also four decoders
+ * running for three pictures nobody is watching.
+ */
+function Frame({ media, poster, playing }: { media: WelcomeMedia | null; poster?: boolean; playing?: boolean }) {
+  const video = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const element = video.current;
+    if (!element || playing === undefined) return;
+    if (playing) void element.play().catch(() => undefined);
+    else element.pause();
+  }, [playing]);
+
   if (!media) return null;
   if (media.type === "image") return <img className="welcome-media" src={media.url} alt="" />;
   return <video
+    ref={video}
     className="welcome-media"
     src={media.url}
     poster={poster ? media.posterUrl : undefined}
-    autoPlay
+    autoPlay={playing !== false}
     muted
     loop
     playsInline
+    // The still is what a paused card shows, so it is worth having early.
+    preload="metadata"
     // Decorative: it carries no information the words do not.
     aria-hidden="true"
   />;
@@ -63,29 +84,68 @@ function Frame({ media, poster }: { media: WelcomeMedia | null; poster?: boolean
 export function Welcome({ data, onAsk }: { data?: WelcomeData; onAsk: (question: string) => void }) {
   const cards = data?.cards ?? [];
   const railRef = useRef<HTMLUListElement>(null);
-  // Only meaningful when the row cannot show everything at once, which is a
-  // phone. Dots that never move are decoration, and decoration that looks like
-  // a control is worse than none.
-  const [scrolls, setScrolls] = useState(false);
+  /**
+   * Which question is in hand.
+   *
+   * The dots move it and the ring shows it, so the highlight always names what
+   * pressing Enter would ask. Pointing at a card or tabbing to it moves it too:
+   * a marker that disagrees with what you are about to press is worse than no
+   * marker.
+   */
   const [at, setAt] = useState(0);
+  /**
+   * Set the moment the person takes over, and never unset.
+   *
+   * A row that keeps moving under someone's hand is the reason carousels are
+   * disliked: they point at a card and it walks away. Pointing, tabbing, or
+   * pressing a dot ends the tour for good.
+   */
+  const [taken, setTaken] = useState(false);
 
-  const measure = useCallback(() => {
-    const rail = railRef.current;
-    if (!rail) return;
-    setScrolls(rail.scrollWidth > rail.clientWidth + 4);
-    const step = rail.scrollWidth / Math.max(1, cards.length);
-    setAt(Math.round(rail.scrollLeft / Math.max(1, step)));
-  }, [cards.length]);
+  const take = useCallback((index: number) => {
+    setTaken(true);
+    setAt(index);
+  }, []);
 
+  /**
+   * Left to right, one card every five seconds, until it is taken over.
+   *
+   * The cards are the only thing on this screen that shows what an answer looks
+   * like, and three of the four sat still. Reduced motion turns it off
+   * entirely - the ring still starts on the first card, so nothing is lost but
+   * the movement.
+   */
   useEffect(() => {
-    measure();
+    if (taken || cards.length < 2) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const tour = window.setInterval(() => setAt((index) => (index + 1) % cards.length), 5000);
+    return () => window.clearInterval(tour);
+  }, [taken, cards.length]);
+
+  const show = useCallback((index: number) => {
+    setTaken(true);
+    setAt(index);
+  }, []);
+
+  /**
+   * Keep the card in hand in view.
+   *
+   * Wherever the row overflows - a phone - a ring on a card that is off the
+   * edge tells nobody anything, and the tour walks off screen after the second
+   * card. This follows every way the selection moves rather than only the dots.
+   *
+   * The rail is scrolled directly rather than through `scrollIntoView`, which
+   * is also entitled to scroll the page to bring the row into view; there is
+   * nothing to bring into view, and the page should not move.
+   */
+  useEffect(() => {
     const rail = railRef.current;
-    if (!rail) return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(rail);
-    rail.addEventListener("scroll", measure, { passive: true });
-    return () => { observer.disconnect(); rail.removeEventListener("scroll", measure); };
-  }, [measure]);
+    const card = rail?.children[at] as HTMLElement | undefined;
+    if (!rail || !card) return;
+    if (rail.scrollWidth <= rail.clientWidth + 4) return;
+    const centred = card.offsetLeft - (rail.clientWidth - card.offsetWidth) / 2;
+    rail.scrollTo({ left: Math.max(0, centred), behavior: "smooth" });
+  }, [at]);
   return <div className="welcome">
     <Frame media={data?.hero ?? null} poster />
     {/* The footage is a ground for type, so it is dimmed towards the corner
@@ -94,34 +154,41 @@ export function Welcome({ data, onAsk }: { data?: WelcomeData; onAsk: (question:
     <div className="welcome-wash" aria-hidden="true" />
 
     <div className="welcome-body">
-      <p className="welcome-ready"><span className="dot" aria-hidden="true" />Ready when you are</p>
-
+      {/* The category first, the difference last. Someone who has used
+          ChatGPT or Perplexity knows what this is by the end of line one, and
+          the accent line carries the only part that is new. */}
       <h1 className="welcome-title">
-        Ask something<br />
-        you&rsquo;re curious about.<br />
-        <em>I&rsquo;ll explain it here.</em>
+        An AI chat that answers<br />
+        <em>in video, not text.</em>
       </h1>
 
-      <p className="welcome-note">
-        <svg className="welcome-spark" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
-          <path d="M10 2.5c.35 2.9 1.2 4.55 2.6 5.35 1 .58 2.3.9 4.4 1.15-2.9.35-4.55 1.2-5.35 2.6-.58 1-.9 2.3-1.15 4.4-.35-2.9-1.2-4.55-2.6-5.35-1-.58-2.3-.9-4.4-1.15 2.9-.35 4.55-1.2 5.35-2.6.58-1 .9-2.3 1.15-4.4z" />
-          <path d="M18 13.5c.2 1.65.68 2.6 1.48 3.05.57.33 1.31.52 2.52.66-1.66.2-2.6.68-3.05 1.48-.33.57-.52 1.31-.66 2.52-.2-1.66-.68-2.6-1.48-3.05-.57-.33-1.31-.52-2.52-.66 1.66-.2 2.6-.68 3.05-1.48.33-.57.52-1.31.66-2.52z" opacity="0.65" />
-        </svg>
-        <span>Your question becomes a short narrated video, tailored just for you.</span>
-      </p>
 
       {cards.length > 0 && <ul className="welcome-cards" ref={railRef}>
-        {cards.map((card) => <li key={card.question}>
-          <button type="button" onClick={() => onAsk(card.question)}>
-            <Frame media={card.media} />
+        {cards.map((card, index) => <li key={card.question}>
+          <button
+            type="button"
+            data-active={index === at ? "" : undefined}
+            onFocus={() => take(index)}
+            onPointerEnter={() => take(index)}
+            onClick={() => onAsk(card.question)}
+          >
+            <Frame media={card.media} playing={index === at} />
             <span className="welcome-card-wash" aria-hidden="true" />
             <span className="welcome-card-question">{card.question}</span>
           </button>
         </li>)}
       </ul>}
 
-      {scrolls && <div className="welcome-dots" aria-hidden="true">
-        {cards.map((card, index) => <span key={card.question} className={index === at ? "on" : undefined} />)}
+      {cards.length > 1 && <div className="welcome-dots" role="tablist" aria-label="Suggested questions">
+        {cards.map((card, index) => <button
+          key={card.question}
+          type="button"
+          role="tab"
+          aria-selected={index === at}
+          aria-label={card.question}
+          className={index === at ? "on" : undefined}
+          onClick={() => show(index)}
+        />)}
       </div>}
     </div>
   </div>;
