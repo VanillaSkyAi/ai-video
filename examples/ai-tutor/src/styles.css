@@ -67,10 +67,22 @@ body {
  * picture rather than at the far end of it.
  */
 .app {
-  /* The frame's width, in one place: the picture is drawn at it and the chrome
-     is aligned to it. Landscape is bounded by the height left over once the bar
-     and the controls have taken theirs; portrait by the same height at 9:16. */
-  --vs-frame: min(72rem, 100%, (100dvh - var(--vs-reserve)) * 16 / 9);
+  /*
+   * One column, computed once, read by the bar and by the picture.
+   *
+   * Measured against the viewport rather than against `100%`. A custom property
+   * is substituted where it is *used*, so `100%` meant the window to the bar
+   * and the padded box to the picture - two different numbers from one
+   * expression, which drifted the two apart by the gutter on any window where
+   * the height bound sat close to the width bound.
+   *
+   * Bounded by the height left over once the bar and the controls have taken
+   * theirs, so the picture gives way on a short window and the bar goes with
+   * it: a bar that stayed behind is a bar that has come loose from the thing it
+   * belongs to.
+   */
+  --vs-side: 1rem;
+  --vs-frame: min(72rem, 100dvw - 2 * var(--vs-side), (100dvh - var(--vs-reserve)) * 16 / 9);
   display: grid;
   grid-template-rows: auto auto 1fr;
   height: 100dvh;
@@ -158,7 +170,7 @@ body {
   /* Air above, nothing below: the space under the picture belongs to the row
      beneath, which centres the composer in it. Without this the picture sat
      directly under the bar, because the row that grows is now the one below. */
-  padding: 1.5rem 1rem 0;
+  padding: 1.5rem var(--vs-side) 0;
 }
 
 /*
@@ -189,7 +201,7 @@ body {
   /* The welcome screen scales to the frame it sits in, which is this one. */
   container-type: size;
 }
-.app[data-orientation="portrait"] { --vs-frame: min(100%, (100dvh - var(--vs-reserve)) * 9 / 16); }
+.app[data-orientation="portrait"] { --vs-frame: min(100dvw - 2 * var(--vs-side), (100dvh - var(--vs-reserve)) * 9 / 16); }
 .app[data-orientation="portrait"] .stage { aspect-ratio: 9 / 16; }
 @media (min-width: 900px) { .stage { border: 1px solid var(--vs-border); } }
 
@@ -444,20 +456,6 @@ body {
 
 
 @media (max-width: 899px) {
-  /*
-   * The bar follows the composer, not the picture.
-   *
-   * On a phone the picture is a narrow portrait frame with the page either
-   * side of it, so a bar cut to its width sits in the middle of a screen whose
-   * only other control runs nearly edge to edge. Lining up with the composer
-   * puts the two rows of controls on the same margins, which is what a person
-   * reads as aligned.
-   */
-  .chrome {
-    width: min(48rem, 100%);
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
   .welcome-body { gap: 0.7rem; padding: 1.75rem 1rem 1rem; }
   .welcome-title { font-size: clamp(1.5rem, 7cqw, 2rem); }
   /* Wider cards, so a question reads in two or three lines rather than four
@@ -558,11 +556,12 @@ body {
   margin: 0 auto;
   /* Close to the picture at the top, because the subtitle is the picture's
      own voice; the full margin at the bottom, because that edge is the window. */
-  padding: var(--vs-gutter) 1rem max(1rem, env(safe-area-inset-bottom));
+  padding: var(--vs-gutter) var(--vs-side) max(1rem, env(safe-area-inset-bottom));
 }
 @media (min-width: 900px) {
-  .stage-area { padding: 2.5rem 1.5rem 0; }
-  .panel-inner { padding: var(--vs-gutter) 1.5rem 1.25rem; }
+  .app { --vs-side: 1.5rem; }
+  .stage-area { padding: 2.5rem var(--vs-side) 0; }
+  .panel-inner { padding: var(--vs-gutter) var(--vs-side) 1.25rem; }
 }
 
 /* Two lines' worth, always, once a session exists: most cues are one line and
