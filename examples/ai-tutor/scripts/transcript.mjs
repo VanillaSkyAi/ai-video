@@ -1,0 +1,102 @@
+/**
+ * A whole lesson as text: the line said over the loading screen, then every
+ * scene with what it shows and what is said over it.
+ *
+ * Runs the same three routes the page does, in the same order, against the
+ * dev server - so what it prints is what a viewer would hear. Judging a prompt
+ * from one scene at a time is how we ended up with an opening line that
+ * sharpens the question and a first scene that answers it in the same breath.
+ */
+const BASE = process.env.TUTOR_BASE ?? "http://localhost:5199";
+const FILMED = process.env.TUTOR_FILMED ?? "0";
+
+async function post(path, body) {
+  const response = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(`${path} -> ${response.status} ${(await response.text()).slice(0, 200)}`);
+  return response;
+}
+
+async function plan(question, instructions, capabilities) {
+  const response = await post(`/api/lesson?filmed=${FILMED}`, {
+    protocolVersion: "0.5",
+    requestId: `transcript-${Date.now()}`,
+    capabilities,
+    input: {
+      input: question,
+      instructions,
+      knowledgeMode: "general",
+      opening: false,
+      orientation: "landscape",
+      maxDurationSec: 40,
+      brand: BRAND,
+      style: { density: "airy", motion: "calm", textArchetype: "cinematic" },
+    },
+  });
+
+  const scenes = [];
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const rows = buffer.split("\n");
+    buffer = rows.pop() ?? "";
+    for (const row of rows) {
+      if (!row.startsWith("data: ") || row === "data: [DONE]") continue;
+      const event = JSON.parse(row.slice(6));
+      if (event.type === "scene.add" && event.data?.scene) scenes.push(event.data.scene);
+    }
+    if (done) break;
+  }
+  return scenes;
+}
+
+const BRAND = {
+  font: "Inter",
+  scriptFont: "Caveat",
+  background: { colors: ["#5b21b6", "#2563eb"] },
+  colors: {
+    foreground: "#ffffff", surface: "#4a1a95", surfaceElevated: "#2f4fc4",
+    muted: "#d7d3f0", primary: "#e04f8a", secondary: "#ec9a2c",
+  },
+};
+
+function onScreen(scene) {
+  const v = scene.variables ?? {};
+  const parts = [];
+  if (v.texts) parts.push(String(v.texts));
+  for (const [name, value] of Object.entries(v)) {
+    if (name === "texts" || name.startsWith("media")) continue;
+    if (Array.isArray(value)) parts.push(`${name}=[${value.map((i) => typeof i === "object" ? JSON.stringify(i) : i).join(" | ")}]`);
+    else if (typeof value === "string" && value) parts.push(`${name}=${value}`);
+  }
+  return parts.join("  ·  ");
+}
+
+export async function transcribe(question, { instructions, capabilities }) {
+  const hook = (await (await post("/api/hook", { question })).json()).line;
+  const scenes = await plan(question, instructions, capabilities);
+
+  const lines = [];
+  for (const scene of scenes) {
+    const { line } = await (await post("/api/narration", { question, scene, earlier: [...lines] })).json();
+    if (line) lines.push(line);
+    scene.spoken = line;
+  }
+  return { question, hook, scenes };
+}
+
+export function render({ question, hook, scenes }) {
+  const out = [`\nQ: ${question}`, `\n  [loading]  🔊 ${hook}`];
+  scenes.forEach((scene, index) => {
+    out.push(`\n  ${index + 1}. [${scene.templateId}]${scene.placement === "closer" ? " (closer)" : ""}`);
+    out.push(`     screen: ${onScreen(scene)}`);
+    out.push(`     🔊 ${scene.spoken ?? "—"}`);
+  });
+  return out.join("\n");
+}

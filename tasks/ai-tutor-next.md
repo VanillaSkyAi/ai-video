@@ -167,7 +167,7 @@ Three models write a lesson between them:
   why it matters", and "why it matters" was an invitation to explain a scene the
   picture had deliberately left unexplained.
 
-`scratchpad/transcript.mjs` (see the session log) prints a whole lesson as text -
+`examples/ai-tutor/scripts/print-transcript.mjs` prints a whole lesson as text -
 hook, then every scene with what it shows and what is said over it. Judging a
 prompt one scene at a time is how the hook and the first scene ended up
 answering the same question twice.
