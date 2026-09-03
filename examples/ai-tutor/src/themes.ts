@@ -60,7 +60,7 @@ export const themes: Theme[] = [
 ];
 
 /**
- * The stage's ground, in CSS, so the warm-up can wear it too.
+ * The stage's ground, in CSS, so the wait can wear it too.
  *
  * The wait used to be a fixed purple that belonged to no theme, and the lesson
  * then cut to a different colour entirely - the one moment the page most needs
@@ -76,10 +76,6 @@ export function themeBackground(theme: Theme): string {
     return `linear-gradient(175deg, ${background.colors[0]} 0%, ${background.colors[1]} 100%)`;
   }
   return background?.color ?? "#4c2ba8";
-}
-
-export function themeForeground(theme: Theme): string {
-  return theme.brand.colors?.foreground ?? "#ffffff";
 }
 
 export const defaultTheme = themes[0];

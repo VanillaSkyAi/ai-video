@@ -49,8 +49,18 @@ async function measureSeconds(bytes: ArrayBuffer): Promise<number> {
 
 export function createSpokenVoice(): NarrationVoice & {
   prepare: (text: string) => Promise<SpokenLine | undefined>;
+  /** Hold the sentence being said, and let it go on from where it stopped. */
+  pause: () => void;
+  resume: () => void;
+  setMuted: (muted: boolean) => void;
 } {
   const lines = new Map<string, Promise<{ src: string; seconds: number } | undefined>>();
+  // The line currently being said. Pausing it rather than aborting it is what
+  // makes continue mean continue: an interrupted line is spoken again from its
+  // first word next time, which is not where the listener left off.
+  let sounding: HTMLAudioElement | undefined;
+  let held = false;
+  let silent = false;
 
   const forgetOldest = () => {
     while (lines.size > MAX_CACHED_LINES) {
@@ -102,12 +112,29 @@ export function createSpokenVoice(): NarrationVoice & {
       const line = await load(text);
       return line ? { seconds: line.seconds } : undefined;
     },
+    pause() {
+      held = true;
+      sounding?.pause();
+    },
+    resume() {
+      held = false;
+      if (sounding && !silent) void sounding.play().catch(Boolean);
+    },
+    setMuted(muted) {
+      silent = muted;
+      if (sounding) sounding.muted = muted;
+    },
     async speak(text, { signal }) {
       const line = await load(text);
       if (!line || signal.aborted) return;
       const element = new Audio(line.src);
+      element.muted = silent;
+      sounding = element;
       await new Promise<void>((resolve) => {
-        const finish = () => resolve();
+        const finish = () => {
+          if (sounding === element) sounding = undefined;
+          resolve();
+        };
         element.onended = finish;
         element.onerror = finish;
         // Talking over the next scene is worse than being cut off.
@@ -115,7 +142,10 @@ export function createSpokenVoice(): NarrationVoice & {
           element.pause();
           finish();
         }, { once: true });
-        void element.play().catch(finish);
+        // A line that lands while playback is held waits with the picture. It
+        // is prepared and pointed at, and let go by resume - starting it here
+        // would be a voice over a still frame.
+        if (!held) void element.play().catch(finish);
       });
     },
   };

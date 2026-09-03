@@ -59,6 +59,7 @@ export function VideoPlayerRuntime({
   style,
   ariaLabel = "Video response",
   controls = true,
+  paused,
   loop = false,
   onComplete,
   onError,
@@ -171,6 +172,35 @@ export function VideoPlayerRuntime({
   }, []);
 
   useEffect(() => setIsMuted(resolvedStartMuted), [resolvedStartMuted]);
+
+  /**
+   * The host's hand on the clock.
+   *
+   * Only a change acts, so a host that passes `paused={false}` alongside
+   * `autoPlay={false}` is not contradicted into playing on mount. The clock
+   * holds `timeRef` while it is stopped and restarts from `performance.now()`,
+   * so resuming continues rather than jumping.
+   */
+  const pausedRef = useRef(paused);
+  useEffect(() => {
+    const previous = pausedRef.current;
+    pausedRef.current = paused;
+    if (paused === undefined || paused === previous) return;
+    if (paused) {
+      setIsPlaying(false);
+      audioRef.current?.pause();
+      return;
+    }
+    const config = stateRef.current.config;
+    if (!config?.scenes.length) return;
+    // A finished video has its playhead at the end already. Releasing it there
+    // would hold a last frame and call it playback; starting over is a replay,
+    // which the host does by remounting.
+    if (timeRef.current >= getVideoDuration(config) - 0.001) return;
+    setIsPlaying(true);
+    const audio = audioRef.current;
+    if (audio?.paused) void audio.play().catch(Boolean);
+  }, [paused]);
 
   useEffect(() => {
     let cancelled = false;

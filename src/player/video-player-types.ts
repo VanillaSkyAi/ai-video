@@ -39,6 +39,20 @@ interface VideoPlayerSharedProps {
    * where a replay scrim would cover the answer the moment it finished.
    */
   controls?: boolean;
+  /**
+   * Hold the playhead where it is, and release it again.
+   *
+   * The counterpart to turning `controls` off. A host that owns playback needs
+   * a lever to drive it with, and until this there was none: the clock is the
+   * player's, so a narrated answer could silence its voice but not stop its
+   * picture, and the two came apart. Setting it back to false resumes from the
+   * same playhead rather than restarting.
+   *
+   * Leave it undefined to keep the player's own behaviour untouched. A video
+   * that has already reached its end is not resumed by it - the playhead is
+   * already there, and starting again is a replay, which is a different act.
+   */
+  paused?: boolean;
   /** Repeat the saved video and its soundtrack instead of showing the replay affordance. */
   loop?: boolean;
   onComplete?: (video: Video) => void;
