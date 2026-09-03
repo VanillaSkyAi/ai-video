@@ -562,6 +562,12 @@ function App() {
   }, [shown, narration, voice]);
 
   const newSession = useCallback(() => {
+    // Nothing to clear yet: the only useful thing this can do is put the cursor
+    // in the box, which is where someone pressing it was heading.
+    if (answers.length === 0) {
+      inputRef.current?.focus();
+      return;
+    }
     inFlightRef.current?.abort();
     narration.interrupt();
     voice.resume();
@@ -581,7 +587,7 @@ function App() {
     setSettingsOpen(false);
     setSheetOpen(false);
     answerRef.current = 0;
-  }, [narration, voice]);
+  }, [narration, voice, answers.length]);
 
   /**
    * The one line under the stage.
@@ -605,10 +611,15 @@ function App() {
         ? { label: "Play again", action: replay, icon: <Replay /> }
         : undefined;
 
-  return <div className="app">
+  return <div className="app" data-orientation={stageOrientation}>
     <header className="chrome">
       <div className="group">
-        <button type="button" className="round" aria-label="New session" onClick={newSession}><Plus /></button>
+        <button
+          type="button"
+          className="round"
+          aria-label={answers.length === 0 ? "Ask a question" : "New session"}
+          onClick={newSession}
+        ><Plus /></button>
         {answers.length > 0 && <button
           ref={historyButtonRef}
           type="button"
@@ -643,7 +654,7 @@ function App() {
     </header>
 
     <div className="stage-area">
-      <div className="stage" data-orientation={stageOrientation} style={{ background: themeBackground(theme) }}>
+      <div className="stage" style={{ background: themeBackground(theme) }}>
         {/* The ground the lesson's own scenes are composed on, kept moving,
             with the question on it. No step list and no clock - at eight
             seconds a number counting up measures the wait rather than filling

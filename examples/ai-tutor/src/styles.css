@@ -67,6 +67,10 @@ body {
  * picture rather than at the far end of it.
  */
 .app {
+  /* The frame's width, in one place: the picture is drawn at it and the chrome
+     is aligned to it. Landscape is bounded by the height left over once the bar
+     and the controls have taken theirs; portrait by the same height at 9:16. */
+  --vs-frame: min(72rem, 100%, (100dvh - var(--vs-reserve)) * 16 / 9);
   display: grid;
   grid-template-rows: auto auto 1fr;
   height: 100dvh;
@@ -95,9 +99,11 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  width: min(72rem, 100%);
+  /* The same width as the picture below it, so the buttons sit on its edges
+     rather than on the window's. */
+  width: var(--vs-frame);
   margin: 0 auto;
-  padding: max(0.6rem, env(safe-area-inset-top)) 1rem 0.5rem;
+  padding: max(0.6rem, env(safe-area-inset-top)) 0 0.5rem;
 }
 .group { display: flex; align-items: center; gap: 0.5rem; }
 
@@ -177,16 +183,14 @@ body {
      have taken what they need. Measured against the viewport rather than
      against its parent, because the parent no longer grows to fill - and a
      size container cannot size itself from its own query. */
-  width: min(72rem, 100%, (100dvh - var(--vs-reserve)) * 16 / 9);
+  width: var(--vs-frame);
   overflow: hidden;
   border-radius: var(--vs-radius-lg);
   /* The welcome screen scales to the frame it sits in, which is this one. */
   container-type: size;
 }
-.stage[data-orientation="portrait"] {
-  aspect-ratio: 9 / 16;
-  width: min(100%, (100dvh - var(--vs-reserve)) * 9 / 16);
-}
+.app[data-orientation="portrait"] { --vs-frame: min(100%, (100dvh - var(--vs-reserve)) * 9 / 16); }
+.app[data-orientation="portrait"] .stage { aspect-ratio: 9 / 16; }
 @media (min-width: 900px) { .stage { border: 1px solid var(--vs-border); } }
 
 /*
@@ -307,26 +311,6 @@ body {
   color: oklch(1 0 0);
 }
 
-.welcome-ready {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0.45rem 0.85rem;
-  border-radius: var(--vs-radius-pill);
-  background: oklch(0.2 0.02 280 / 55%);
-  backdrop-filter: blur(12px);
-  font-size: var(--vs-text-footnote);
-  line-height: var(--vs-lead-footnote);
-  letter-spacing: var(--vs-track-footnote);
-  font-weight: 500;
-}
-.welcome-ready .dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: var(--vs-radius-pill);
-  background: oklch(0.78 0.19 150);
-}
 
 .welcome-title {
   margin: 0;

@@ -94,8 +94,6 @@ export function Welcome({ data, onAsk }: { data?: WelcomeData; onAsk: (question:
     <div className="welcome-wash" aria-hidden="true" />
 
     <div className="welcome-body">
-      <p className="welcome-ready"><span className="dot" aria-hidden="true" />Ready when you are</p>
-
       <h1 className="welcome-title">
         Ask something<br />
         you&rsquo;re curious about.<br />
