@@ -8,7 +8,7 @@ import { createSpokenVoice } from "./spoken-voice";
 import { streamLessonWithRetry } from "./plan-lesson";
 import { defaultMode, modeById, visualModes } from "./modes";
 import { defaultTheme, themeBackground, themeById, themes } from "./themes";
-import { ChevronUp, Close, Gear, Mic, Replay, Send, Sound, Stop, Muted, Play, Plus } from "./icons";
+import { ChevronUp, Close, Gear, Mic, Replay, Send, Sound, Stop, Muted, Play, Plus, Warning } from "./icons";
 import { useDismiss, useFocusTrap } from "./use-dismiss";
 import { useVoiceInput } from "./use-voice-input";
 import "./styles.css";
@@ -700,7 +700,9 @@ function App() {
           </button>}
         </div>}
 
-        {(error || listen.error) && <p className="error">{error ?? listen.error}</p>}
+        {(error || listen.error) && <p className="error" role="status">
+          <Warning /><span>{error ?? listen.error}</span>
+        </p>}
 
         {/* Always here, from the first moment to the last. Hiding the way to
             ask until the lesson finished meant the one thing a learner wants
@@ -714,7 +716,10 @@ function App() {
             ref={inputRef}
             rows={1}
             value={draft}
-            placeholder={status === "narrating" ? "Talking — type to jump in…" : answers.length > 0 ? "Ask a follow-up…" : "Ask a science question…"}
+            placeholder={listen.listening ? "Listening…"
+              : listen.thinking ? "Working out what you said…"
+              : status === "narrating" ? "Talking — type to jump in…"
+              : answers.length > 0 ? "Ask a follow-up…" : "Ask a science question…"}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {

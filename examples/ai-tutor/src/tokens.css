@@ -75,6 +75,7 @@
   /* Held away from the accent's hue on purpose - an error that looks like the
      send button is not an error. */
   --vs-danger: oklch(0.5 0.19 32);
+  --vs-danger-surface: oklch(0.5 0.19 32 / 10%);
 
   /*
    * Type: nine steps, after Apple's SF text styles rather than a doubling
@@ -172,6 +173,7 @@
     --vs-focus: #FF3A71;
     --vs-focus-ring: oklch(0.664 0.231 10.5 / 55%);
     --vs-danger: oklch(0.75 0.16 32);
+    --vs-danger-surface: oklch(0.75 0.16 32 / 14%);
 
     --vs-shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 60%);
   }

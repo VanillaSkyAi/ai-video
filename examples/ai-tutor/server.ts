@@ -60,6 +60,47 @@ export async function speakLine(request: Request): Promise<Response> {
 }
 
 /**
+ * Turn a recording into text.
+ *
+ * The browser has its own speech recognition and it is free, so it stays the
+ * first choice. What it is not is reliable: Chrome's implementation ships the
+ * audio to a Google service, and when that is unreachable - a blocked host, a
+ * captive network, a corporate proxy - it fails with `network` and there is
+ * nothing the page can do about it. This is the way back, and it depends on
+ * nothing but the key the tutor already has.
+ *
+ * It costs a fraction of a cent a go, which is why it is the fallback rather
+ * than the default.
+ */
+const TRANSCRIBE_MODEL = process.env.FAL_TRANSCRIBE_MODEL ?? "fal-ai/whisper";
+const MAX_CLIP_BYTES = 8 * 1024 * 1024;
+
+export async function transcribeSpeech(request: Request): Promise<Response> {
+  if (!process.env.FAL_KEY) return Response.json({ error: "Set FAL_KEY to transcribe speech." }, { status: 404 });
+  const audio = await request.arrayBuffer();
+  if (audio.byteLength === 0) return Response.json({ error: "No audio." }, { status: 400 });
+  // A recording is user input, and an unbounded upload is an unbounded bill.
+  if (audio.byteLength > MAX_CLIP_BYTES) return Response.json({ error: "That recording is too long." }, { status: 413 });
+
+  fal.config({ credentials: process.env.FAL_KEY });
+  const started = Date.now();
+  try {
+    const type = request.headers.get("content-type") || "audio/webm";
+    const url = await fal.storage.upload(new Blob([audio], { type }));
+    const result = await fal.subscribe(TRANSCRIBE_MODEL, {
+      input: { audio_url: url, task: "transcribe" },
+      abortSignal: AbortSignal.timeout(60_000),
+    });
+    const text = String((result?.data as { text?: unknown })?.text ?? "").trim();
+    console.log(`[transcribe] ${Date.now() - started}ms  ${text.slice(0, 60)}`);
+    return Response.json({ text });
+  } catch (cause) {
+    console.error("[transcribe] failed:", cause instanceof Error ? cause.message : cause);
+    return Response.json({ error: "The recording could not be transcribed." }, { status: 502 });
+  }
+}
+
+/**
  * Film one beat.
  *
  * The planner asks for a subject; every constraint is the host's. A model that

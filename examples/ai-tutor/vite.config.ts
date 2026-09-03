@@ -16,7 +16,7 @@ function tutorRoutes(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const path = request.url?.split("?")[0];
-        if (!["/api/lesson", "/api/narration", "/api/followups", "/api/speech", "/api/hook"].includes(path ?? "")) return next();
+        if (!["/api/lesson", "/api/narration", "/api/followups", "/api/speech", "/api/hook", "/api/transcribe"].includes(path ?? "")) return next();
         if (!process.env.ANTHROPIC_API_KEY) {
           response.statusCode = 503;
           response.end("Set ANTHROPIC_API_KEY and restart. This example plans real lessons; there is nothing canned to fall back to.");
@@ -34,16 +34,26 @@ function tutorRoutes(): Plugin {
         const chunks: Buffer[] = [];
         for await (const chunk of request) chunks.push(chunk as Buffer);
         const routes = await server.ssrLoadModule("/server.ts");
-        const incoming = new Request(`http://localhost${request.url}`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: Buffer.concat(chunks).toString("utf8"),
-        });
+        // A recording arrives as bytes rather than as JSON, so its body is
+        // passed through untouched and its own content type is kept.
+        const raw = Buffer.concat(chunks);
+        const incoming = path === "/api/transcribe"
+          ? new Request(`http://localhost${request.url}`, {
+              method: "POST",
+              headers: { "content-type": request.headers["content-type"] ?? "audio/webm" },
+              body: raw,
+            })
+          : new Request(`http://localhost${request.url}`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: raw.toString("utf8"),
+            });
 
         const handle = path === "/api/lesson" ? routes.planLesson
           : path === "/api/narration" ? routes.narrateLesson
           : path === "/api/speech" ? routes.speakLine
           : path === "/api/hook" ? routes.hookLine
+          : path === "/api/transcribe" ? routes.transcribeSpeech
           : routes.suggestFollowups;
         const result: Response = await handle(incoming);
         response.statusCode = result.status;
