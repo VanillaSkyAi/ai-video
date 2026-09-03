@@ -50,10 +50,10 @@ can act on** — send, focus, selection — which is the convention every system
 reader already knows. **Pink is the tutor's own voice**, and appears only while
 it is speaking or listening. One accent for you, one for it.
 
-The blue differs between themes, as Apple's does: `#0086D6` in light, because
-the brand blue on a near-white page is 2.63:1 and a primary action whose edge
-you cannot find is not primary, and `#00A5FF` in dark, where it reads at 7.6:1.
-The glyph on it is the brand ink rather than white in both.
+The blue is `#0079C4` — deep enough that a **white** glyph sits on it at 4.63:1,
+where the brand blue itself is 2.68:1 under white and fails even the bar for an
+icon. One blue serves both themes: 4.53:1 against the light page, 4.39:1 against
+the dark one.
 
 Three states, because that is what a theme actually is: the light palette on
 bare `:root`, `prefers-color-scheme: dark` for the OS preference, and

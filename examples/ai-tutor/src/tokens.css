@@ -54,13 +54,14 @@
    * #00A5FF measures 2.68:1, which fails even the bar for a graphical control,
    * where the ink is 7.00:1.
    */
-  /* A step below the brand blue, because the brand blue on a near-white page
-     is 2.63:1 and a primary action whose edge you cannot find is not primary.
-     The same move Apple makes: a darker blue in light, the bright one in dark. */
-  --vs-accent: #0086D6;
-  --vs-accent-deep: #0079C4;
-  --vs-accent-fg: #10073C;
-  --vs-accent-ring: oklch(0.6 0.16 244 / 45%);
+  /* Deep enough that a white glyph sits on it at 4.63:1 - the brand blue
+     itself is 2.68:1 under white, which fails even the bar for an icon. One
+     blue serves both themes: 4.53:1 against the light page, 4.39:1 against the
+     dark one. */
+  --vs-accent: #0079C4;
+  --vs-accent-deep: #006098;
+  --vs-accent-fg: #FFFFFF;
+  --vs-accent-ring: oklch(0.55 0.15 244 / 45%);
   --vs-voice: #FF3A71;
   /* Held away from the accent's hue on purpose - an error that looks like the
      send button is not an error. */
@@ -146,11 +147,10 @@
     --vs-border: oklch(1 0 0 / 14%);
     --vs-border-strong: oklch(1 0 0 / 24%);
 
-    /* The brand blue itself: on the dark ground it reads at 7.6:1. */
-    --vs-accent: #00A5FF;
+    --vs-accent: #0079C4;
     --vs-accent-deep: #0086D6;
-    --vs-accent-fg: #10073C;
-    --vs-accent-ring: oklch(0.696 0.172 244.2 / 50%);
+    --vs-accent-fg: #FFFFFF;
+    --vs-accent-ring: oklch(0.6 0.16 244 / 55%);
     --vs-voice: #FF3A71;
     --vs-danger: oklch(0.75 0.16 32);
 
@@ -170,11 +170,10 @@
   --vs-border: oklch(1 0 0 / 14%);
   --vs-border-strong: oklch(1 0 0 / 24%);
 
-  /* The brand blue itself: on the dark ground it reads at 7.6:1. */
-  --vs-accent: #00A5FF;
+  --vs-accent: #0079C4;
   --vs-accent-deep: #0086D6;
-  --vs-accent-fg: #10073C;
-  --vs-accent-ring: oklch(0.696 0.172 244.2 / 50%);
+  --vs-accent-fg: #FFFFFF;
+  --vs-accent-ring: oklch(0.6 0.16 244 / 55%);
   --vs-voice: #FF3A71;
   --vs-danger: oklch(0.75 0.16 32);
 

@@ -348,7 +348,7 @@ body {
 .composer {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0;
   padding: 0.3rem 0.35rem 0.3rem 1rem;
   border: 1px solid var(--vs-border);
   border-radius: var(--vs-radius-lg);
@@ -391,19 +391,22 @@ body {
   background: none;
   color: var(--vs-fg-muted);
   cursor: pointer;
+  flex: 0 0 auto;
   transition: color var(--vs-duration) ease, transform var(--vs-duration) ease;
 }
 .ghost:hover:not(:disabled) { color: var(--vs-fg); }
 .ghost:active:not(:disabled) { transform: scale(0.95); }
 .ghost:disabled { opacity: 0.35; cursor: default; }
-/* The transport carries more weight than the mic beside it: it is the control
-   a viewer reaches for while the tutor is talking. */
-.ghost.transport { color: var(--vs-fg); }
+/* The transport and the mic are a pair, so they are the same size and the same
+   weight and sit next to each other rather than being spaced like two
+   unrelated controls. */
 .ghost.listening { color: var(--vs-voice); }
 
 .send {
   display: grid;
   place-items: center;
+  /* The one control set apart from the icon pair beside it. */
+  margin-left: 0.35rem;
   width: var(--vs-touch);
   height: var(--vs-touch);
   border: 0;
@@ -428,6 +431,15 @@ body {
 
 /* ------------------------------------------------------------------ chips */
 
+/*
+ * These are questions, not tags.
+ *
+ * A row of solid grey pills reads as metadata - something describing the page
+ * rather than something to press. An outline on the page's own ground reads as
+ * a choice, which is what they are, and it lets the type sit at full strength
+ * instead of the muted grey a filled pill forces on it. It is also what a
+ * suggestion looks like in every product that offers them well.
+ */
 .chips {
   display: flex;
   gap: 0.5rem;
@@ -440,21 +452,22 @@ body {
 @media (min-width: 900px) { .chips { flex-wrap: wrap; margin: 0; padding: 0; overflow: visible; } }
 .chips button {
   flex: 0 0 auto;
-  border: 0;
-  border-radius: var(--vs-radius-pill);
   min-height: 2.25rem;
-  padding: 0.5rem 0.9rem;
-  background: var(--vs-surface-raised);
-  color: var(--vs-fg-muted);
+  padding: 0 0.95rem;
+  border: 1px solid var(--vs-border);
+  border-radius: var(--vs-radius-pill);
+  background: transparent;
+  color: var(--vs-fg);
   font: inherit;
   font-size: var(--vs-text-footnote);
   line-height: var(--vs-lead-footnote);
   letter-spacing: var(--vs-track-footnote);
   font-weight: 500;
   cursor: pointer;
-  transition: border-color var(--vs-duration) ease, color var(--vs-duration) ease;
+  transition: border-color var(--vs-duration) ease, background-color var(--vs-duration) ease;
 }
-.chips button:hover { background: var(--vs-surface-hover); color: var(--vs-fg); }
+.chips button:hover { border-color: var(--vs-border-strong); background: var(--vs-surface-raised); }
+.chips button:active { background: var(--vs-surface-hover); }
 
 /* ------------------------------------------------------------------ sheet */
 
