@@ -693,15 +693,17 @@ function App() {
 
     <div className="panel">
       <div className="panel-inner">
-        {/* Present for the whole session, empty or not, so the bar keeps one
-            height. On the opening screen there is no session yet and no row,
-            which is what keeps that screen tight. */}
-        {answers.length > 0 && <div className="line-row">
+        {/* Always, empty or not. The bar is the floor the picture stands on, so
+            a row that appears with the first question shortens the picture at
+            the moment attention moves to it - the one moment it should not
+            move. Reserved from the first paint, the stage is one size for the
+            whole session and the opening screen is that same size. */}
+        <div className="line-row">
           <p className="line" aria-live="polite">{line}</p>
           {shown?.video && <button type="button" className="full-answer" onClick={() => setSheetOpen(true)}>
             Full answer <ChevronUp />
           </button>}
-        </div>}
+        </div>
 
         {(error || listen.error) && <p className="error" role="status">
           <Warning /><span>{error ?? listen.error}</span>
@@ -745,9 +747,12 @@ function App() {
           <button type="submit" className="send" aria-label="Ask" disabled={!draft.trim() || status === "drawing"}><Send /></button>
         </form>
 
-        {/* Hidden while the tutor talks, not removed: the bar's height must
-            not change under the pointer. */}
-        <div className={`chips${status === "narrating" || status === "drawing" ? " away" : ""}`}>
+        {/* Only once an answer has finished, and hidden rather than removed so
+            the bar's height never changes under the pointer. The opening
+            screen offers its suggestions as cards on the picture itself, so a
+            second set of the same questions under the composer was the same
+            offer made twice. */}
+        <div className={`chips${status === "ended" ? "" : " away"}`}>
           {suggestions.map((question) => <button key={question} type="button" onClick={() => void ask(question)}>{question}</button>)}
         </div>
       </div>
