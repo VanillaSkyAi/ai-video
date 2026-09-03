@@ -369,14 +369,19 @@ function App() {
           signal: inFlight.signal,
           body: JSON.stringify({ question }),
         });
-        if (!response.ok) return;
+        if (!response.ok) return void console.warn(`[tutor] no opening line: /api/hook returned ${response.status}`);
         const line = ((await response.json() as { line?: string }).line ?? "").trim();
-        if (!line || inFlight.signal.aborted) return;
+        if (!line) return void console.warn("[tutor] no opening line: the hook came back empty");
+        if (inFlight.signal.aborted) return void console.warn("[tutor] opening line dropped: the question was replaced");
         const spoken = await voice.prepare(line);
         // If the lesson got here first there is nothing to cover, and an
         // opening line over a video that is already playing is just two
-        // voices.
-        if (!spoken || timeline || inFlight.signal.aborted) return;
+        // voices. Each of these is silence the viewer cannot explain, so each
+        // says which one it was - the alternative is guessing from a log that
+        // records only what did happen.
+        if (!spoken) return void console.warn("[tutor] opening line has no audio: /api/speech gave nothing back");
+        if (timeline) return void console.warn("[tutor] opening line skipped: the lesson was ready first");
+        if (inFlight.signal.aborted) return void console.warn("[tutor] opening line dropped: the question was replaced");
         speakingOpening = true;
         setHookSpeaking(true);
         // The hook is the lesson's first line, so it takes the subtitle slot
@@ -388,6 +393,30 @@ function App() {
           ? { ...answer, opening: line }
           : answer)));
         await voice.speak(line, { signal: inFlight.signal });
+
+        // A filmed lesson takes about three times as long to compose as a
+        // templated one, and one line covers a third of that wait. If the
+        // picture still is not ready, say one more thing about the same puzzle
+        // rather than leaving the card silent. Asked for only once, and only
+        // when the wait has actually outlasted the first line.
+        if (timeline || inFlight.signal.aborted) return;
+        const more = await fetch("/api/hook", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          signal: inFlight.signal,
+          body: JSON.stringify({ question, said: line }),
+        })
+          .then(async (result) => (result.ok ? ((await result.json()) as { line?: string }).line ?? "" : ""))
+          .catch(() => "");
+        const second = more.trim();
+        if (!second || timeline || inFlight.signal.aborted) return;
+        if (!(await voice.prepare(second))) return;
+        if (timeline || inFlight.signal.aborted) return;
+        setCue(second);
+        setAnswers((current) => current.map((answer) => (answer.index === index
+          ? { ...answer, opening: `${line} ${second}` }
+          : answer)));
+        await voice.speak(second, { signal: inFlight.signal });
       } catch {
         // A warm-up with no voice, not a broken lesson.
       } finally {
