@@ -105,11 +105,16 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  place-items: center;
-  /* Vertical too, so the picture never butts against the panel below it. The
-     frame is sized in container units, and a size container measures its
-     content box - so this padding is space the stage will not grow into
-     rather than space added around a box that already filled the area. */
+  /* Centred across, pinned to the bottom down.
+     `place-items: center` split any leftover vertical space above and below
+     the picture, so the gap under it was the gutter plus half the slack while
+     the gap over the composer was the gutter alone - the two could not match
+     whenever the frame was limited by width rather than height. Pushing the
+     frame to the bottom of its area puts all of that slack above the picture,
+     where the chrome bar already floats, and leaves exactly one gutter under
+     it to answer the one above the composer. */
+  align-items: end;
+  justify-items: center;
   padding: var(--vs-gutter) 1rem;
   container-type: size;
 }
