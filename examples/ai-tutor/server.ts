@@ -321,6 +321,11 @@ export async function hookLine(request: Request): Promise<Response> {
 
   const started = Date.now();
   const { text } = await generateText({
+    // Sonnet, and tested twice against Haiku - once on a weak prompt and once
+    // on this one. Haiku is half a second faster and gives the answer away on
+    // the questions whose interesting part is the answer: "waves slow down as
+    // they reach shallow water", "light scatters when it hits the air". Half a
+    // second is not worth spoiling half the lessons.
     model: anthropic(process.env.ANTHROPIC_HOOK_MODEL ?? "claude-sonnet-5"),
     system: HOOK_SYSTEM,
     maxOutputTokens: 128,
