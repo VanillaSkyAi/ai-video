@@ -29,13 +29,21 @@
      buttons, the composer, the chips; `pop` is a surface floating above it. */
   /* Mixed from the brand's own ink (#10073C, hue 281) rather than a neutral
      grey, so the chrome and the lesson belong to one palette. */
-  --vs-bg: oklch(0.994 0.004 281);
+  /* Not quite white, so the white composer above it has something to lift off.
+     A raised control on a ground the same colour is only a border. */
+  --vs-bg: oklch(0.974 0.004 281);
   --vs-fg: oklch(0.21 0.05 281);
   --vs-fg-muted: oklch(0.5 0.04 281);
-  --vs-surface-raised: oklch(0.955 0.009 281);
-  --vs-surface-hover: oklch(0.915 0.014 281);
-  --vs-surface-selected: oklch(0.88 0.018 281);
+  --vs-surface-raised: oklch(0.94 0.009 281);
+  --vs-surface-hover: oklch(0.9 0.014 281);
+  --vs-surface-selected: oklch(0.87 0.018 281);
   --vs-surface-pop: oklch(1 0 0 / 92%);
+  /* The composer sits above the page rather than in it - the one control on
+     the screen that is lifted, because it is the one you are meant to use. */
+  --vs-surface-input: oklch(1 0 0);
+  --vs-shadow-input: 0 1px 2px oklch(0.2 0.026 281 / 4%), 0 6px 16px -12px oklch(0.2 0.026 281 / 18%);
+  /* A lighter version for the smaller things that sit on the page beside it. */
+  --vs-shadow-raised: 0 1px 2px oklch(0.2 0.026 281 / 5%), 0 2px 6px -4px oklch(0.2 0.026 281 / 14%);
   /* Type drawn on the video's own brand gradient, which is dark in every
      theme because the lesson's palette is baked into its scenes. This is the
      one pair that must not follow the page. */
@@ -74,8 +82,8 @@
   --vs-focus-ring: oklch(0.55 0.15 244 / 45%);
   /* Held away from the accent's hue on purpose - an error that looks like the
      send button is not an error. */
-  --vs-danger: oklch(0.5 0.19 32);
-  --vs-danger-surface: oklch(0.5 0.19 32 / 10%);
+  --vs-danger: oklch(0.42 0.16 32);
+  --vs-danger-surface: oklch(0.55 0.19 32 / 9%);
 
   /*
    * Type: nine steps, after Apple's SF text styles rather than a doubling
@@ -157,6 +165,13 @@
     --vs-surface-hover: oklch(0.25 0.09 281);
     --vs-surface-selected: oklch(0.3 0.086 281);
     --vs-surface-pop: oklch(0.175 0.085 281 / 94%);
+  --vs-surface-input: oklch(0.225 0.088 281);
+  --vs-shadow-input: 0 1px 2px oklch(0 0 0 / 20%), 0 6px 16px -12px oklch(0 0 0 / 40%);
+  --vs-shadow-raised: 0 1px 2px oklch(0 0 0 / 24%), 0 2px 6px -4px oklch(0 0 0 / 36%);
+    --vs-surface-input: oklch(0.225 0.088 281);
+    --vs-shadow-input: 0 1px 2px oklch(0 0 0 / 20%), 0 6px 16px -12px oklch(0 0 0 / 40%);
+  --vs-shadow-raised: 0 1px 2px oklch(0 0 0 / 24%), 0 2px 6px -4px oklch(0 0 0 / 36%);
+    --vs-shadow-raised: 0 1px 2px oklch(0 0 0 / 24%), 0 2px 6px -4px oklch(0 0 0 / 36%);
 
     --vs-border: oklch(1 0 0 / 14%);
     --vs-border-strong: oklch(1 0 0 / 24%);
@@ -187,6 +202,9 @@
   --vs-surface-hover: oklch(0.25 0.09 281);
   --vs-surface-selected: oklch(0.3 0.086 281);
   --vs-surface-pop: oklch(0.175 0.085 281 / 94%);
+  --vs-surface-input: oklch(0.225 0.088 281);
+  --vs-shadow-input: 0 1px 2px oklch(0 0 0 / 20%), 0 6px 16px -12px oklch(0 0 0 / 40%);
+  --vs-shadow-raised: 0 1px 2px oklch(0 0 0 / 24%), 0 2px 6px -4px oklch(0 0 0 / 36%);
 
   --vs-border: oklch(1 0 0 / 14%);
   --vs-border-strong: oklch(1 0 0 / 24%);

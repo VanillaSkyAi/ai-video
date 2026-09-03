@@ -693,10 +693,10 @@ function App() {
 
     <div className="panel">
       <div className="panel-inner">
-        {/* Only when there is something in it. An empty row still reserving
-            its height put more space above the composer than there was under
-            the picture, which read as the panel sagging away from the video. */}
-        {(line || shown?.video) && <div className="line-row">
+        {/* Present for the whole session, empty or not, so the bar keeps one
+            height. On the opening screen there is no session yet and no row,
+            which is what keeps that screen tight. */}
+        {answers.length > 0 && <div className="line-row">
           <p className="line" aria-live="polite">{line}</p>
           {shown?.video && <button type="button" className="full-answer" onClick={() => setSheetOpen(true)}>
             Full answer <ChevronUp />
@@ -745,9 +745,11 @@ function App() {
           <button type="submit" className="send" aria-label="Ask" disabled={!draft.trim() || status === "drawing"}><Send /></button>
         </form>
 
-        {status !== "narrating" && status !== "drawing" && <div className="chips">
+        {/* Hidden while the tutor talks, not removed: the bar's height must
+            not change under the pointer. */}
+        <div className={`chips${status === "narrating" || status === "drawing" ? " away" : ""}`}>
           {suggestions.map((question) => <button key={question} type="button" onClick={() => void ask(question)}>{question}</button>)}
-        </div>}
+        </div>
       </div>
     </div>
 

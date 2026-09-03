@@ -481,7 +481,15 @@ body {
   .panel-inner { padding: var(--vs-gutter) 1.5rem 1.25rem; }
 }
 
-.line-row { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.4rem 0; }
+/* Two lines' worth, always, once a session exists: most cues are one line and
+   some are two, and the bar must not resize between them. */
+.line-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  min-height: calc(2 * var(--vs-text-body) * var(--vs-lead-body) + 0.8rem);
+}
 
 /*
  * The subtitle. One line, changed by the player's own scene change and by
@@ -522,14 +530,27 @@ body {
 
 /* -------------------------------------------------------------- composer */
 
+/*
+ * Lifted off the page rather than sunk into it.
+ *
+ * A field filled with a grey a shade darker than its surroundings reads as a
+ * slot something goes in. Raising it - a white ground, a hairline, and a
+ * shadow soft enough to be felt rather than seen - reads as the one thing on
+ * the screen you are meant to use, which is what it is.
+ *
+ * A pill, because at one line that is what it is; it becomes a stadium as the
+ * question grows past a line, which is the same shape doing the same job.
+ */
 .composer {
   display: flex;
   align-items: center;
   gap: 0;
-  padding: 0.3rem 0.35rem 0.3rem 1rem;
+  min-height: 3.5rem;
+  padding: 0.35rem 0.4rem 0.35rem 1.25rem;
   border: 1px solid var(--vs-border);
-  border-radius: var(--vs-radius-lg);
-  background: var(--vs-surface-raised);
+  border-radius: var(--vs-radius-pill);
+  background: var(--vs-surface-input);
+  box-shadow: var(--vs-shadow-input);
   transition: border-color var(--vs-duration) ease, box-shadow var(--vs-duration) ease;
 }
 /* The whole field reads as focused, so the ring is on the box rather than on
@@ -537,14 +558,14 @@ body {
    control instead of three. */
 .composer:focus-within {
   border-color: var(--vs-focus);
-  box-shadow: 0 0 0 1px var(--vs-focus);
+  box-shadow: 0 0 0 1px var(--vs-focus), var(--vs-shadow-input);
 }
 .composer textarea:focus-visible { outline: none; }
 .composer textarea {
   flex: 1 1 auto;
   min-width: 0;
   max-height: 8rem;
-  padding: 0.7rem 0.5rem;
+  padding: 0.55rem 0.75rem;
   border: 0;
   background: transparent;
   color: inherit;
@@ -629,20 +650,47 @@ body {
 .chips {
   display: flex;
   gap: 0.5rem;
-  margin: 0 -1rem;
-  padding: 0 1rem;
+  /* The negative margin lets the row bleed to the edges when it scrolls; the
+     vertical padding is room for the shadow, which a scroll container clips. */
+  margin: -0.35rem -1rem;
+  padding: 0.35rem 1rem;
   overflow-x: auto;
   scrollbar-width: none;
 }
 .chips::-webkit-scrollbar { display: none; }
-@media (min-width: 900px) { .chips { flex-wrap: wrap; margin: 0; padding: 0; overflow: visible; } }
+/*
+ * Wrapped on a desktop, and always as tall as two rows.
+ *
+ * One scrolling row keeps a constant height but cuts a question in half, which
+ * for a suggestion is the same as not offering it. Reserving both rows keeps
+ * the bar from resizing when the suggestions change length or leave entirely,
+ * and nothing is clipped either way.
+ */
+@media (min-width: 900px) {
+  .chips {
+    flex-wrap: wrap;
+    align-content: flex-start;
+    margin: -0.35rem 0;
+    padding: 0.35rem 0;
+    overflow: visible;
+    min-height: calc(2 * 2.25rem + 0.5rem + 0.7rem);
+  }
+}
+/* Held open while the tutor talks rather than removed. A row that leaves takes
+   the bar's height with it, and a composer that moves under the pointer as the
+   answer starts is a composer you have to find again. */
+.chips.away { visibility: hidden; }
 .chips button {
   flex: 0 0 auto;
   min-height: 2.25rem;
   padding: 0 0.95rem;
   border: 1px solid var(--vs-border);
   border-radius: var(--vs-radius-pill);
-  background: transparent;
+  /* Raised off the page like the composer above them, and for the same reason:
+     these are things to press. On the grey ground a white fill lifts, where on
+     the near-white page it used to sit on it only read as a tag. */
+  background: var(--vs-surface-input);
+  box-shadow: var(--vs-shadow-raised);
   color: var(--vs-fg);
   font: inherit;
   font-size: var(--vs-text-footnote);
@@ -650,10 +698,14 @@ body {
   letter-spacing: var(--vs-track-footnote);
   font-weight: 500;
   cursor: pointer;
-  transition: border-color var(--vs-duration) ease, background-color var(--vs-duration) ease;
+  transition: border-color var(--vs-duration) ease, box-shadow var(--vs-duration) ease, transform var(--vs-duration) var(--vs-ease);
 }
-.chips button:hover { border-color: var(--vs-border-strong); background: var(--vs-surface-raised); }
-.chips button:active { background: var(--vs-surface-hover); }
+.chips button:hover {
+  border-color: var(--vs-border-strong);
+  box-shadow: var(--vs-shadow-input);
+  transform: translateY(-1px);
+}
+.chips button:active { transform: translateY(0); box-shadow: var(--vs-shadow-raised); }
 
 /* ------------------------------------------------------------------ sheet */
 
