@@ -17,13 +17,13 @@ loaded. `server.ts` also caches a handler per mode, so it wants the same.
 
 ## Two problems, in order
 
-**1. The planner still fails intermittently, and one failure kills the lesson.**
-Seen: `Scene template list was not negotiated`, `The planner was truncated before
-adding a generated scene`, `plan part.scene.timing must be an object`, and
-`Scene template steps cannot be used as a closer`. `streamLessonWithRetry` asks
-again and now says so in the console - a retry doubles the wait and interleaves
-two plans' timings, which reads as the tutor behaving randomly rather than as one
-failed plan. This is the last real bug.
+**1. The planner failures - fixed, and they were not intermittent.** Counted
+across two evenings: 33 rejections for an over-long variable against 8 for every
+other cause combined. A `maxLength` is a layout contract and a scene that broke
+one was rejected whole, so a five-scene answer arrived with three because a
+caption ran two characters long. The SDK trims to the bound now and warns
+(`scene_variable_clipped`). What is left is rare: one truncation, one malformed
+JSON, one hallucinated template id across ~58 runs, all absorbed by the retry.
 
 **2. Slow start - as good as it gets without changing the model.** Measured, in
 templates mode: 5.95s planner, 1.06s narration, 1.03s speech, and a lead that is
@@ -123,19 +123,54 @@ shows clips.
 - The player owns its clock and exposes no seek or handle, so nothing external
   can advance a scene. Any voice-led playback needs that first.
 
-## Next, in order
+## Next: design
 
-1. The intermittent planner failure above.
-2. Re-test `narrate: true`. It was measured as "0 scenes narrated" on both
-   models - against a process that had cached the SDK from before the option
-   existed, so the planner was never asked. If it holds it removes a round trip
-   per scene.
-3. The planner still opens by restating the question despite being told not to,
-   so the first frame gives the answer away right after the opening line said
-   something else. Content, not plumbing, and the more damaging of the two.
-4. The tutor has seven templates and only two can close; templates mode forbids
-   one of those, leaving `milestone` alone. That is a thin catalogue for a
-   five-scene lesson and it is why the scenes repeat shapes.
+The bugs are done. The next session is about how the tutor looks, not whether it
+works. What exists now: the question card and its spoken hook over a violet-blue
+gradient, a shimmering camera line, one Loading/Live badge, the script revealing
+line by line beside the video, and the composer and follow-up pills up
+throughout.
+
+Still open, in order, when design is done:
+
+1. **The lesson arc is rigid.** Every lesson is observation -> cause -> what
+   holds it -> consequence -> closer. That suits "why does X happen" and fits
+   "what happened in the French Revolution" badly. The fixed arc is what stopped
+   one scene swallowing the whole answer, so it earns its place - but it should
+   adapt to the question rather than being one shape.
+2. **The closer still summarises**, occasionally. It is told not to.
+3. **Re-test `narrate: true`.** Measured as "0 scenes narrated" on both models -
+   against a process that had cached the SDK from before the option existed, so
+   the planner was never asked. If it holds it removes a round trip per scene.
+4. **Seven templates, two of which can close.** Thin for a five-scene lesson and
+   why shapes repeat. Adding a few is probably worth more than any further
+   latency work.
+
+## The prompts, and where they live
+
+Three models write a lesson between them:
+
+- **The hook** (`HOOK_SYSTEM` in `server.ts`, Sonnet, ~1.6s) - one line spoken
+  over the loading screen. Two sentences: what someone would notice, then the
+  question that notice raises. It may state both sides of the puzzle and never
+  the step that connects them, which is what finally stopped it answering
+  questions like "why is the sky blue". Tested against Haiku twice; Haiku is
+  half a second faster and gives the answer away on those questions.
+- **The planner** (`plannerInstructions` in `plan-lesson.ts`, Sonnet, ~6s) -
+  five scenes, each with a job it cannot collapse. This text is the app's
+  `instructions`; it sits inside a ~2,900-token system prompt the SDK builds,
+  whose last section is the template catalogue. Anything said early loses to
+  what the model reads last - that is why the `narration` field was ignored 100%
+  of the time by two models.
+- **The narration** (`NARRATION_SYSTEM`, Haiku, ~0.9s per scene) - says only
+  what its own scene shows. It used to be told to say "what the scene shows and
+  why it matters", and "why it matters" was an invitation to explain a scene the
+  picture had deliberately left unexplained.
+
+`scratchpad/transcript.mjs` (see the session log) prints a whole lesson as text -
+hook, then every scene with what it shows and what is said over it. Judging a
+prompt one scene at a time is how the hook and the first scene ended up
+answering the same question twice.
 
 ## Also broken
 
