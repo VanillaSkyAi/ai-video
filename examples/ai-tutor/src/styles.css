@@ -444,6 +444,20 @@ body {
 
 
 @media (max-width: 899px) {
+  /*
+   * The bar follows the composer, not the picture.
+   *
+   * On a phone the picture is a narrow portrait frame with the page either
+   * side of it, so a bar cut to its width sits in the middle of a screen whose
+   * only other control runs nearly edge to edge. Lining up with the composer
+   * puts the two rows of controls on the same margins, which is what a person
+   * reads as aligned.
+   */
+  .chrome {
+    width: min(48rem, 100%);
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
   .welcome-body { gap: 0.7rem; padding: 1.75rem 1rem 1rem; }
   .welcome-title { font-size: clamp(1.5rem, 7cqw, 2rem); }
   /* Wider cards, so a question reads in two or three lines rather than four
