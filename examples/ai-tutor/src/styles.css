@@ -336,13 +336,19 @@ body {
   /* Pushed to the foot of the frame: the invitation sits at the top and the
      questions sit at the bottom, so the picture between them is the thing the
      screen is actually showing off. */
-  margin: auto 0 0;
-  padding: 0;
+  margin: auto -0.4rem 0;
+  /* Room for the selected card's ring, which sits outside its box and would
+     otherwise be cut off on every side by this scroll container. The negative
+     margin cancels it, so the first card's edge still lines up with the
+     headline above it. */
+  padding: 0.4rem;
   list-style: none;
-  max-width: 100%;
+  max-width: calc(100% + 0.8rem);
   overflow-x: auto;
+  overflow-y: visible;
   scrollbar-width: none;
 }
+.welcome-cards::-webkit-scrollbar { display: none; }
 .welcome-cards::-webkit-scrollbar { display: none; }
 .welcome-cards button {
   position: relative;
@@ -408,7 +414,9 @@ body {
 /* Where the cards are in a row that does not fit - a phone. */
 /* Real buttons, so the row can be worked without a pointer. The hit area is
    the WCAG minimum even though the dot itself is small. */
-.welcome-dots { display: flex; gap: 0.15rem; margin-top: 0.6rem; }
+/* Centred across the frame: the row of cards is left-aligned with the headline,
+   but the dots belong to the whole frame rather than to the row's start. */
+.welcome-dots { display: flex; gap: 0.15rem; margin-top: 0.6rem; align-self: center; }
 .welcome-dots button {
   display: grid;
   place-items: center;
