@@ -54,7 +54,15 @@ function trustedUrl(value: unknown, host: string): string {
 function pickVideoFile(files: VideoFile[]): VideoFile & { link: string } | null {
   const usable = files
     .filter((file): file is VideoFile & { link: string } => typeof file.link === "string")
-    .map((file) => ({ ...file, link: trustedUrl(file.link, "videos.pexels.com") }))
+    // One file on an unexpected host is one file to skip, not a reason to give
+    // up the search: throwing here lost every other rendition of the same clip.
+    .flatMap((file) => {
+      try {
+        return [{ ...file, link: trustedUrl(file.link, "videos.pexels.com") }];
+      } catch {
+        return [];
+      }
+    })
     .filter((file) => file.width && file.height);
   // Landscape only: the tutor's stage is 16:9, and a portrait clip cropped to
   // it loses whatever the search was actually for.
@@ -69,7 +77,11 @@ async function search(url: string, apiKey: string, signal: AbortSignal): Promise
     headers: { Authorization: apiKey },
     signal: AbortSignal.any([signal, AbortSignal.timeout(LOOKUP_TIMEOUT_MS)]),
   });
-  const payload = response.ok ? await response.json() : null;
+  // Only a real answer is worth keeping. Caching the failure would let one
+  // rate-limited minute leave every lesson about the Moon on a gradient for
+  // the hour that followed.
+  if (!response.ok) return null;
+  const payload = await response.json();
   cache.set(url, { payload, expiresAt: Date.now() + 60 * 60 * 1_000 });
   if (cache.size > 100) cache.delete(cache.keys().next().value!);
   return payload;
