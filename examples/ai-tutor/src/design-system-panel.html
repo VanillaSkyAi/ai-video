@@ -79,7 +79,7 @@
   <section>
     <h2>Composer — focused and narrating, then idle</h2>
     <div class="stack">
-      <form class="composer" style="border-color: var(--vs-accent); box-shadow: 0 0 0 1px var(--vs-accent);" onsubmit="return false">
+      <form class="composer" style="border-color: var(--vs-focus); box-shadow: 0 0 0 1px var(--vs-focus);" onsubmit="return false">
         <span class="waveform on" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>
         <textarea rows="1" placeholder="Narrating — type to interrupt…"></textarea>
         <button type="button" class="ghost transport" aria-label="Pause"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1.5"/><rect x="13.5" y="5" width="3.5" height="14" rx="1.5"/></svg></button>
@@ -198,6 +198,7 @@
     ["--vs-border", "Hairline"], ["--vs-border-strong", "Focused edge"],
     ["--vs-accent", "Send, focus, selection"], ["--vs-accent-deep", "Pressed"],
     ["--vs-accent-fg", "Glyph on accent"], ["--vs-voice", "The tutor speaking"],
+    ["--vs-focus", "Keyboard focus"],
     ["--vs-danger", "Errors"],
   ];
   document.getElementById("swatches").innerHTML = TOKENS.map(([t, use]) =>

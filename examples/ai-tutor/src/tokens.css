@@ -63,6 +63,15 @@
   --vs-accent-fg: #FFFFFF;
   --vs-accent-ring: oklch(0.55 0.15 244 / 45%);
   --vs-voice: #FF3A71;
+  /*
+   * Focus is its own colour because it has its own job: to be found. On the
+   * light page the blue is the clearest thing available at 4.53:1, but on the
+   * dark violet ground blue sits close to the ground in hue and falls to
+   * 4.05:1 against the composer, where the pink separates at 5.45:1. So the
+   * focus colour follows legibility rather than following the action colour.
+   */
+  --vs-focus: #0079C4;
+  --vs-focus-ring: oklch(0.55 0.15 244 / 45%);
   /* Held away from the accent's hue on purpose - an error that looks like the
      send button is not an error. */
   --vs-danger: oklch(0.5 0.19 32);
@@ -152,6 +161,8 @@
     --vs-accent-fg: #FFFFFF;
     --vs-accent-ring: oklch(0.6 0.16 244 / 55%);
     --vs-voice: #FF3A71;
+    --vs-focus: #FF3A71;
+    --vs-focus-ring: oklch(0.664 0.231 10.5 / 55%);
     --vs-danger: oklch(0.75 0.16 32);
 
     --vs-shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 60%);
@@ -175,6 +186,8 @@
   --vs-accent-fg: #FFFFFF;
   --vs-accent-ring: oklch(0.6 0.16 244 / 55%);
   --vs-voice: #FF3A71;
+  --vs-focus: #FF3A71;
+  --vs-focus-ring: oklch(0.664 0.231 10.5 / 55%);
   --vs-danger: oklch(0.75 0.16 32);
 
   --vs-shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 60%);

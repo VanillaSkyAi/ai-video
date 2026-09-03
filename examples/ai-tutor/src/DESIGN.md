@@ -50,6 +50,12 @@ can act on** — send, focus, selection — which is the convention every system
 reader already knows. **Pink is the tutor's own voice**, and appears only while
 it is speaking or listening. One accent for you, one for it.
 
+Focus is its own colour, because it has one job: to be found. On the light page
+the blue is the clearest thing available at 4.53:1; on the dark violet ground
+blue sits close to the ground in hue and falls to 4.05:1 against the composer,
+where the pink separates at 5.45:1. So focus is blue in light and pink in dark —
+following legibility rather than following the action colour.
+
 The blue is `#0079C4` — deep enough that a **white** glyph sits on it at 4.63:1,
 where the brand blue itself is 2.68:1 under white and fails even the bar for an
 icon. One blue serves both themes: 4.53:1 against the light page, 4.39:1 against
