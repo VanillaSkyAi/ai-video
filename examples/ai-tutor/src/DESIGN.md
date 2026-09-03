@@ -93,6 +93,12 @@ Controls are 44px. The WCAG 2.2 AA floor is 24px and everything clears it, but
 different heights read as an accident. Chips are 36 — they are secondary, and
 several sit in a row.
 
+The bottom bar runs on an 8px grid: one step from the divider to the field, one
+step between the field and the chips, and two at the bottom — because that edge
+is the window rather than a neighbour, and a control resting on the frame reads
+as unfinished. Apple's content margins sit at 16 on a phone and 20 on a desktop,
+and the bar's bottom follows them.
+
 Radii come in three: 14px for a row inside a panel, 20px for a panel or the
 composer, and a pill for anything round. The stage is 20px.
 

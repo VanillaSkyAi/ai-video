@@ -391,14 +391,6 @@ body {
 }
 .welcome-dots span.on { width: 1.35rem; background: oklch(0.72 0.15 265); }
 
-/* The invitation over the composer, on the opening screen only. */
-.invite {
-  margin: 0 0 0.15rem;
-  font-size: var(--vs-text-title3);
-  line-height: var(--vs-lead-title3);
-  letter-spacing: var(--vs-track-title3);
-  font-weight: 600;
-}
 
 @media (max-width: 899px) {
   .welcome-body { gap: 0.7rem; padding: 1rem; }
@@ -467,14 +459,22 @@ body {
 
 .panel { flex: 0 0 auto; border-top: 1px solid var(--vs-border); background: var(--vs-bg); }
 .sheet, .settings, .history { color-scheme: inherit; }
+/*
+ * The bar's rhythm, on an 8px grid.
+ *
+ * The top is the gutter, so the divider sits between two equal spaces - the
+ * one under the picture and the one over the composer. Between the rows is one
+ * step, because the subtitle, the field and the chips are one group. The bottom
+ * is two steps, because that edge is the window rather than a neighbour, and a
+ * control resting on the frame reads as unfinished; Apple's own content margins
+ * sit at 16 on a phone and 20 on a desktop, and this follows them.
+ */
 .panel-inner {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.5rem;
   width: min(48rem, 100%);
   margin: 0 auto;
-  /* The top gutter matches the one under the picture, so the divider sits
-     between two equal spaces rather than being crowded on one side. */
-  padding: var(--vs-gutter) 1rem max(0.75rem, env(safe-area-inset-bottom));
+  padding: var(--vs-gutter) 1rem max(1rem, env(safe-area-inset-bottom));
 }
 @media (min-width: 900px) {
   .stage-area { padding: var(--vs-gutter) 1.5rem; }

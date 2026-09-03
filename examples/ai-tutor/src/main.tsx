@@ -711,7 +711,6 @@ function App() {
             ask until the lesson finished meant the one thing a learner wants
             while watching - to cut in and ask something else - was the one
             thing the page took away. */}
-        {answers.length === 0 && <h1 className="invite">What do you want to understand?</h1>}
         <form className="composer" onSubmit={(event) => { event.preventDefault(); void ask(draft); }}>
           <Waveform active={listen.listening || ((narration.speaking || hookSpeaking) && !muted && !held)} listening={listen.listening} />
           <label className="sr-only" htmlFor="question">Question</label>
