@@ -136,6 +136,35 @@ body {
   to { transform: translate3d(14%, 10%, 0) scale(1.25); }
 }
 
+/*
+ * The question, on the ground the lesson is composed on.
+ *
+ * It is the one thing already known when a lesson is asked for, so it costs
+ * nothing and it is what the opening line is spoken over. It reads as the top
+ * half of one sentence: the question here, the words being said in the line
+ * under the stage. Both give way the moment the video has a frame to show.
+ */
+.asked {
+  /* Absolutely positioned by the stage rule with left and right both pinned,
+     so a capped width needs auto margins to sit in the middle rather than
+     against the left edge. */
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  max-width: 24ch;
+  font-size: clamp(1.5rem, 3.2vw, 2.4rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-align: center;
+  text-wrap: balance;
+  color: #fff;
+  animation: step-in 620ms ease both;
+}
+@keyframes step-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
 /* --------------------------------------------------- history and settings */
 
 .sheet-popover {
@@ -375,7 +404,7 @@ body {
 .sheet-body p:first-child { color: var(--foreground); }
 
 @media (prefers-reduced-motion: reduce) {
-  .ground, .line, .line.shimmer, .waveform.on span, .sheet, .sheet-popover { animation: none; }
+  .ground, .asked, .line, .line.shimmer, .waveform.on span, .sheet, .sheet-popover { animation: none; }
   .line.shimmer { color: var(--foreground); -webkit-text-fill-color: currentColor; }
 }
 

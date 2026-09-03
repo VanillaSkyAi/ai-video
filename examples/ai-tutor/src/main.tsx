@@ -462,10 +462,16 @@ function App() {
 
     <div className="stage-area">
       <div className="stage" style={{ background: themeBackground(theme) }}>
-        {/* The ground the lesson's own scenes are composed on, kept moving.
-            No question, no step list and no clock: the hook is spoken over
-            this and shown in the line below, so the picture stays a picture. */}
-        {!showing && <div className="ground" aria-hidden="true" />}
+        {/* The ground the lesson's own scenes are composed on, kept moving,
+            with the question on it. No step list and no clock - at eight
+            seconds a number counting up measures the wait rather than filling
+            it. The question is what the opening line is spoken over, and that
+            line is read below the stage: question on top, words underneath.
+            Both are gone the moment the video has something to show. */}
+        {!showing && <>
+          <div className="ground" aria-hidden="true" />
+          {shown?.question && <p className="asked">{shown.question}</p>}
+        </>}
         {replaying
           ? <VideoPlayer key={`replay-${replayCount}`} video={replaying} templates={templates} orientation="landscape" autoPlay paused={held} onSceneChange={onSceneChange} controls={false} ariaLabel="Replay" />
           : stream
