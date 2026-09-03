@@ -360,10 +360,29 @@ body {
   border-radius: clamp(0.75rem, 1.3cqw, 1.1rem);
   background: oklch(0.16 0.04 280);
   box-shadow: 0 2px 6px -2px oklch(0 0 0 / 40%), 0 12px 28px -10px oklch(0 0 0 / 55%);
+  /* Reserved so the ring costs no layout when it arrives. */
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   color: oklch(1 0 0);
   cursor: pointer;
   text-align: left;
-  transition: transform var(--vs-duration) var(--vs-ease), box-shadow var(--vs-duration) ease;
+  transition: transform var(--vs-duration) var(--vs-ease), box-shadow var(--vs-duration) ease,
+    outline-color var(--vs-duration) ease;
+}
+/*
+ * The question in hand.
+ *
+ * A ring rather than a border: it is a state, not an edge, so it sits outside
+ * the card where it cannot be mistaken for part of the picture. The glow is
+ * what carries it over footage of any brightness, the same problem that made a
+ * hairline border unusable here.
+ */
+.welcome-cards button[data-active] {
+  outline-color: oklch(0.84 0.1 268);
+  box-shadow:
+    0 0 0 5px oklch(0.72 0.15 268 / 22%),
+    0 2px 6px -2px oklch(0 0 0 / 40%),
+    0 14px 32px -10px oklch(0 0 0 / 60%);
 }
 .welcome-cards button:hover {
   transform: translateY(-3px);
@@ -387,15 +406,29 @@ body {
 
 
 /* Where the cards are in a row that does not fit - a phone. */
-.welcome-dots { display: flex; gap: 0.4rem; margin-top: 0.2rem; }
-.welcome-dots span {
+/* Real buttons, so the row can be worked without a pointer. The hit area is
+   the WCAG minimum even though the dot itself is small. */
+.welcome-dots { display: flex; gap: 0.15rem; margin-top: 0.6rem; }
+.welcome-dots button {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.welcome-dots button::before {
+  content: "";
   width: 0.45rem;
   height: 0.45rem;
   border-radius: var(--vs-radius-pill);
   background: oklch(1 0 0 / 35%);
   transition: width var(--vs-duration) var(--vs-ease), background-color var(--vs-duration) ease;
 }
-.welcome-dots span.on { width: 1.35rem; background: oklch(0.72 0.15 265); }
+.welcome-dots button:hover::before { background: oklch(1 0 0 / 60%); }
+.welcome-dots button.on::before { width: 1.35rem; background: oklch(0.84 0.1 268); }
 
 
 @media (max-width: 899px) {

@@ -63,29 +63,22 @@ function Frame({ media, poster }: { media: WelcomeMedia | null; poster?: boolean
 export function Welcome({ data, onAsk }: { data?: WelcomeData; onAsk: (question: string) => void }) {
   const cards = data?.cards ?? [];
   const railRef = useRef<HTMLUListElement>(null);
-  // Only meaningful when the row cannot show everything at once, which is a
-  // phone. Dots that never move are decoration, and decoration that looks like
-  // a control is worse than none.
-  const [scrolls, setScrolls] = useState(false);
+  /**
+   * Which question is in hand.
+   *
+   * The dots move it and the ring shows it, so the highlight always names what
+   * pressing Enter would ask. Pointing at a card or tabbing to it moves it too:
+   * a marker that disagrees with what you are about to press is worse than no
+   * marker.
+   */
   const [at, setAt] = useState(0);
 
-  const measure = useCallback(() => {
-    const rail = railRef.current;
-    if (!rail) return;
-    setScrolls(rail.scrollWidth > rail.clientWidth + 4);
-    const step = rail.scrollWidth / Math.max(1, cards.length);
-    setAt(Math.round(rail.scrollLeft / Math.max(1, step)));
-  }, [cards.length]);
-
-  useEffect(() => {
-    measure();
-    const rail = railRef.current;
-    if (!rail) return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(rail);
-    rail.addEventListener("scroll", measure, { passive: true });
-    return () => { observer.disconnect(); rail.removeEventListener("scroll", measure); };
-  }, [measure]);
+  const show = useCallback((index: number) => {
+    setAt(index);
+    // Only scrolls where the row overflows, which is a phone; where everything
+    // fits this is a no-op and the ring does the work on its own.
+    railRef.current?.children[index]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+  }, []);
   return <div className="welcome">
     <Frame media={data?.hero ?? null} poster />
     {/* The footage is a ground for type, so it is dimmed towards the corner
@@ -98,14 +91,20 @@ export function Welcome({ data, onAsk }: { data?: WelcomeData; onAsk: (question:
           ChatGPT or Perplexity knows what this is by the end of line one, and
           the accent line carries the only part that is new. */}
       <h1 className="welcome-title">
-        An AI chat that answers in<br />
-        <em>video, not text.</em>
+        An AI chat that answers<br />
+        <em>in video, not text.</em>
       </h1>
 
 
       {cards.length > 0 && <ul className="welcome-cards" ref={railRef}>
-        {cards.map((card) => <li key={card.question}>
-          <button type="button" onClick={() => onAsk(card.question)}>
+        {cards.map((card, index) => <li key={card.question}>
+          <button
+            type="button"
+            data-active={index === at ? "" : undefined}
+            onFocus={() => setAt(index)}
+            onPointerEnter={() => setAt(index)}
+            onClick={() => onAsk(card.question)}
+          >
             <Frame media={card.media} />
             <span className="welcome-card-wash" aria-hidden="true" />
             <span className="welcome-card-question">{card.question}</span>
@@ -113,8 +112,16 @@ export function Welcome({ data, onAsk }: { data?: WelcomeData; onAsk: (question:
         </li>)}
       </ul>}
 
-      {scrolls && <div className="welcome-dots" aria-hidden="true">
-        {cards.map((card, index) => <span key={card.question} className={index === at ? "on" : undefined} />)}
+      {cards.length > 1 && <div className="welcome-dots" role="tablist" aria-label="Suggested questions">
+        {cards.map((card, index) => <button
+          key={card.question}
+          type="button"
+          role="tab"
+          aria-selected={index === at}
+          aria-label={card.question}
+          className={index === at ? "on" : undefined}
+          onClick={() => show(index)}
+        />)}
       </div>}
     </div>
   </div>;
