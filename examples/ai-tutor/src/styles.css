@@ -128,16 +128,12 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  /* Centred across, pinned to the bottom down.
-     `place-items: center` split any leftover vertical space above and below
-     the picture, so the gap under it was the gutter plus half the slack while
-     the gap over the composer was the gutter alone - the two could not match
-     whenever the frame was limited by width rather than height. Pushing the
-     frame to the bottom of its area puts all of that slack above the picture,
-     where the chrome bar already floats, and leaves exactly one gutter under
-     it to answer the one above the composer. */
-  align-items: end;
-  justify-items: center;
+  /* Centred both ways. Where the frame is limited by its width rather than by
+     the height available - a tall window - the leftover space splits above and
+     below it, so the gap under the picture is larger than the one over the
+     composer. That is what centring means, and a picture sitting in the middle
+     of its space is worth more than two gaps that measure the same. */
+  place-items: center;
   padding: var(--vs-gutter) 1rem;
   container-type: size;
 }
