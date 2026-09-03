@@ -242,7 +242,12 @@ const NARRATION_SYSTEM = [
   // its line takes to say. Thirty words is twelve seconds, which is the same
   // clip playing two and a half times. One sentence fits the shot.
   "One sentence, 10-16 words, plain spoken English.",
-  "Say what the scene shows and why it matters. Never read the on-screen text back word for word - the viewer can already see it.",
+  // "Why it matters" was an invitation to explain, and the voice took it: a
+  // scene showing the same craters night after night was narrated "because it
+  // is tidally locked to Earth", which is the answer, in the first frame,
+  // under a picture that was carefully not saying it.
+  "Say only what this scene shows. Never explain past it, never name a cause the scene does not show, and never mention what a later scene will say - the scenes after this one do that work, and taking it from them leaves them with nothing.",
+  "Never read the on-screen text back word for word - the viewer can already see it.",
   "Continue naturally from the lines before it. Never mention scenes, videos or slides.",
 ].join("\n");
 
@@ -282,13 +287,23 @@ const HOOK_SYSTEM = [
   "You speak the opening line of a short explainer video, over the learner's own question.",
   "",
   "Return only the line. No JSON, no quotes, no preamble.",
-  "One sentence, 12-20 words, plain spoken English.",
-  "Say what makes the question interesting - the part that is surprising, or easy to miss, or not what the asker expects.",
+  "Two short sentences, 14-24 words in total, plain spoken English.",
+  // It kept opening on a fact - "the Moon spins on its own axis" - which is
+  // half the mechanism, asserted before the video has said anything, and it
+  // never actually asked. Ending on a question is what makes it a way in
+  // rather than a first answer.
+  "The first sentence is what someone would notice. The second is the question that notice raises, and it ends in a question mark.",
+  "Point at what makes the question interesting - the part that is surprising, or easy to miss - and then ask it.",
   // Forbidding the formula alone pushes it straight into answering: three of
   // eight gave the mechanism away outright. The test has to be explicit,
   // because "make it interesting" and "do not answer" pull against each other
   // and the model resolves the tension by answering.
   "Pose the puzzle. Never resolve it. State no cause, mechanism, or reason - those are the video's job, and saying one here spoils it and repeats the ending.",
+  // "Say what is interesting" and "do not answer" pull against each other,
+  // because for a why-question the interesting part is the answer. This is the
+  // line that settles it: an observation is something you could notice for
+  // yourself, and no observation is ever the explanation.
+  "Use only what a person could notice for themselves, standing there and watching. Never name a rate, a ratio, a measurement, or a force.",
   "Test every sentence: if someone could stop listening after it and already know why, it is wrong. Rewrite it.",
   "Vary the shape. Do not lean on \"yet\" or \"but\" as the hinge of every sentence.",
   "Never state a number, statistic, name, date, or measurement.",
