@@ -10,6 +10,7 @@ import { defaultMode, modeById, visualModes } from "./modes";
 import { defaultTheme, themeBackground, themeById, themes } from "./themes";
 import { ChevronUp, Close, Gear, Mic, Replay, Send, Sound, Stop, Muted, Play, Plus, Warning } from "./icons";
 import { useDismiss, useFocusTrap } from "./use-dismiss";
+import { Welcome, useWelcome } from "./welcome";
 import { useVoiceInput } from "./use-voice-input";
 import "./styles.css";
 
@@ -480,6 +481,7 @@ function App() {
   // counts as narrating, because it is - the tutor is talking, and the only
   // thing still loading is the picture behind it.
   const filmingStep = useFilmingStep(composing, current?.index);
+  const welcome = useWelcome(answers.length === 0);
 
   /*
    * What shape the stage is, and whether it may change.
@@ -621,6 +623,7 @@ function App() {
             Both are gone the moment the video has something to show. */}
         {!showing && <>
           <div className="ground" aria-hidden="true" />
+          {answers.length === 0 && <Welcome data={welcome} onAsk={(question) => void ask(question)} />}
           {shown?.question && <div className="asked">
             <p className="asked-question">{shown.question}</p>
             {composing && <p className="asked-step" aria-live="polite">{filmingStep}</p>}
@@ -708,6 +711,7 @@ function App() {
             ask until the lesson finished meant the one thing a learner wants
             while watching - to cut in and ask something else - was the one
             thing the page took away. */}
+        {answers.length === 0 && <h1 className="invite">What do you want to understand?</h1>}
         <form className="composer" onSubmit={(event) => { event.preventDefault(); void ask(draft); }}>
           <Waveform active={listen.listening || ((narration.speaking || hookSpeaking) && !muted && !held)} listening={listen.listening} />
           <label className="sr-only" htmlFor="question">Question</label>

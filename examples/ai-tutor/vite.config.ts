@@ -16,7 +16,7 @@ function tutorRoutes(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const path = request.url?.split("?")[0];
-        if (!["/api/lesson", "/api/narration", "/api/followups", "/api/speech", "/api/hook", "/api/transcribe"].includes(path ?? "")) return next();
+        if (!["/api/lesson", "/api/narration", "/api/followups", "/api/speech", "/api/hook", "/api/transcribe", "/api/welcome"].includes(path ?? "")) return next();
         if (!process.env.ANTHROPIC_API_KEY) {
           response.statusCode = 503;
           response.end("Set ANTHROPIC_API_KEY and restart. This example plans real lessons; there is nothing canned to fall back to.");
@@ -54,6 +54,7 @@ function tutorRoutes(): Plugin {
           : path === "/api/speech" ? routes.speakLine
           : path === "/api/hook" ? routes.hookLine
           : path === "/api/transcribe" ? routes.transcribeSpeech
+          : path === "/api/welcome" ? routes.welcomeScreen
           : routes.suggestFollowups;
         const result: Response = await handle(incoming);
         response.statusCode = result.status;

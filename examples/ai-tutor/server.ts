@@ -392,6 +392,44 @@ export async function hookLine(request: Request): Promise<Response> {
   return Response.json({ line });
 }
 
+/**
+ * The footage the welcome screen is built on.
+ *
+ * The opening screen is the one moment the tutor has to say what it does
+ * before it has done anything, and a gradient does not say it. Real footage
+ * behind the invitation, and a real still on each suggested question, shows
+ * the answer rather than describing it - and it costs nothing, because Pexels
+ * is a search rather than a generation.
+ *
+ * Cached for the life of the process: the same four questions are suggested to
+ * everyone, so searching for them once is enough.
+ */
+const WELCOME_SUBJECTS = [
+  { question: "Why does the Moon always show one face?", keyword: "full moon night sky" },
+  { question: "How does an atom hold itself together?", keyword: "abstract particles energy" },
+  { question: "What makes ocean waves break?", keyword: "ocean wave breaking" },
+  { question: "Why did dinosaurs disappear?", keyword: "dinosaur skeleton museum" },
+];
+const HERO_KEYWORD = process.env.TUTOR_WELCOME_KEYWORD ?? "underwater ocean sunlight";
+let welcome: Promise<Response> | undefined;
+
+export function welcomeScreen(): Promise<Response> {
+  welcome ??= (async () => {
+    const signal = AbortSignal.timeout(10_000);
+    const [hero, ...cards] = await Promise.all([
+      findStockFootage(HERO_KEYWORD, "landscape", signal).catch(() => null),
+      ...WELCOME_SUBJECTS.map((subject) =>
+        findStockFootage(subject.keyword, "landscape", signal).catch(() => null)),
+    ]);
+    return Response.json({
+      hero,
+      cards: WELCOME_SUBJECTS.map((subject, index) => ({ ...subject, media: cards[index] ?? null })),
+    });
+  })().catch(() => Response.json({ hero: null, cards: WELCOME_SUBJECTS.map((s) => ({ ...s, media: null })) }));
+  // A Response body can only be read once, so each caller gets its own copy.
+  return welcome.then((response) => response.clone());
+}
+
 const FOLLOWUPS_SYSTEM = [
   "You suggest what a learner would ask next, having just heard an explanation.",
   'Return JSON only: {"followups": string[]} with exactly three short questions.',
