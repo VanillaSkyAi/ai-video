@@ -57,7 +57,21 @@ body {
 .error svg { flex: 0 0 auto; margin-top: 0.05rem; }
 .error span { min-width: 0; }
 
-.app { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+/*
+ * Three rows: the bar, the picture, and everything under it.
+ *
+ * The picture used to sit in the row that grew, so the space left over belonged
+ * to it and split above and below - which stranded the composer at the bottom
+ * with a gap over it that nothing owned. The last row grows instead and centres
+ * what is in it, so the composer sits in the middle of the space below the
+ * picture rather than at the far end of it.
+ */
+.app {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  height: 100dvh;
+  overflow: hidden;
+}
 
 /*
  * One focus ring, on everything, and only for keyboards.
@@ -125,7 +139,6 @@ body {
 
 .stage-area {
   position: relative;
-  flex: 1 1 auto;
   min-height: 0;
   display: grid;
   /* Centred both ways. Where the frame is limited by its width rather than by
@@ -136,8 +149,10 @@ body {
   place-items: center;
   /* Nothing below: the gap under the picture is now owned by the panel, as a
      single deliberate space rather than two gutters meeting at a line. */
-  padding: var(--vs-gutter) 1rem 0;
-  container-type: size;
+  /* Air above, nothing below: the space under the picture belongs to the row
+     beneath, which centres the composer in it. Without this the picture sat
+     directly under the bar, because the row that grows is now the one below. */
+  padding: 1.5rem 1rem 0;
 }
 
 /*
@@ -158,17 +173,19 @@ body {
 .stage {
   position: relative;
   aspect-ratio: 16 / 9;
-  /* The largest 16:9 box that fits, measured against both sides of the area.
-     `max-width` and `max-height` alone cannot do this: an aspect-ratio box
-     with no basis collapses to its content, and its content is absolutely
-     positioned, so it collapses to nothing. */
-  width: min(72rem, 100cqw, 100cqh * 16 / 9);
+  /* The largest 16:9 box that fits once the bar above and the controls below
+     have taken what they need. Measured against the viewport rather than
+     against its parent, because the parent no longer grows to fill - and a
+     size container cannot size itself from its own query. */
+  width: min(72rem, 100%, (100dvh - var(--vs-reserve)) * 16 / 9);
   overflow: hidden;
-  border-radius: 1rem;
+  border-radius: var(--vs-radius-lg);
+  /* The welcome screen scales to the frame it sits in, which is this one. */
+  container-type: size;
 }
 .stage[data-orientation="portrait"] {
   aspect-ratio: 9 / 16;
-  width: min(100cqw, 100cqh * 9 / 16);
+  width: min(100%, (100dvh - var(--vs-reserve)) * 9 / 16);
 }
 @media (min-width: 900px) { .stage { border: 1px solid var(--vs-border); } }
 
@@ -478,7 +495,8 @@ body {
  * card with its own edges, floating on the page, so the page can simply
  * continue underneath it.
  */
-.panel { flex: 0 0 auto; background: var(--vs-bg); }
+/* Grows into the space under the picture, and centres what it holds there. */
+.panel { display: grid; align-items: center; min-height: 0; background: var(--vs-bg); }
 .sheet, .settings, .history { color-scheme: inherit; }
 /*
  * The bar's rhythm, on an 8px grid.
@@ -500,7 +518,7 @@ body {
   padding: var(--vs-gutter) 1rem max(1rem, env(safe-area-inset-bottom));
 }
 @media (min-width: 900px) {
-  .stage-area { padding: var(--vs-gutter) 1.5rem 0; }
+  .stage-area { padding: 2.5rem 1.5rem 0; }
   .panel-inner { padding: var(--vs-gutter) 1.5rem 1.25rem; }
 }
 

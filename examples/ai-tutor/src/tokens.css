@@ -150,6 +150,10 @@
   --vs-duration: 150ms;
   --vs-duration-slow: 260ms;
 
+  /* What the picture must leave for the chrome above it and the controls
+     below it: the bar, the composer block, and one gutter. */
+  --vs-reserve: 18rem;
+
   /* The gap between the picture and the divider, and the divider and what is
      under it. One value, because the two have to match. */
   --vs-gutter: 0.5rem;
