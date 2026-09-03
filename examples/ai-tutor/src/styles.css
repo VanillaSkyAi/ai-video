@@ -88,36 +88,53 @@ body {
 
 /* ----------------------------------------------------------------- stage */
 
-.stage-area { position: relative; flex: 1 1 auto; min-height: 0; }
-
-.stage {
+.stage-area {
   position: relative;
-  width: min(72rem, 100%);
-  height: 100%;
-  margin: 0 auto;
-  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 0 1rem;
+  /* So the frame below can size itself against this box in both directions. */
+  container-type: size;
 }
-
-/* Desktop is a centred, rounded 16:9 frame. */
-@media (min-width: 900px) {
-  .stage-area { padding: 0 1.5rem; }
-  .stage {
-    top: 50%;
-    height: auto;
-    aspect-ratio: 16 / 9;
-    max-height: 100%;
-    transform: translateY(-50%);
-    border: 1px solid var(--border);
-    border-radius: 1rem;
-  }
-  .stage :where(video, canvas, img) { object-fit: cover; }
-}
+@media (min-width: 900px) { .stage-area { padding: 0 1.5rem; } }
 
 /*
- * The player fills whatever it is given, and on a portrait phone that means
- * a 16:9 lesson inside a taller box. Contain, never cover: the scenes carry
- * generated type, and cropping a caption is worse than a letterbox band. The
- * chrome floats in those bands, so nothing ever sits over the picture.
+ * A frame in the lesson's own shape, as large as it will go.
+ *
+ * Not a fixed 16:9. Templates re-lay-out, so a templates-only lesson is
+ * landscape on a desktop and portrait on a phone; a filmed one keeps whatever
+ * it was filmed as, because its aspect ratio is inside the file. Either way
+ * the frame follows the video rather than the video being made to follow the
+ * frame - a portrait lesson on a desktop is a portrait video with black either
+ * side, which is honest, where stretching it would not be.
+ *
+ * Sizing by aspect ratio rather than by height also keeps the picture whole.
+ * The player derives its height from its width, so a 9:16 lesson in a box
+ * sized only by width is taller than the space it has and loses its top and
+ * bottom - and generated type is the first thing off the edge.
+ */
+.stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  /* The largest 16:9 box that fits, measured against both sides of the area.
+     `max-width` and `max-height` alone cannot do this: an aspect-ratio box
+     with no basis collapses to its content, and its content is absolutely
+     positioned, so it collapses to nothing. */
+  width: min(72rem, 100cqw, 100cqh * 16 / 9);
+  overflow: hidden;
+  border-radius: 1rem;
+}
+.stage[data-orientation="portrait"] {
+  aspect-ratio: 9 / 16;
+  width: min(100cqw, 100cqh * 9 / 16);
+}
+@media (min-width: 900px) { .stage { border: 1px solid var(--border); } }
+
+/*
+ * The player fills the frame it is given. Contain, never cover: the scenes
+ * carry generated type, and cropping a caption is worse than a band of black.
  */
 .stage > * { position: absolute; inset: 0; width: 100%; height: 100%; display: grid; place-items: center; }
 .stage :where(video, canvas, img) { max-width: 100%; max-height: 100%; object-fit: contain; }

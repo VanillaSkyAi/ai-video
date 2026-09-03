@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { createSceneTimeline, getSceneDuration, type Video, type VideoScene } from "@vanillaskyai/video";
+import { createSceneTimeline, getSceneDuration, type Video, type VideoOrientation, type VideoScene } from "@vanillaskyai/video";
 import { VideoPlayer, useNarration } from "@vanillaskyai/video/react";
 import { createTemplateRegistry } from "@vanillaskyai/video/templates";
 import { definitions } from "../vanillasky";
@@ -12,6 +12,32 @@ import { ChevronUp, Close, Gear, Mic, Replay, Send, Sound, Stop, Muted, Play, Pl
 import "./styles.css";
 
 const templates = createTemplateRegistry({ definitions });
+
+/**
+ * Where the layout turns over, in one place.
+ *
+ * The stylesheet switches the chrome here, the question below decides what
+ * shape to compose in here, and the player is told to re-lay-out here. Three
+ * numbers that had to agree were three numbers that could disagree.
+ */
+const DESKTOP_WIDTH = 900;
+
+/** Live, because a window can be resized and a phone can be turned. */
+function useViewportOrientation(): VideoOrientation {
+  const [portrait, setPortrait] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia(`(max-width: ${DESKTOP_WIDTH - 1}px)`).matches
+      : false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia(`(max-width: ${DESKTOP_WIDTH - 1}px)`);
+    const update = () => setPortrait(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return portrait ? "portrait" : "landscape";
+}
 
 const OPENING_QUESTIONS = [
   "Why does the Moon always show one face?",
@@ -32,6 +58,18 @@ interface Answer {
    * without it.
    */
   opening?: string;
+  /** What the viewport asked for when the question was put. */
+  orientation: VideoOrientation;
+  /**
+   * Whether that shape is now permanent.
+   *
+   * Templates re-lay-out at any size, so a templates-only lesson follows the
+   * window for as long as it exists. A generated clip cannot: its aspect ratio
+   * is baked into the file it was filmed as, and re-cropping a shot that is
+   * the whole scene loses the scene. So a filmed lesson keeps the shape it was
+   * filmed in, wherever it is later opened.
+   */
+  fixedShape: boolean;
   /** Replayable from JSON, with no model call: an answer is just data. */
   video?: Video;
 }
@@ -63,7 +101,8 @@ function pacedScene(scene: VideoScene, spokenSeconds?: number): VideoScene {
   return { ...scene, timing: { ...timing, fixedDuration: held } };
 }
 
-const EMPTY_VIDEO = { schemaVersion: "0.1", orientation: "landscape", scenes: [], style: undefined } as unknown as Video;
+const emptyVideo = (orientation: VideoOrientation) =>
+  ({ schemaVersion: "0.1", orientation, scenes: [], style: undefined } as unknown as Video);
 
 /**
  * What the session is doing, as one word.
@@ -155,6 +194,7 @@ function App() {
   const [cue, setCue] = useState<string>();
   const [error, setError] = useState<string>();
 
+  const viewportOrientation = useViewportOrientation();
   const voice = useMemo(createSpokenVoice, []);
   const narration = useNarration({ voice });
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -215,7 +255,12 @@ function App() {
     setHookSpeaking(false);
     setCue(undefined);
     const index = (answerRef.current += 1);
-    setAnswers((current) => [...current, { index, question }]);
+    // Read now rather than at render: the shape the lesson is composed in is
+    // the shape the window was when it was asked for, and a filmed one is
+    // stuck with it.
+    const orientation = viewportOrientation;
+    const fixedShape = mode.filmedScenes > 0;
+    setAnswers((current) => [...current, { index, question, orientation, fixedShape }]);
 
     setSpokenUpTo(-1);
     setPlaying(false);
@@ -249,7 +294,7 @@ function App() {
         if (speakingOpening) return;
         // Released by the continue button, which calls this again.
         if (heldRef.current) return;
-        timeline = createSceneTimeline({ style: pendingStyle, orientation: "landscape" });
+        timeline = createSceneTimeline({ style: pendingStyle, orientation });
         playbackStartedAt = Date.now();
         setPlaying(true);
         console.log(`[tutor] ${String(playbackStartedAt - askedAt).padStart(6)}ms  playback opened on ${available} scene${available === 1 ? "" : "s"}`);
@@ -259,7 +304,7 @@ function App() {
       while (ready[appended]) timeline.add(ready[appended++]!);
       const script = ready.slice(0, appended) as VideoScene[];
       setAnswers((current) => current.map((answer) => (answer.index === index
-        ? { ...answer, video: { ...(answer.video ?? EMPTY_VIDEO), scenes: script } }
+        ? { ...answer, video: { ...(answer.video ?? emptyVideo(orientation)), scenes: script } }
         : answer)));
     };
     flushRef.current = flush;
@@ -307,6 +352,7 @@ function App() {
         question,
         theme,
         mode,
+        orientation,
         signal: inFlight.signal,
         // A second plan numbers its scenes from zero, so it can only replace
         // the first while nothing has been appended yet.
@@ -373,7 +419,7 @@ function App() {
       window.clearTimeout(deadline);
       if (!inFlight.signal.aborted) setComposing(false);
     }
-  }, [narration, voice, theme, mode]);
+  }, [narration, voice, theme, mode, viewportOrientation]);
 
   const current = answers.at(-1);
   const shown = viewing === undefined ? current : answers.find((answer) => answer.index === viewing) ?? current;
@@ -385,6 +431,19 @@ function App() {
   // counts as narrating, because it is - the tutor is talking, and the only
   // thing still loading is the picture behind it.
   const filmingStep = useFilmingStep(composing, current?.index);
+
+  /*
+   * What shape the stage is, and whether it may change.
+   *
+   * A templates-only lesson is handed "auto" and re-lays-out with the window,
+   * because every template is built for both shapes. A filmed one is handed
+   * the orientation it was filmed in and keeps it - opened on a desktop, a
+   * lesson shot in portrait is a portrait video with black either side, which
+   * is honest, where stretching it to 16:9 would not be.
+   */
+  const shownOrientation = shown?.orientation ?? viewportOrientation;
+  const playerOrientation = shown?.fixedShape ? shownOrientation : "auto" as const;
+  const stageOrientation = shown?.fixedShape ? shownOrientation : viewportOrientation;
 
   const status: Status = answers.length === 0 ? "idle"
     : held ? "paused"
@@ -498,7 +557,7 @@ function App() {
     </header>
 
     <div className="stage-area">
-      <div className="stage" style={{ background: themeBackground(theme) }}>
+      <div className="stage" data-orientation={stageOrientation} style={{ background: themeBackground(theme) }}>
         {/* The ground the lesson's own scenes are composed on, kept moving,
             with the question on it. No step list and no clock - at eight
             seconds a number counting up measures the wait rather than filling
@@ -513,9 +572,9 @@ function App() {
           </div>}
         </>}
         {replaying
-          ? <VideoPlayer key={`replay-${replayCount}`} video={replaying} templates={templates} orientation="landscape" autoPlay paused={held} onSceneChange={onSceneChange} controls={false} ariaLabel="Replay" />
+          ? <VideoPlayer key={`replay-${replayCount}`} video={replaying} templates={templates} orientation={playerOrientation} responsiveBreakpoint={DESKTOP_WIDTH} autoPlay paused={held} onSceneChange={onSceneChange} controls={false} ariaLabel="Replay" />
           : stream
-            ? <VideoPlayer stream={stream as never} templates={templates} orientation="landscape" autoPlay paused={held} onSceneChange={onSceneChange} onError={(cause) => setError(cause.message)} controls={false} ariaLabel="The lesson" />
+            ? <VideoPlayer stream={stream as never} templates={templates} orientation={playerOrientation} responsiveBreakpoint={DESKTOP_WIDTH} autoPlay paused={held} onSceneChange={onSceneChange} onError={(cause) => setError(cause.message)} controls={false} ariaLabel="The lesson" />
             : null}
       </div>
 

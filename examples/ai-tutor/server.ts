@@ -7,7 +7,7 @@ import { createVideoHandler } from "@vanillaskyai/video/server";
 // tells the planner when each one fits.
 import { templates } from "./vanillasky/server";
 import { findStockFootage } from "./stock";
-import type { VideoScene } from "@vanillaskyai/video";
+import type { VideoOrientation, VideoScene } from "@vanillaskyai/video";
 
 /**
  * The two routes a tutor needs.
@@ -81,7 +81,7 @@ const SHOT_DEADLINE_MS = 180_000;
  * writes its own text into the frame competes with the caption over it, and one
  * that adds a voice talks over the narrator.
  */
-async function filmScene(subject: string, generatedLook: string | undefined, signal: AbortSignal) {
+async function filmScene(subject: string, generatedLook: string | undefined, orientation: VideoOrientation, signal: AbortSignal) {
   fal.config({ credentials: process.env.FAL_KEY });
   const started = Date.now();
   console.log(`[ai-tutor] filming: ${subject.slice(0, 70)}`);
@@ -89,7 +89,7 @@ async function filmScene(subject: string, generatedLook: string | undefined, sig
     const result = await fal.subscribe(VIDEO_MODEL, {
       input: {
         prompt: [
-          `Locked-off shot, 16:9. ${subject}.`,
+          `Locked-off shot, ${orientation === "portrait" ? "9:16 vertical" : "16:9"}. ${subject}.`,
           "One slow continuous camera move. Physically plausible motion.",
           "No on-screen text, captions, subtitles, watermarks or logos.",
           "Diegetic sound only. No music, no voiceover.",
@@ -97,6 +97,10 @@ async function filmScene(subject: string, generatedLook: string | undefined, sig
         ].filter(Boolean).join("\n\n"),
         duration: 5,
         resolution: "480P",
+        // The shape is decided by the device that asked, and it is baked into
+        // the file - which is why a filmed lesson can never be re-laid-out the
+        // way a templated one can.
+        aspect_ratio: orientation === "portrait" ? "9:16" : "16:9",
       },
       abortSignal: AbortSignal.any([signal, AbortSignal.timeout(SHOT_DEADLINE_MS)]),
     });
@@ -208,14 +212,18 @@ function lessonHandler(filmedScenes: number) {
     // templates-only lesson was every scene on a brand gradient, which is the
     // least a template can look like; a stock search costs a few hundred
     // milliseconds and nothing per request, so it never lands on the wait.
+    // Both of these bake an aspect ratio into a file, so both are told which
+    // one the lesson was composed in. It reaches them on the request's own
+    // input rather than as a handler option, because a handler is shared by
+    // every request and this differs per device.
     resolveMedia: filmedScenes > 0
       ? (process.env.FAL_KEY
-          ? async (query, { generatedLook, signal }) => ({
-              url: await filmScene(query, generatedLook, signal),
+          ? async (query, { generatedLook, input, signal }) => ({
+              url: await filmScene(query, generatedLook, input.orientation ?? "landscape", signal),
               type: "video" as const,
             })
           : undefined)
-      : async (query, { signal }) => findStockFootage(query, signal),
+      : async (query, { input, signal }) => findStockFootage(query, input.orientation ?? "landscape", signal),
   });
   handlers.set(filmedScenes, handler);
   return handler;

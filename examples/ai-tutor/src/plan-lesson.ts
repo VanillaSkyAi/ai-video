@@ -1,4 +1,4 @@
-import type { Video, VideoScene } from "@vanillaskyai/video";
+import type { Video, VideoOrientation, VideoScene } from "@vanillaskyai/video";
 import type { Theme } from "./themes";
 import type { VisualMode } from "./modes";
 import { definitions } from "../vanillasky";
@@ -164,6 +164,13 @@ export async function streamLesson(options: {
   question: string;
   theme: Theme;
   mode: VisualMode;
+  /**
+   * The shape the lesson is composed in, decided by the viewport that asked
+   * for it. Templates re-lay-out at any size, so a templates-only lesson is
+   * still readable either way - but a generated clip has its aspect ratio
+   * baked into the file, so this is also what the footage is filmed as.
+   */
+  orientation: VideoOrientation;
   signal?: AbortSignal;
   /**
    * Called with each scene once its line has been written, in whatever order
@@ -203,7 +210,7 @@ export async function streamLesson(options: {
         // never resolves media, so in a filmed mode it is a gradient standing
         // where a clip should be. The warm-up covers the wait instead.
         opening: false,
-        orientation: "landscape",
+        orientation: options.orientation,
         maxDurationSec: 40,
         brand: options.theme.brand,
         style: {
@@ -322,7 +329,7 @@ export async function streamLesson(options: {
     .catch(() => []);
 
   return {
-    video: { schemaVersion: "0.1", orientation: "landscape", scenes, style: style! },
+    video: { schemaVersion: "0.1", orientation: options.orientation, scenes, style: style! },
     followups: followups as string[],
   };
 }
