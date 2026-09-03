@@ -400,10 +400,15 @@ export function lighten(hex: string, factor: number): string {
  * A frame-wide scrim can only trade picture for contrast, and it loses that
  * trade against blown-out highlights: holding white type at 4.5:1 over a
  * near-white region needs ~0.8 alpha of black across the whole plate. A
- * two-layer shadow buys the same local separation for free — a tight 8px pass
- * for edge definition against fine texture, a wide 16px pass for the soft
- * falloff that separates the word from whatever sits behind it. Export-safe:
- * `text-shadow` survives SVG capture, `filter`/`backdrop-filter` do not.
+ * two-layer shadow buys the same local separation for free — a tight pass for
+ * edge definition against fine texture, a wide one for the soft falloff that
+ * separates the word from whatever sits behind it. Export-safe: `text-shadow`
+ * survives SVG capture, `filter`/`backdrop-filter` do not.
+ *
+ * Kept light on purpose. At 0.55 and 0.35 alpha the halo read as a dark smear
+ * around every glyph and aged the type; the picture is what the scene is for,
+ * and a caption that has to be shouted over it is the wrong caption. These
+ * still hold white apart from the frame without being seen as a shadow.
  */
 export const MEDIA_TEXT_SHADOW =
-  "0 2px 8px rgba(0,0,0,0.55), 0 6px 16px rgba(0,0,0,0.35)";
+  "0 1px 5px rgba(0,0,0,0.38), 0 4px 14px rgba(0,0,0,0.22)";

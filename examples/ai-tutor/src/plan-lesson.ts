@@ -292,8 +292,12 @@ export async function streamLesson(options: {
         // designed to sit on, and stripping the copy off it leaves a scene that
         // says nothing - so this applies to the modes that generate, not to
         // every scene that happens to have found a picture.
-        const filmed = options.mode.filmedScenes > 0
-          && typeof (planned.variables as { mediaUrl?: unknown }).mediaUrl === "string";
+        // Any scene that ended up with a picture behind it, generated or
+        // searched. Type over a photograph wants the quiet archetype: the
+        // cinematic one animates word by word, which is a lot of movement to
+        // put on top of footage that is already moving.
+        const overMedia = typeof (planned.variables as { mediaUrl?: unknown }).mediaUrl === "string";
+        const filmed = options.mode.filmedScenes > 0 && overMedia;
         const shown = filmed
           ? {
               ...planned,
@@ -306,7 +310,8 @@ export async function streamLesson(options: {
               },
             }
           : planned;
-        const scene = line ? { ...shown, narration: line } : shown;
+        const withText = overMedia ? { ...shown, textArchetype: "subtle" } : shown;
+        const scene = line ? { ...withText, narration: line } : withText;
         mark(started, `scene ${position + 1} narrated`);
         scenes[position] = scene;
         await options.onScene(scene, position);
