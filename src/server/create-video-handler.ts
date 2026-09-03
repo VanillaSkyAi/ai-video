@@ -7,7 +7,7 @@ import {
   type VideoStreamHandler,
   type VideoStreamHandlerOptions,
 } from "./video-stream-handler.js";
-import { createMediaBudgetWarning } from "../protocol/warnings.js";
+import { createClippedVariableWarning, createMediaBudgetWarning } from "../protocol/warnings.js";
 import { createTemplateSystemPrompt } from "../visual-system/catalog/prompt.js";
 import type { ServerTemplateRegistry } from "../visual-system/catalog/server-kit.js";
 import { overlayServerTemplateRegistry } from "../visual-system/catalog/server-kit.js";
@@ -17,6 +17,7 @@ import {
   createMediaResolvingPlanner,
   type MediaResolver,
 } from "./media-resolver.js";
+import { createBoundedVariablePlanner } from "./bound-variables.js";
 import type { VideoInput } from "../protocol/types.js";
 
 export type { MediaResolver, MediaResolverContext, ResolvedMedia } from "./media-resolver.js";
@@ -101,7 +102,18 @@ export function createVideoHandler(
     approved.add(url);
     approvedMediaUrls.set(input, approved);
   };
-  const planner = createTextDeltaVideoPlanner({ streamText, includeRawProviderData });
+  // Bounded before anything validates it. A template's maxLength is a layout
+  // contract, and a scene that breaks one is rejected whole - which measured
+  // as the single most common reason a planned scene never reached the
+  // browser, more common than every other failure combined. Trimming keeps the
+  // beat; rejecting loses it over two characters.
+  const planner = createBoundedVariablePlanner({
+    planner: createTextDeltaVideoPlanner({ streamText, includeRawProviderData }),
+    templates,
+    onClipped: (templateId, fields) => void handlerOptions.onWarning?.(
+      createClippedVariableWarning(templateId, fields),
+    ),
+  });
   const validateTemplateScene = createTemplateSceneValidator({
     kit: templates,
     allowMediaUrl: (url, context) =>
