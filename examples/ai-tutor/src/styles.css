@@ -21,10 +21,11 @@ html { color-scheme: light dark; }
 
 body {
   margin: 0;
-  /* The area the picture sits in recedes in both themes: a light page around a
-     video reads as a document with a video in it, where the point here is that
-     the video is the page. */
-  background: var(--vs-surface-sunken);
+  /* The whole page follows the theme, the video excepted. An always-dark
+     surround under a light panel read as two pages stitched together, and it
+     meant the chrome above the video and the composer below it were being
+     drawn from different palettes. */
+  background: var(--vs-bg);
   color: var(--vs-fg);
   font-family: var(--vs-font);
   -webkit-font-smoothing: antialiased;
@@ -70,28 +71,30 @@ body {
   height: var(--vs-touch);
   border: 0;
   border-radius: var(--vs-radius-pill);
-  background: var(--vs-on-media-bg);
-  color: var(--vs-on-media);
+  background: var(--vs-surface-raised);
+  color: var(--vs-fg);
   cursor: pointer;
   transition: background-color var(--vs-duration) ease, transform var(--vs-duration) ease;
 }
-.round:hover { background: var(--vs-on-media-bg-hover); }
+.round:hover { background: var(--vs-surface-hover); }
 .round:active { transform: scale(0.95); }
 
 .pill {
   border: 0;
   border-radius: var(--vs-radius-pill);
-  min-height: 2rem;
-  padding: 0.45rem 0.85rem;
-  background: var(--vs-on-media-bg);
-  color: var(--vs-on-media);
+  /* The same height as the round button beside it. Two controls in one group
+     at different heights read as an accident. */
+  min-height: var(--vs-touch);
+  padding: 0 0.95rem;
+  background: var(--vs-surface-raised);
+  color: var(--vs-fg);
   font: inherit;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: background-color var(--vs-duration) ease;
 }
-.pill:hover { background: var(--vs-on-media-bg-hover); }
+.pill:hover { background: var(--vs-surface-hover); }
 
 /* ----------------------------------------------------------------- stage */
 
@@ -238,7 +241,9 @@ body {
   overflow-y: auto;
   padding: 0.5rem;
   border-radius: var(--vs-radius-lg);
-  background: oklch(0.08 0.015 300 / 82%);
+  background: var(--vs-surface-pop);
+  color: var(--vs-fg);
+  border: 1px solid var(--vs-border);
   backdrop-filter: blur(20px);
   box-shadow: var(--vs-shadow-pop);
   animation: rise 180ms ease both;
@@ -258,10 +263,10 @@ body {
   text-align: left;
   cursor: pointer;
 }
-.history button:hover { background: var(--vs-on-media-bg); }
-.history button.current { background: var(--vs-on-media-bg-hover); }
+.history button:hover { background: var(--vs-surface-hover); }
+.history button.current { background: var(--vs-surface-selected); }
 .history button:disabled { opacity: 0.5; cursor: default; }
-.history .index { color: oklch(1 0 0 / 55%); font-size: 0.65rem; font-variant-numeric: tabular-nums; }
+.history .index { color: var(--vs-fg-muted); font-size: 0.65rem; font-variant-numeric: tabular-nums; }
 .history .question { font-size: 0.875rem; font-weight: 500; line-height: 1.35; }
 
 .settings { padding: 1rem 1.1rem 1.2rem; display: grid; gap: 1rem; }

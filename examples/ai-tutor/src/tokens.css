@@ -25,19 +25,19 @@
  */
 
 :root {
-  /* Ground and type. `raised` is the composer and the chips; `sunken` is the
-     area the video sits in, which is darker than the page in both themes
-     because a picture reads best against something that recedes. */
+  /* Ground and type. `raised` is a control resting on the page - the chrome
+     buttons, the composer, the chips; `pop` is a surface floating above it. */
   --vs-bg: oklch(0.995 0.002 300);
   --vs-fg: oklch(0.22 0.02 300);
   --vs-fg-muted: oklch(0.52 0.02 300);
-  --vs-surface-raised: oklch(0.965 0.004 300);
-  --vs-surface-sunken: oklch(0.16 0.02 300);
-  /* What the chrome floating over the video is drawn on. It sits on the
-     sunken ground in both themes, so it does not flip. */
+  --vs-surface-raised: oklch(0.955 0.004 300);
+  --vs-surface-hover: oklch(0.915 0.006 300);
+  --vs-surface-selected: oklch(0.885 0.008 300);
+  --vs-surface-pop: oklch(1 0 0 / 92%);
+  /* Type drawn on the video's own brand gradient, which is dark in every
+     theme because the lesson's palette is baked into its scenes. This is the
+     one pair that must not follow the page. */
   --vs-on-media: oklch(1 0 0);
-  --vs-on-media-bg: oklch(1 0 0 / 14%);
-  --vs-on-media-bg-hover: oklch(1 0 0 / 22%);
 
   --vs-border: oklch(0.22 0.02 300 / 14%);
   --vs-border-strong: oklch(0.22 0.02 300 / 26%);
@@ -77,7 +77,9 @@
     --vs-fg: oklch(0.975 0.006 300);
     --vs-fg-muted: oklch(0.72 0.028 300);
     --vs-surface-raised: oklch(0.235 0.03 300);
-    --vs-surface-sunken: oklch(0.08 0.015 300);
+    --vs-surface-hover: oklch(0.3 0.03 300);
+    --vs-surface-selected: oklch(0.35 0.032 300);
+    --vs-surface-pop: oklch(0.2 0.025 300 / 92%);
 
     --vs-border: oklch(1 0 0 / 12%);
     --vs-border-strong: oklch(1 0 0 / 22%);
@@ -97,7 +99,9 @@
   --vs-fg: oklch(0.975 0.006 300);
   --vs-fg-muted: oklch(0.72 0.028 300);
   --vs-surface-raised: oklch(0.235 0.03 300);
-  --vs-surface-sunken: oklch(0.08 0.015 300);
+  --vs-surface-hover: oklch(0.3 0.03 300);
+  --vs-surface-selected: oklch(0.35 0.032 300);
+  --vs-surface-pop: oklch(0.2 0.025 300 / 92%);
 
   --vs-border: oklch(1 0 0 / 12%);
   --vs-border-strong: oklch(1 0 0 / 22%);
