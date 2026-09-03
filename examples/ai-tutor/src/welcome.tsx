@@ -94,19 +94,15 @@ export function Welcome({ data, onAsk }: { data?: WelcomeData; onAsk: (question:
     <div className="welcome-wash" aria-hidden="true" />
 
     <div className="welcome-body">
+      {/* The category first, the difference last. Someone who has used
+          ChatGPT or Perplexity knows what this is by the end of line one, and
+          the accent line carries the only part that is new. */}
       <h1 className="welcome-title">
-        Ask something<br />
-        you&rsquo;re curious about.<br />
-        <em>I&rsquo;ll explain it here.</em>
+        An AI chat that<br />
+        answers in<br />
+        <em>video, not text.</em>
       </h1>
 
-      <p className="welcome-note">
-        <svg className="welcome-spark" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
-          <path d="M10 2.5c.35 2.9 1.2 4.55 2.6 5.35 1 .58 2.3.9 4.4 1.15-2.9.35-4.55 1.2-5.35 2.6-.58 1-.9 2.3-1.15 4.4-.35-2.9-1.2-4.55-2.6-5.35-1-.58-2.3-.9-4.4-1.15 2.9-.35 4.55-1.2 5.35-2.6.58-1 .9-2.3 1.15-4.4z" />
-          <path d="M18 13.5c.2 1.65.68 2.6 1.48 3.05.57.33 1.31.52 2.52.66-1.66.2-2.6.68-3.05 1.48-.33.57-.52 1.31-.66 2.52-.2-1.66-.68-2.6-1.48-3.05-.57-.33-1.31-.52-2.52-.66 1.66-.2 2.6-.68 3.05-1.48.33-.57.52-1.31.66-2.52z" opacity="0.65" />
-        </svg>
-        <span>Your question becomes a short narrated video, tailored just for you.</span>
-      </p>
 
       {cards.length > 0 && <ul className="welcome-cards" ref={railRef}>
         {cards.map((card) => <li key={card.question}>

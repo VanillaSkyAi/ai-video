@@ -307,7 +307,9 @@ body {
   flex-direction: column;
   align-items: flex-start;
   gap: clamp(0.9rem, 2.2cqh, 1.6rem);
-  padding: clamp(1.25rem, 5cqh, 3.25rem) clamp(1.25rem, 4cqw, 3.5rem);
+  /* More at the head than the foot: the headline reads against the top edge of
+     the frame, so it wants room the cards at the bottom do not. */
+  padding: clamp(2rem, 8cqh, 4.5rem) clamp(1.25rem, 4cqw, 3.5rem) clamp(1.25rem, 4cqh, 2.5rem);
   color: oklch(1 0 0);
 }
 
@@ -324,24 +326,14 @@ body {
    thing on the screen that is not white. */
 .welcome-title em { font-style: normal; color: oklch(0.8 0.11 268); }
 
-.welcome-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  margin: 0;
-  font-size: clamp(0.8rem, 1.35cqw, 0.95rem);
-  line-height: 1.45;
-  color: oklch(1 0 0 / 88%);
-}
-.welcome-note svg { flex: 0 0 auto; margin-top: 0.1rem; color: oklch(0.82 0.1 268); }
-/* Wrapped by its measure rather than by a hard break, so hiding the break on a
-   narrow screen cannot run two words together. */
-.welcome-note span { max-width: 30ch; }
 
 .welcome-cards {
   display: flex;
   gap: clamp(0.5rem, 1.2cqw, 0.9rem);
-  margin: clamp(0.25rem, 1.5cqh, 1rem) 0 0;
+  /* Pushed to the foot of the frame: the invitation sits at the top and the
+     questions sit at the bottom, so the picture between them is the thing the
+     screen is actually showing off. */
+  margin: auto 0 0;
   padding: 0;
   list-style: none;
   max-width: 100%;
@@ -390,7 +382,6 @@ body {
   text-wrap: balance;
 }
 
-.welcome-spark { color: oklch(0.84 0.1 268); }
 
 /* Where the cards are in a row that does not fit - a phone. */
 .welcome-dots { display: flex; gap: 0.4rem; margin-top: 0.2rem; }
@@ -405,10 +396,9 @@ body {
 
 
 @media (max-width: 899px) {
-  .welcome-body { gap: 0.7rem; padding: 1rem; }
+  .welcome-body { gap: 0.7rem; padding: 1.75rem 1rem 1rem; }
   .welcome-title { font-size: clamp(1.35rem, 7cqw, 2rem); }
-  .welcome-note span { max-width: none; }
-}
+  }
 
 /* --------------------------------------------------- history and settings */
 
