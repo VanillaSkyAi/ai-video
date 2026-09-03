@@ -177,8 +177,8 @@ function useFilmingStep(active: boolean, key: unknown): string {
  * once the badge is gone: the thing that says a lesson is talking should be
  * next to the way to interrupt it.
  */
-function Waveform({ active }: { active: boolean }) {
-  return <span className={`waveform${active ? " on" : ""}`} aria-hidden="true">
+function Waveform({ active, listening }: { active: boolean; listening?: boolean }) {
+  return <span className={`waveform${active ? " on" : ""}${listening ? " hearing" : ""}`} aria-hidden="true">
     {[0, 1, 2, 3, 4].map((bar) => <span key={bar} style={{ animationDelay: `${bar * 140}ms`, animationDuration: `${900 + bar * 130}ms` }} />)}
   </span>;
 }
@@ -560,19 +560,18 @@ function App() {
    * It stays empty rather than reporting progress: the stage says what is
    * being filmed, and this slot is the voice.
    */
-  const line = status === "idle"
-    ? "Ask anything. The answer is drawn here as a short narrated video."
-    // Nothing until the tutor says something. The stage already says the
-    // lesson is being filmed, and a second status here was the same news
-    // twice in two different words.
-    : cue ?? "";
+  // Nothing until the tutor says something. The slot is the voice, so an
+  // empty voice is an empty slot - a sentence explaining the page to someone
+  // already looking at it is not the voice, and it was the only thing on
+  // screen pretending to be spoken when nothing was.
+  const line = cue ?? "";
 
   const transport = status === "narrating"
-    ? { label: "Stop narration", action: holdPlayback, icon: <Stop /> }
+    ? { label: "Pause", action: holdPlayback, icon: <Stop /> }
     : status === "paused"
-      ? { label: "Continue narration", action: releasePlayback, icon: <Play /> }
+      ? { label: "Continue", action: releasePlayback, icon: <Play /> }
       : status === "ended" && shown?.video
-        ? { label: "Replay the answer", action: replay, icon: <Replay /> }
+        ? { label: "Play again", action: replay, icon: <Replay /> }
         : undefined;
 
   return <div className="app">
@@ -605,7 +604,7 @@ function App() {
         <button
           type="button"
           className="round"
-          aria-label={muted ? "Unmute narration" : "Mute narration"}
+          aria-label={muted ? "Turn the voice on" : "Turn the voice off"}
           aria-pressed={muted}
           onClick={() => setMuted((quiet) => !quiet)}
         >{muted ? <Muted /> : <Sound />}</button>
@@ -691,28 +690,31 @@ function App() {
 
     <div className="panel">
       <div className="panel-inner">
-        <div className="line-row">
+        {/* Only when there is something in it. An empty row still reserving
+            its height put more space above the composer than there was under
+            the picture, which read as the panel sagging away from the video. */}
+        {(line || shown?.video) && <div className="line-row">
           <p className="line" aria-live="polite">{line}</p>
           {shown?.video && <button type="button" className="full-answer" onClick={() => setSheetOpen(true)}>
             Full answer <ChevronUp />
           </button>}
-        </div>
+        </div>}
 
-        {error && <p className="error">{error}</p>}
+        {(error || listen.error) && <p className="error">{error ?? listen.error}</p>}
 
         {/* Always here, from the first moment to the last. Hiding the way to
             ask until the lesson finished meant the one thing a learner wants
             while watching - to cut in and ask something else - was the one
             thing the page took away. */}
         <form className="composer" onSubmit={(event) => { event.preventDefault(); void ask(draft); }}>
-          <Waveform active={(narration.speaking || hookSpeaking) && !muted && !held} />
+          <Waveform active={listen.listening || ((narration.speaking || hookSpeaking) && !muted && !held)} listening={listen.listening} />
           <label className="sr-only" htmlFor="question">Question</label>
           <textarea
             id="question"
             ref={inputRef}
             rows={1}
             value={draft}
-            placeholder={status === "narrating" ? "Narrating — type to interrupt…" : answers.length > 0 ? "Ask a follow-up…" : "Ask a science question…"}
+            placeholder={status === "narrating" ? "Talking — type to jump in…" : answers.length > 0 ? "Ask a follow-up…" : "Ask a science question…"}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {

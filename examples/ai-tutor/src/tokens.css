@@ -134,6 +134,10 @@
   --vs-duration: 150ms;
   --vs-duration-slow: 260ms;
 
+  /* The gap between the picture and the divider, and the divider and what is
+     under it. One value, because the two have to match. */
+  --vs-gutter: 0.5rem;
+
   /* The smallest a pointer target may be. Anything the chrome renders as a
      control is at least this in both directions. */
   --vs-touch: 2.75rem;
@@ -156,10 +160,14 @@
     --vs-border: oklch(1 0 0 / 14%);
     --vs-border-strong: oklch(1 0 0 / 24%);
 
-    --vs-accent: #0079C4;
-    --vs-accent-deep: #0086D6;
+    /* Pink on the dark ground, blue on the light one. The brand blue is what a
+       light page needs and the brand pink is what this one wants: it reads at
+       5.9:1 against the page, and white on it is 3.45:1 - past the 3:1 an icon
+       needs, where the bright blue was 2.68:1 and past nothing. */
+    --vs-accent: #FF3A71;
+    --vs-accent-deep: #FF006F;
     --vs-accent-fg: #FFFFFF;
-    --vs-accent-ring: oklch(0.6 0.16 244 / 55%);
+    --vs-accent-ring: oklch(0.664 0.231 10.5 / 55%);
     --vs-voice: #FF3A71;
     --vs-focus: #FF3A71;
     --vs-focus-ring: oklch(0.664 0.231 10.5 / 55%);
@@ -181,10 +189,14 @@
   --vs-border: oklch(1 0 0 / 14%);
   --vs-border-strong: oklch(1 0 0 / 24%);
 
-  --vs-accent: #0079C4;
-  --vs-accent-deep: #0086D6;
+  /* Pink on the dark ground, blue on the light one. The brand blue is what a
+     light page needs and the brand pink is what this one wants: it reads at
+     5.9:1 against the page, and white on it is 3.45:1 - past the 3:1 an icon
+     needs, where the bright blue was 2.68:1 and past nothing. */
+  --vs-accent: #FF3A71;
+  --vs-accent-deep: #FF006F;
   --vs-accent-fg: #FFFFFF;
-  --vs-accent-ring: oklch(0.6 0.16 244 / 55%);
+  --vs-accent-ring: oklch(0.664 0.231 10.5 / 55%);
   --vs-voice: #FF3A71;
   --vs-focus: #FF3A71;
   --vs-focus-ring: oklch(0.664 0.231 10.5 / 55%);

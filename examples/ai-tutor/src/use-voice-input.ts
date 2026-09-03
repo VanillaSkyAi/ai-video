@@ -24,7 +24,7 @@ interface SpeechRecognitionLike {
   abort: () => void;
   onresult: ((event: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
 }
 
 type RecognitionConstructor = new () => SpeechRecognitionLike;
@@ -42,13 +42,32 @@ export interface VoiceInput {
   /** False in browsers with no speech recognition, where no button is drawn. */
   supported: boolean;
   listening: boolean;
+  /**
+   * Why it stopped, when it stopped badly.
+   *
+   * A recogniser fails for reasons the person can act on - the microphone was
+   * refused, there is no connection to the service that transcribes - and it
+   * fails by simply ending. Swallowing that leaves a button that does nothing
+   * when pressed and says nothing about why, which is the exact failure this
+   * whole control was rebuilt to avoid.
+   */
+  error?: string;
   toggle: () => void;
   stop: () => void;
 }
 
+const WHY: Record<string, string> = {
+  "not-allowed": "The microphone is blocked for this site. Allow it in your browser's settings and try again.",
+  "service-not-allowed": "The microphone is blocked for this site. Allow it in your browser's settings and try again.",
+  "no-speech": "I did not hear anything.",
+  network: "Speech recognition needs a connection and could not reach the service.",
+  "audio-capture": "No microphone was found.",
+};
+
 export function useVoiceInput(onTranscript: (text: string) => void): VoiceInput {
   const [supported] = useState(() => recognitionConstructor() !== undefined);
   const [listening, setListening] = useState(false);
+  const [error, setError] = useState<string>();
   const recognitionRef = useRef<SpeechRecognitionLike>(undefined);
   // Read inside the recogniser's own callbacks, which outlive the render that
   // created them.
@@ -69,6 +88,7 @@ export function useVoiceInput(onTranscript: (text: string) => void): VoiceInput 
     }
     const Recognition = recognitionConstructor();
     if (!Recognition) return;
+    setError(undefined);
     const recognition = new Recognition();
     recognition.lang = document.documentElement.lang || "en-US";
     recognition.continuous = false;
@@ -84,15 +104,19 @@ export function useVoiceInput(onTranscript: (text: string) => void): VoiceInput 
     // permission refusal, a timeout and a finished sentence all mean it is no
     // longer listening, and a mic that stays lit after that is a lie.
     recognition.onend = () => setListening(false);
-    recognition.onerror = () => setListening(false);
+    recognition.onerror = (event) => {
+      setListening(false);
+      setError(WHY[event.error ?? ""] ?? "The microphone stopped unexpectedly.");
+    };
     recognitionRef.current = recognition;
     try {
       recognition.start();
       setListening(true);
     } catch {
       setListening(false);
+      setError("The microphone could not be started.");
     }
   }, [listening, stop]);
 
-  return { supported, listening, toggle, stop };
+  return { supported, listening, error, toggle, stop };
 }
