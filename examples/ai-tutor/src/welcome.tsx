@@ -44,17 +44,38 @@ export function useWelcome(active: boolean): WelcomeData | undefined {
   return data;
 }
 
-function Frame({ media, poster }: { media: WelcomeMedia | null; poster?: boolean }) {
+/**
+ * One frame of footage, playing only when it is being looked at.
+ *
+ * `playing` left undefined means always - the hero behind the invitation. A
+ * card passes it, so only the question in hand moves: four clips looping at
+ * once is four things competing for the eye on a screen whose whole argument is
+ * that one video is worth more than a page of text. It is also four decoders
+ * running for three pictures nobody is watching.
+ */
+function Frame({ media, poster, playing }: { media: WelcomeMedia | null; poster?: boolean; playing?: boolean }) {
+  const video = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const element = video.current;
+    if (!element || playing === undefined) return;
+    if (playing) void element.play().catch(() => undefined);
+    else element.pause();
+  }, [playing]);
+
   if (!media) return null;
   if (media.type === "image") return <img className="welcome-media" src={media.url} alt="" />;
   return <video
+    ref={video}
     className="welcome-media"
     src={media.url}
     poster={poster ? media.posterUrl : undefined}
-    autoPlay
+    autoPlay={playing !== false}
     muted
     loop
     playsInline
+    // The still is what a paused card shows, so it is worth having early.
+    preload="metadata"
     // Decorative: it carries no information the words do not.
     aria-hidden="true"
   />;
@@ -105,7 +126,7 @@ export function Welcome({ data, onAsk }: { data?: WelcomeData; onAsk: (question:
             onPointerEnter={() => setAt(index)}
             onClick={() => onAsk(card.question)}
           >
-            <Frame media={card.media} />
+            <Frame media={card.media} playing={index === at} />
             <span className="welcome-card-wash" aria-hidden="true" />
             <span className="welcome-card-question">{card.question}</span>
           </button>
