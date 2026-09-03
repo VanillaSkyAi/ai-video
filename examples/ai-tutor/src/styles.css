@@ -510,6 +510,9 @@ body {
  */
 .panel-inner {
   display: grid;
+  /* One step between the field and the chips, two between the subtitle and the
+     field: the subtitle belongs to the picture above it, not to the control
+     below, and at one step a two-line cue nearly touched the composer. */
   gap: 0.5rem;
   width: min(48rem, 100%);
   margin: 0 auto;
@@ -531,6 +534,7 @@ body {
   /* Exactly two lines, and no padding of its own. The subtitle belongs to the
      picture, so the space around it is the panel's to give. */
   min-height: calc(2 * var(--vs-text-body) * var(--vs-lead-body));
+  margin-bottom: 0.5rem;
 }
 
 /*
