@@ -36,9 +36,18 @@ makes a scale a system rather than a list of sizes:
 | `title3` | 20 | 1.25 | −0.019em | Sheet title |
 | `display` | 28→44 | 1.05 | −0.03em | The question on the gradient |
 
-Two things to know about it. **Body is 17px, not 16** — the single change that
-most affects how the subtitle line reads at arm's length. And **nothing is
-uppercase.** Section labels are sentence case at 13px semibold, which is what
+Three things to know about it. **Body is 17px, not 16** — Apple's own default
+for a reading distance, and the single change that most affects how the subtitle
+line reads.
+
+**The tracking is not a slope.** It comes from the tracking table in Apple's
+typography guidance, and that curve is not monotonic: SF tightens to about
+−26/1000em around 17–20pt, then opens back up, crossing zero near 23pt and
+reaching +14/1000em by 28. So the display step is tracked *wider* than body, not
+tighter. The rule of thumb that large type wants tightening is true up to about
+20px and wrong above it.
+
+And **nothing is uppercase.** Section labels are sentence case at 13px semibold, which is what
 macOS System Settings actually does; uppercase with wide tracking is a
 design-system habit rather than a system one, and eight of them down a popover
 reads as filing rather than as an interface.
@@ -88,10 +97,10 @@ defined steps rather than three hand-mixed translucent whites.
 
 ## Measurements
 
-Controls are 44px. The WCAG 2.2 AA floor is 24px and everything clears it, but
-44 is the size a thumb actually wants, and two controls in one group at
-different heights read as an accident. Chips are 36 — they are secondary, and
-several sit in a row.
+Controls are 44px, which is Apple's iOS minimum; their macOS minimum is 28×28pt
+and the WCAG 2.2 AA floor is 24px, so this is the generous end of all three.
+Chips are 36 — secondary, and several sit in a row. Controls are 12px apart,
+which is Apple's recommended padding around a bezelled element.
 
 The bottom bar runs on an 8px grid: one step from the divider to the field, one
 step between the field and the chips, and two at the bottom — because that edge
@@ -101,6 +110,16 @@ and the bar's bottom follows them.
 
 Radii come in three: 14px for a row inside a panel, 20px for a panel or the
 composer, and a pill for anything round. The stage is 20px.
+
+## Increase Contrast
+
+Apple's rule is that an interface which does not meet the minimum contrast by
+default must at least offer more when the system setting asks for it. Ours meets
+it, so `prefers-contrast: more` is the second half of that rule: someone who has
+asked every app on their machine for more contrast gets more here too, rather
+than the minimum. Borders become visible lines, muted type stops being muted,
+and the accent deepens far enough to carry white at 7:1 — measured at 10.6:1 for
+secondary type in light and 14.1:1 in dark.
 
 ## The quality floor
 

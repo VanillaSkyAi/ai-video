@@ -313,7 +313,7 @@ body {
   margin: 0;
   font-size: clamp(1.6rem, 5.2cqw, 3.4rem);
   line-height: 1.08;
-  letter-spacing: -0.03em;
+  letter-spacing: var(--vs-track-display);
   font-weight: 600;
   text-wrap: balance;
 }
@@ -678,7 +678,7 @@ body {
 .chips {
   display: flex;
   flex-wrap: nowrap;
-  gap: 0.5rem;
+  gap: var(--vs-control-gap);
   /* The negative margin lets the row bleed to the edges; the vertical padding
      is room for the chips' shadow, which a scroll container would clip. */
   margin: -0.35rem -1rem;

@@ -86,39 +86,46 @@
   --vs-danger-surface: oklch(0.55 0.19 32 / 9%);
 
   /*
-   * Type: nine steps, after Apple's SF text styles rather than a doubling
-   * ramp. Each carries its own leading and tracking because that is what
-   * makes a scale a system - tracking tightens as size grows, which is what
-   * keeps a large question from reading loose and a small label from reading
-   * cramped. Body is 17px, not 16: the single change that most affects how
-   * the subtitle line reads at arm's length.
+   * Type: eight steps, after Apple's SF text styles rather than a doubling
+   * ramp. Each carries its own leading and tracking, taken from the tracking
+   * table in Apple's typography guidance.
+   *
+   * The tracking is not a slope. SF tightens to about -26/1000em around
+   * 17-20pt and then opens back up, crossing zero near 23pt and reaching
+   * +14/1000em by 28. So a display size is tracked *wider* than body, not
+   * tighter - the opposite of the rule of thumb, and the reason the question
+   * card used to read cramped.
+   *
+   * Body is 17px, not 16: Apple's own default for a reading distance, and the
+   * single change that most affects how the subtitle line reads.
    */
   --vs-text-caption: 0.75rem;      /* 12 - history index, notes */
   --vs-lead-caption: 1.33;
-  --vs-track-caption: 0;
+  --vs-track-caption: 0;           /* SF at 12pt is exactly zero */
 
   --vs-text-footnote: 0.8125rem;   /* 13 - chips, session pill */
   --vs-lead-footnote: 1.38;
-  --vs-track-footnote: -0.006em;
+  --vs-track-footnote: -0.006em;   /* SF at 13pt */
 
   --vs-text-subhead: 0.9375rem;    /* 15 - option descriptions */
   --vs-lead-subhead: 1.33;
-  --vs-track-subhead: -0.015em;
+  --vs-track-subhead: -0.016em;    /* SF at 15pt */
 
   --vs-text-body: 1.0625rem;       /* 17 - the subtitle line, composer, sheet */
   --vs-lead-body: 1.47;
-  --vs-track-body: -0.022em;
+  --vs-track-body: -0.026em;       /* SF at 17pt */
 
   --vs-lead-headline: 1.29;        /* 17 semibold - titles, option labels */
-  --vs-track-headline: -0.025em;
+  --vs-track-headline: -0.026em;   /* SF at 17pt */
 
   --vs-text-title3: 1.25rem;       /* 20 - sheet title */
   --vs-lead-title3: 1.25;
-  --vs-track-title3: -0.019em;
+  --vs-track-title3: -0.023em;     /* SF at 20pt */
 
   --vs-text-display: clamp(1.75rem, 3.4vw, 2.75rem);  /* the question card */
   --vs-lead-display: 1.05;
-  --vs-track-display: -0.03em;
+  /* +14/1000em, which is where SF actually sits at 28pt and above. */
+  --vs-track-display: 0.014em;
 
   /* Shape and motion. */
   --vs-radius: 0.875rem;
@@ -146,6 +153,9 @@
   /* The gap between the picture and the divider, and the divider and what is
      under it. One value, because the two have to match. */
   --vs-gutter: 0.5rem;
+
+  /* Apple's own recommendation for space around a bezelled control. */
+  --vs-control-gap: 0.75rem;
 
   /* The smallest a pointer target may be. Anything the chrome renders as a
      control is at least this in both directions. */
@@ -223,4 +233,56 @@
   --vs-danger: oklch(0.75 0.16 32);
 
   --vs-shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 60%);
+}
+
+/*
+ * Increase Contrast.
+ *
+ * Apple's rule is explicit: if an interface does not meet the minimum contrast
+ * by default, it must at least offer more when the system setting asks for it.
+ * Ours does meet it — this is the second half of the same rule, which is that
+ * someone who has asked every app on their machine for more contrast should
+ * get more here too, not merely the minimum.
+ *
+ * Borders become visible lines rather than hairlines, muted type stops being
+ * muted, and the accent deepens far enough to carry white at 7:1.
+ */
+@media (prefers-contrast: more) {
+  :root {
+    --vs-fg-muted: oklch(0.35 0.04 281);
+    --vs-border: oklch(0.21 0.05 281 / 40%);
+    --vs-border-strong: oklch(0.21 0.05 281 / 65%);
+    --vs-accent: #005E96;
+    --vs-accent-deep: #004A78;
+    --vs-focus: #005E96;
+    --vs-focus-ring: oklch(0.45 0.13 244 / 70%);
+    --vs-danger: oklch(0.34 0.15 32);
+    --vs-shadow-input: 0 0 0 1px oklch(0.21 0.05 281 / 35%);
+    --vs-shadow-raised: 0 0 0 1px oklch(0.21 0.05 281 / 28%);
+  }
+
+  :root:not([data-theme="light"]) {
+    --vs-fg-muted: oklch(0.88 0.02 281);
+    --vs-border: oklch(1 0 0 / 42%);
+    --vs-border-strong: oklch(1 0 0 / 70%);
+    --vs-accent: #FF7CA1;
+    --vs-accent-deep: #FF3A71;
+    --vs-accent-fg: #10073C;
+    --vs-focus: #FF7CA1;
+    --vs-focus-ring: oklch(0.78 0.16 10 / 75%);
+    --vs-danger: oklch(0.86 0.13 32);
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root[data-theme="light"] {
+    --vs-fg-muted: oklch(0.35 0.04 281);
+    --vs-border: oklch(0.21 0.05 281 / 40%);
+    --vs-border-strong: oklch(0.21 0.05 281 / 65%);
+    --vs-accent: #005E96;
+    --vs-accent-deep: #004A78;
+    --vs-accent-fg: #FFFFFF;
+    --vs-focus: #005E96;
+    --vs-danger: oklch(0.34 0.15 32);
+  }
 }
