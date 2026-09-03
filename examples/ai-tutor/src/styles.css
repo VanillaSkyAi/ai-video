@@ -150,7 +150,6 @@ body {
      against the left edge. */
   margin: 0 auto;
   padding: 0 1.5rem;
-  max-width: 34ch;
   display: grid;
   gap: 1.1rem;
   justify-items: center;
@@ -160,6 +159,11 @@ body {
 }
 .asked-question {
   margin: 0;
+  /* The measure belongs here rather than on the box around it. `ch` is
+     relative to the element's own font size, so a cap on the container is
+     computed at body size and squeezes a display headline into a column of
+     three words. */
+  max-width: 26ch;
   font-size: clamp(1.5rem, 3.2vw, 2.4rem);
   font-weight: 600;
   line-height: 1.15;
