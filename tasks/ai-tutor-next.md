@@ -1,6 +1,7 @@
 # AI tutor — next session
 
-Work is on `feat/tutor-example-complete` (PR #22), in `examples/ai-tutor`.
+The tutor is `examples/ai-tutor`, and everything through PR #24 is merged to
+`main`. Branch from there.
 
 ```bash
 ANTHROPIC_API_KEY=... XAI_API_KEY=... FAL_KEY=... npm run dev --prefix examples/ai-tutor
