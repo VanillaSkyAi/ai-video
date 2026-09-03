@@ -77,6 +77,38 @@ const EMPTY_VIDEO = { schemaVersion: "0.1", orientation: "landscape", scenes: []
 type Status = "idle" | "drawing" | "narrating" | "paused" | "ended";
 
 /**
+ * Short, and unmistakably about a camera.
+ *
+ * The wait is about seven seconds and these change every three, so line one
+ * and half of line two are all anyone reads - and line one is the only one
+ * seen before the voice starts. "Choosing the beats" was our own jargon, and
+ * "writing the narration" reads like a text answer is coming. A rolling camera
+ * does not.
+ *
+ * They sit under the question, on the ground the lesson is composed on, and
+ * they describe the machine rather than the answer - which is why they belong
+ * on the stage and not in the line below it. That line is the tutor talking.
+ */
+const STEPS = [
+  "Rolling camera…",
+  "Framing the shots…",
+  "Filming your answer…",
+  "Still filming…",
+];
+
+/** Advance while there is no picture yet, and start over for each question. */
+function useFilmingStep(active: boolean, key: unknown): string {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    setStep(0);
+    const stepper = window.setInterval(() => setStep((current) => current + 1), 3000);
+    return () => window.clearInterval(stepper);
+  }, [active, key]);
+  return STEPS[Math.min(step, STEPS.length - 1)]!;
+}
+
+/**
  * Five bars that move while a voice is speaking.
  *
  * It sits inside the composer because that is where the tutor's voice belongs
@@ -352,6 +384,8 @@ function App() {
   // it stopped was the opening line or the fourth scene. And the opening line
   // counts as narrating, because it is - the tutor is talking, and the only
   // thing still loading is the picture behind it.
+  const filmingStep = useFilmingStep(composing, current?.index);
+
   const status: Status = answers.length === 0 ? "idle"
     : held ? "paused"
     : composing ? (hookSpeaking ? "narrating" : "drawing")
@@ -413,14 +447,17 @@ function App() {
   /**
    * The one line under the stage.
    *
-   * While a lesson is being composed it carries the hook - the tutor's own
-   * first sentence, spoken over the wait - and wears a shimmer until the video
-   * opens. There is no separate status text, because the treatment says what a
-   * second line of chrome would have said.
+   * It carries only what the tutor has actually said - the opening line while
+   * the lesson is being composed, then each scene's line as that scene plays.
+   * It stays empty rather than reporting progress: the stage says what is
+   * being filmed, and this slot is the voice.
    */
   const line = status === "idle"
     ? "Ask anything. The answer is drawn here as a short narrated video."
-    : cue ?? (status === "drawing" ? "Drawing the scene…" : "");
+    // Nothing until the tutor says something. The stage already says the
+    // lesson is being filmed, and a second status here was the same news
+    // twice in two different words.
+    : cue ?? "";
 
   const transport = status === "narrating"
     ? { label: "Stop narration", action: holdPlayback, icon: <Stop /> }
@@ -470,7 +507,10 @@ function App() {
             Both are gone the moment the video has something to show. */}
         {!showing && <>
           <div className="ground" aria-hidden="true" />
-          {shown?.question && <p className="asked">{shown.question}</p>}
+          {shown?.question && <div className="asked">
+            <p className="asked-question">{shown.question}</p>
+            {composing && <p className="asked-step" aria-live="polite">{filmingStep}</p>}
+          </div>}
         </>}
         {replaying
           ? <VideoPlayer key={`replay-${replayCount}`} video={replaying} templates={templates} orientation="landscape" autoPlay paused={held} onSceneChange={onSceneChange} controls={false} ariaLabel="Replay" />
@@ -524,7 +564,7 @@ function App() {
     <div className="panel">
       <div className="panel-inner">
         <div className="line-row">
-          <p className={`line${status === "drawing" ? " shimmer" : ""}`} aria-live="polite">{line}</p>
+          <p className="line" aria-live="polite">{line}</p>
           {shown?.video && <button type="button" className="full-answer" onClick={() => setSheetOpen(true)}>
             Full answer <ChevronUp />
           </button>}

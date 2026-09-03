@@ -150,15 +150,44 @@ body {
      against the left edge. */
   margin: 0 auto;
   padding: 0 1.5rem;
-  max-width: 24ch;
+  max-width: 34ch;
+  display: grid;
+  gap: 1.1rem;
+  justify-items: center;
+  align-content: center;
+  text-align: center;
+  color: #fff;
+}
+.asked-question {
+  margin: 0;
   font-size: clamp(1.5rem, 3.2vw, 2.4rem);
   font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.02em;
-  text-align: center;
   text-wrap: balance;
-  color: #fff;
   animation: step-in 620ms ease both;
+}
+
+/*
+ * What the machine is doing, under what was asked.
+ *
+ * No clock and no scene count: at eight seconds a number counting up measures
+ * the wait rather than filling it, and a scene tally is the composing
+ * machinery narrating itself to someone who asked about the Moon. This says
+ * the page has not stopped, and at this length that is enough. It describes
+ * the camera, not the answer - the answer is the line under the stage, and
+ * that one is the tutor talking.
+ */
+.asked-step {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  background: linear-gradient(100deg, rgb(255 255 255 / 45%) 20%, #fff 42%, rgb(255 255 255 / 45%) 64%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sweep 2.4s linear infinite, step-in 520ms ease both;
 }
 @keyframes step-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -247,20 +276,6 @@ body {
   animation: fade-in 320ms ease both;
 }
 
-/*
- * Composing, said by treatment rather than by a second line of text. The
- * words are the tutor's own opening sentence; the sweep is what says the
- * lesson is still being written. When the video opens the sweep stops, and
- * nothing about the line's position or size moves.
- */
-.line.shimmer {
-  background: linear-gradient(100deg, rgb(255 255 255 / 45%) 20%, #fff 42%, rgb(255 255 255 / 45%) 64%);
-  background-size: 220% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: fade-in 320ms ease both, sweep 2.4s linear infinite;
-}
 @keyframes sweep { from { background-position: 140% 0; } to { background-position: -40% 0; } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
@@ -404,8 +419,8 @@ body {
 .sheet-body p:first-child { color: var(--foreground); }
 
 @media (prefers-reduced-motion: reduce) {
-  .ground, .asked, .line, .line.shimmer, .waveform.on span, .sheet, .sheet-popover { animation: none; }
-  .line.shimmer { color: var(--foreground); -webkit-text-fill-color: currentColor; }
+  .ground, .asked-question, .line, .waveform.on span, .sheet, .sheet-popover { animation: none; }
+  .asked-step { animation: none; color: #fff; -webkit-text-fill-color: currentColor; }
 }
 
 /* ----------------------------------------------------------- the scenes */
