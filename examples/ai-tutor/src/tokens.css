@@ -1,0 +1,112 @@
+/*
+ * The theming contract.
+ *
+ * Everything the chrome draws with is one of these, and nothing else in the
+ * stylesheet names a colour. That is the whole point: an application adopting
+ * this experience overrides a handful of custom properties and it is theirs,
+ * with no build step, no Tailwind config, and no component library to install.
+ * The SDK's own promise is that the application owns its UI, and a design
+ * system as a hard dependency is the one thing that would take that back.
+ *
+ * Three states, because that is what a theme actually is:
+ *
+ *   :root                        the light palette, and the default
+ *   prefers-color-scheme: dark   the OS preference, when nothing overrides it
+ *   [data-theme="light"|"dark"]  an explicit choice, which wins over both
+ *
+ * The dark block is guarded against `[data-theme="light"]` so a viewer who has
+ * chosen light on a dark OS gets light. Never give a token its only definition
+ * inside a media query.
+ *
+ * What is deliberately not themed: the video. Its palette is the brand the
+ * lesson was composed in and it is baked into the scenes, so a lesson that
+ * changed colour with the OS setting would be a different lesson. Light mode
+ * is a chrome concern, which is what keeps it small.
+ */
+
+:root {
+  /* Ground and type. `raised` is the composer and the chips; `sunken` is the
+     area the video sits in, which is darker than the page in both themes
+     because a picture reads best against something that recedes. */
+  --vs-bg: oklch(0.995 0.002 300);
+  --vs-fg: oklch(0.22 0.02 300);
+  --vs-fg-muted: oklch(0.52 0.02 300);
+  --vs-surface-raised: oklch(0.965 0.004 300);
+  --vs-surface-sunken: oklch(0.16 0.02 300);
+  /* What the chrome floating over the video is drawn on. It sits on the
+     sunken ground in both themes, so it does not flip. */
+  --vs-on-media: oklch(1 0 0);
+  --vs-on-media-bg: oklch(1 0 0 / 14%);
+  --vs-on-media-bg-hover: oklch(1 0 0 / 22%);
+
+  --vs-border: oklch(0.22 0.02 300 / 14%);
+  --vs-border-strong: oklch(0.22 0.02 300 / 26%);
+
+  --vs-accent: oklch(0.55 0.21 355);
+  /* The second stop of the send button's gradient. Named rather than derived:
+     `oklch(from ...)` relative colour syntax is recent enough that a consumer
+     on an older engine would get no gradient at all, and a token they can set
+     is friendlier than one they have to understand. */
+  --vs-accent-deep: oklch(0.48 0.2 330);
+  --vs-accent-fg: oklch(1 0 0);
+  --vs-accent-ring: oklch(0.55 0.21 355 / 55%);
+  --vs-danger: oklch(0.52 0.2 25);
+
+  /* Shape and motion. */
+  --vs-radius: 0.875rem;
+  --vs-radius-lg: 1.25rem;
+  --vs-radius-pill: 999px;
+  --vs-font: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --vs-shadow-panel: 0 -1px 0 var(--vs-border);
+  --vs-shadow-pop: 0 16px 48px -12px oklch(0.2 0.02 300 / 28%);
+  --vs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* One place to turn every transition off, which the reduced-motion block at
+     the end of the stylesheet does. */
+  --vs-duration: 150ms;
+  --vs-duration-slow: 260ms;
+
+  /* The smallest a pointer target may be. Anything the chrome renders as a
+     control is at least this in both directions. */
+  --vs-touch: 2.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --vs-bg: oklch(0.155 0.032 300);
+    --vs-fg: oklch(0.975 0.006 300);
+    --vs-fg-muted: oklch(0.72 0.028 300);
+    --vs-surface-raised: oklch(0.235 0.03 300);
+    --vs-surface-sunken: oklch(0.08 0.015 300);
+
+    --vs-border: oklch(1 0 0 / 12%);
+    --vs-border-strong: oklch(1 0 0 / 22%);
+
+    --vs-accent: oklch(0.7 0.211 355);
+    --vs-accent-deep: oklch(0.6 0.21 330);
+    --vs-accent-fg: oklch(0.16 0.03 300);
+    --vs-accent-ring: oklch(0.7 0.211 355 / 60%);
+    --vs-danger: oklch(0.75 0.16 20);
+
+    --vs-shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 60%);
+  }
+}
+
+:root[data-theme="dark"] {
+  --vs-bg: oklch(0.155 0.032 300);
+  --vs-fg: oklch(0.975 0.006 300);
+  --vs-fg-muted: oklch(0.72 0.028 300);
+  --vs-surface-raised: oklch(0.235 0.03 300);
+  --vs-surface-sunken: oklch(0.08 0.015 300);
+
+  --vs-border: oklch(1 0 0 / 12%);
+  --vs-border-strong: oklch(1 0 0 / 22%);
+
+  --vs-accent: oklch(0.7 0.211 355);
+  --vs-accent-deep: oklch(0.6 0.21 330);
+  --vs-accent-fg: oklch(0.16 0.03 300);
+  --vs-accent-ring: oklch(0.7 0.211 355 / 60%);
+  --vs-danger: oklch(0.75 0.16 20);
+
+  --vs-shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 60%);
+}

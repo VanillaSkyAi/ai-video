@@ -1,48 +1,53 @@
 /*
  * The tutor's chrome.
  *
- * Ported by value from the VanillaSky design system rather than by dependency:
- * the same plum ground, pink accent and violet-into-blue stage, written as
- * plain CSS. An example that needs Tailwind, a component library and an icon
- * package installed before it can be read is teaching the wrong lesson - the
- * only thing here that should be hard to replace is the SDK.
+ * Every colour, radius and duration here is a token from `tokens.css`, and
+ * nothing in this file names one directly. That is what makes the experience
+ * adoptable: an application overrides a handful of custom properties and it is
+ * theirs - no Tailwind config, no component library, no build step. Requiring
+ * a design system would take back the SDK's own promise that the application
+ * owns its UI.
  *
  * The shape is one continuous moment. The video is the page; the chrome is a
  * bar above it and a panel below it, and neither ever covers the picture.
  */
-:root {
-  color-scheme: dark;
-
-  --background: oklch(0.155 0.032 300);
-  --foreground: oklch(0.975 0.006 300);
-  --surface-raised: oklch(0.235 0.03 300);
-  --muted-foreground: oklch(0.72 0.028 300);
-  --primary: oklch(0.7 0.211 355);
-  --border: oklch(1 0 0 / 9%);
-  --destructive: oklch(0.75 0.16 20);
-
-  --gradient-send: linear-gradient(140deg, oklch(0.68 0.22 355), oklch(0.6 0.21 330));
-  --shadow-send: 0 10px 24px -8px oklch(0.6 0.21 340 / 60%);
-
-  --radius: 0.875rem;
-}
+@import "./tokens.css";
 
 * { box-sizing: border-box; }
 
+html { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
 body {
   margin: 0;
-  /* Black behind the stage, not plum: the picture is the page, and a coloured
-     ground around a rounded 16:9 frame reads as a container for it. */
-  background: #000;
-  color: var(--foreground);
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  /* The area the picture sits in recedes in both themes: a light page around a
+     video reads as a document with a video in it, where the point here is that
+     the video is the page. */
+  background: var(--vs-surface-sunken);
+  color: var(--vs-fg);
+  font-family: var(--vs-font);
   -webkit-font-smoothing: antialiased;
 }
 
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.error { margin: 0; color: var(--destructive); font-size: 0.85rem; }
+.error { margin: 0; color: var(--vs-danger); font-size: 0.85rem; }
 
 .app { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+
+/*
+ * One focus ring, on everything, and only for keyboards.
+ *
+ * `:focus-visible` rather than `:focus` so a mouse click does not leave a ring
+ * behind, and an offset so the ring reads as around the control rather than as
+ * part of it. Declared once here instead of per component, which is how a
+ * control ends up shipping without one.
+ */
+:where(button, [href], input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--vs-accent-ring);
+  outline-offset: 2px;
+  border-radius: var(--vs-radius-pill);
+}
 
 /* ---------------------------------------------------------------- chrome */
 
@@ -61,30 +66,32 @@ body {
 .round {
   display: grid;
   place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: var(--vs-touch);
+  height: var(--vs-touch);
   border: 0;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 10%);
-  color: #fff;
+  border-radius: var(--vs-radius-pill);
+  background: var(--vs-on-media-bg);
+  color: var(--vs-on-media);
   cursor: pointer;
-  transition: background-color 150ms ease, transform 120ms ease;
+  transition: background-color var(--vs-duration) ease, transform var(--vs-duration) ease;
 }
-.round:hover { background: rgb(255 255 255 / 16%); }
+.round:hover { background: var(--vs-on-media-bg-hover); }
 .round:active { transform: scale(0.95); }
 
 .pill {
   border: 0;
-  border-radius: 999px;
-  padding: 0.45rem 0.8rem;
-  background: rgb(255 255 255 / 10%);
-  color: #fff;
+  border-radius: var(--vs-radius-pill);
+  min-height: 2rem;
+  padding: 0.45rem 0.85rem;
+  background: var(--vs-on-media-bg);
+  color: var(--vs-on-media);
   font: inherit;
   font-size: 0.7rem;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color var(--vs-duration) ease;
 }
-.pill:hover { background: rgb(255 255 255 / 16%); }
+.pill:hover { background: var(--vs-on-media-bg-hover); }
 
 /* ----------------------------------------------------------------- stage */
 
@@ -133,7 +140,7 @@ body {
   aspect-ratio: 9 / 16;
   width: min(100cqw, 100cqh * 9 / 16);
 }
-@media (min-width: 900px) { .stage { border: 1px solid var(--border); } }
+@media (min-width: 900px) { .stage { border: 1px solid var(--vs-border); } }
 
 /*
  * The player fills the frame it is given. Contain, never cover: the scenes
@@ -148,7 +155,7 @@ body {
 .ground {
   position: absolute;
   inset: -30%;
-  background: radial-gradient(closest-side, rgb(255 255 255 / 28%), transparent 70%);
+  background: radial-gradient(closest-side, oklch(1 0 0 / 28%), transparent 70%);
   animation: drift 9s ease-in-out infinite alternate;
 }
 @keyframes drift {
@@ -175,7 +182,7 @@ body {
   justify-items: center;
   align-content: center;
   text-align: center;
-  color: #fff;
+  color: var(--vs-on-media);
 }
 .asked-question {
   margin: 0;
@@ -206,7 +213,7 @@ body {
   margin: 0;
   font-size: 1rem;
   font-weight: 500;
-  background: linear-gradient(100deg, rgb(255 255 255 / 45%) 20%, #fff 42%, rgb(255 255 255 / 45%) 64%);
+  background: linear-gradient(100deg, oklch(1 0 0 / 45%) 20%, oklch(1 0 0) 42%, oklch(1 0 0 / 45%) 64%);
   background-size: 220% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -230,9 +237,10 @@ body {
   max-height: 70%;
   overflow-y: auto;
   padding: 0.5rem;
-  border-radius: 1rem;
-  background: rgb(0 0 0 / 80%);
+  border-radius: var(--vs-radius-lg);
+  background: oklch(0.08 0.015 300 / 82%);
   backdrop-filter: blur(20px);
+  box-shadow: var(--vs-shadow-pop);
   animation: rise 180ms ease both;
 }
 
@@ -243,21 +251,21 @@ body {
   width: 100%;
   padding: 0.6rem 0.75rem;
   border: 0;
-  border-radius: 0.75rem;
+  border-radius: var(--vs-radius);
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
-.history button:hover { background: rgb(255 255 255 / 10%); }
-.history button.current { background: rgb(255 255 255 / 15%); }
+.history button:hover { background: var(--vs-on-media-bg); }
+.history button.current { background: var(--vs-on-media-bg-hover); }
 .history button:disabled { opacity: 0.5; cursor: default; }
-.history .index { color: rgb(255 255 255 / 50%); font-size: 0.65rem; font-variant-numeric: tabular-nums; }
+.history .index { color: oklch(1 0 0 / 55%); font-size: 0.65rem; font-variant-numeric: tabular-nums; }
 .history .question { font-size: 0.875rem; font-weight: 500; line-height: 1.35; }
 
 .settings { padding: 1rem 1.1rem 1.2rem; display: grid; gap: 1rem; }
-.settings-note { margin: 0; font-size: 0.7rem; color: var(--muted-foreground); }
+.settings-note { margin: 0; font-size: 0.7rem; color: var(--vs-fg-muted); }
 .settings fieldset { margin: 0; padding: 0; border: 0; display: grid; gap: 0.45rem; }
 .settings legend {
   padding: 0 0 0.45rem;
@@ -265,16 +273,17 @@ body {
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--muted-foreground);
+  color: var(--vs-fg-muted);
 }
 .settings label { display: flex; align-items: baseline; gap: 0.6rem; cursor: pointer; }
-.settings label span { display: grid; gap: 0.1rem; font-size: 0.8rem; color: var(--muted-foreground); }
-.settings label strong { font-weight: 500; font-size: 0.875rem; color: var(--foreground); }
-.settings input { accent-color: var(--primary); margin: 0; }
+.settings label span { display: grid; gap: 0.1rem; font-size: 0.8rem; color: var(--vs-fg-muted); }
+.settings label strong { font-weight: 500; font-size: 0.875rem; color: var(--vs-fg); }
+.settings input { accent-color: var(--vs-accent); margin: 0; }
 
 /* ----------------------------------------------------------------- panel */
 
-.panel { flex: 0 0 auto; border-top: 1px solid var(--border); background: var(--background); }
+.panel { flex: 0 0 auto; border-top: 1px solid var(--vs-border); background: var(--vs-bg); }
+.sheet, .settings, .history { color-scheme: inherit; }
 .panel-inner {
   display: grid;
   gap: 0.65rem;
@@ -296,7 +305,7 @@ body {
   margin: 0;
   font-size: 0.95rem;
   line-height: 1.45;
-  color: rgb(255 255 255 / 85%);
+  color: var(--vs-fg);
   animation: fade-in 320ms ease both;
 }
 
@@ -312,13 +321,13 @@ body {
   margin-top: 0.1rem;
   border: 0;
   background: none;
-  color: var(--muted-foreground);
+  color: var(--vs-fg-muted);
   font: inherit;
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
 }
-.full-answer:hover { color: var(--foreground); }
+.full-answer:hover { color: var(--vs-fg); }
 
 /* -------------------------------------------------------------- composer */
 
@@ -327,12 +336,19 @@ body {
   align-items: center;
   gap: 0.25rem;
   padding: 0.3rem 0.35rem 0.3rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 1.6rem;
-  background: rgb(255 255 255 / 4%);
-  transition: border-color 150ms ease, background-color 150ms ease;
+  border: 1px solid var(--vs-border);
+  border-radius: var(--vs-radius-lg);
+  background: var(--vs-surface-raised);
+  transition: border-color var(--vs-duration) ease, box-shadow var(--vs-duration) ease;
 }
-.composer:focus-within { border-color: rgb(255 255 255 / 18%); background: rgb(255 255 255 / 6%); }
+/* The whole field reads as focused, so the ring is on the box rather than on
+   the textarea inside it - which is what makes a composer look like one
+   control instead of three. */
+.composer:focus-within {
+  border-color: var(--vs-border-strong);
+  box-shadow: 0 0 0 3px var(--vs-accent-ring);
+}
+.composer textarea:focus-visible { outline: none; }
 .composer textarea {
   flex: 1 1 auto;
   min-width: 0;
@@ -348,36 +364,37 @@ body {
   field-sizing: content;
 }
 .composer textarea:focus { outline: none; }
-.composer textarea::placeholder { color: var(--muted-foreground); }
+.composer textarea::placeholder { color: var(--vs-fg-muted); }
 
 .ghost {
   display: grid;
   place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: var(--vs-touch);
+  height: var(--vs-touch);
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--vs-radius-pill);
   background: none;
-  color: var(--muted-foreground);
+  color: var(--vs-fg-muted);
   cursor: pointer;
-  transition: color 150ms ease, transform 120ms ease;
+  transition: color var(--vs-duration) ease, transform var(--vs-duration) ease;
 }
-.ghost:hover:not(:disabled) { color: var(--foreground); }
+.ghost:hover:not(:disabled) { color: var(--vs-fg); }
 .ghost:active:not(:disabled) { transform: scale(0.95); }
 .ghost:disabled { opacity: 0.35; cursor: default; }
+.ghost.listening { color: var(--vs-accent); background: var(--vs-accent-ring); }
 
 .send {
   display: grid;
   place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: var(--vs-touch);
+  height: var(--vs-touch);
   border: 0;
-  border-radius: 999px;
-  background-image: var(--gradient-send);
-  box-shadow: var(--shadow-send);
-  color: #fff;
+  border-radius: var(--vs-radius-pill);
+  background-image: linear-gradient(140deg, var(--vs-accent), var(--vs-accent-deep));
+  box-shadow: 0 8px 20px -8px var(--vs-accent-ring);
+  color: var(--vs-accent-fg);
   cursor: pointer;
-  transition: opacity 150ms ease, transform 120ms ease;
+  transition: opacity var(--vs-duration) ease, transform var(--vs-duration) ease;
 }
 .send:hover:not(:disabled) { opacity: 0.9; }
 .send:active:not(:disabled) { transform: scale(0.95); }
@@ -385,7 +402,7 @@ body {
 
 /* The voice, where the way to interrupt it is. */
 .waveform { display: flex; align-items: center; gap: 3px; height: 1rem; flex: 0 0 auto; }
-.waveform span { width: 2px; height: 100%; border-radius: 999px; background: var(--primary); transform: scaleY(0.2); opacity: 0.6; }
+.waveform span { width: 2px; height: 100%; border-radius: var(--vs-radius-pill); background: var(--vs-accent); transform: scaleY(0.2); opacity: 0.6; }
 .waveform.on span { opacity: 1; animation-name: wave; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
 @keyframes wave { 0%, 100% { transform: scaleY(0.25); } 50% { transform: scaleY(1); } }
 
@@ -403,23 +420,24 @@ body {
 @media (min-width: 900px) { .chips { flex-wrap: wrap; margin: 0; padding: 0; overflow: visible; } }
 .chips button {
   flex: 0 0 auto;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.4rem 0.85rem;
-  background: rgb(255 255 255 / 4%);
-  color: var(--muted-foreground);
+  border: 1px solid var(--vs-border);
+  border-radius: var(--vs-radius-pill);
+  min-height: 2.25rem;
+  padding: 0.5rem 0.9rem;
+  background: var(--vs-surface-raised);
+  color: var(--vs-fg-muted);
   font: inherit;
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
-  transition: border-color 150ms ease, color 150ms ease;
+  transition: border-color var(--vs-duration) ease, color var(--vs-duration) ease;
 }
-.chips button:hover { border-color: oklch(0.7 0.211 355 / 40%); color: var(--foreground); }
+.chips button:hover { border-color: var(--vs-accent-ring); color: var(--vs-fg); }
 
 /* ------------------------------------------------------------------ sheet */
 
 .sheet-layer { position: fixed; inset: 0; z-index: 40; }
-.scrim { position: absolute; inset: 0; width: 100%; border: 0; background: rgb(0 0 0 / 50%); backdrop-filter: blur(4px); cursor: pointer; }
+.scrim { position: absolute; inset: 0; width: 100%; border: 0; background: oklch(0.08 0.015 300 / 55%); backdrop-filter: blur(4px); cursor: default; }
 .sheet {
   position: absolute;
   inset: auto 0 0;
@@ -429,22 +447,29 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-top: 1px solid var(--border);
-  border-radius: 1.5rem 1.5rem 0 0;
-  background: var(--background);
-  animation: slide-up 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  border-top: 1px solid var(--vs-border);
+  border-radius: var(--vs-radius-lg) var(--vs-radius-lg) 0 0;
+  background: var(--vs-bg);
+  animation: slide-up var(--vs-duration-slow) var(--vs-ease) both;
 }
 @keyframes slide-up { from { transform: translateY(100%); } to { transform: none; } }
 .sheet header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; padding: 1.1rem 1.25rem 0; }
 .sheet h1 { margin: 0; font-size: 1.1rem; font-weight: 600; line-height: 1.35; }
-.sheet .round { background: var(--surface-raised); color: var(--muted-foreground); flex: 0 0 auto; }
+.sheet .round { background: var(--vs-surface-raised); color: var(--vs-fg-muted); flex: 0 0 auto; }
 .sheet-body { overflow-y: auto; padding: 0.75rem 1.25rem 2rem; }
-.sheet-body p { margin: 0 0 1rem; font-size: 1rem; line-height: 1.7; color: rgb(255 255 255 / 90%); }
-.sheet-body p:first-child { color: var(--foreground); }
+.sheet-body p { margin: 0 0 1rem; font-size: 1rem; line-height: 1.7; color: var(--vs-fg); }
+.sheet-body p:first-child { color: var(--vs-fg); }
 
 @media (prefers-reduced-motion: reduce) {
-  .ground, .asked-question, .line, .waveform.on span, .sheet, .sheet-popover { animation: none; }
-  .asked-step { animation: none; color: #fff; -webkit-text-fill-color: currentColor; }
+  /* Everything that moves, in one place. The drifting ground and the sweeping
+     step line are decoration; the sheet and popovers still appear, they just
+     appear rather than travel. */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .asked-step { color: var(--vs-on-media); -webkit-text-fill-color: currentColor; }
 }
 
 /* ----------------------------------------------------------- the scenes */

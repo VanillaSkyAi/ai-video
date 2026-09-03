@@ -9,6 +9,8 @@ import { streamLessonWithRetry } from "./plan-lesson";
 import { defaultMode, modeById, visualModes } from "./modes";
 import { defaultTheme, themeBackground, themeById, themes } from "./themes";
 import { ChevronUp, Close, Gear, Mic, Replay, Send, Sound, Stop, Muted, Play, Plus } from "./icons";
+import { useDismiss, useFocusTrap } from "./use-dismiss";
+import { useVoiceInput } from "./use-voice-input";
 import "./styles.css";
 
 const templates = createTemplateRegistry({ definitions });
@@ -21,6 +23,27 @@ const templates = createTemplateRegistry({ definitions });
  * numbers that had to agree were three numbers that could disagree.
  */
 const DESKTOP_WIDTH = 900;
+
+type ThemeChoice = "system" | "light" | "dark";
+
+/**
+ * The viewer's theme, in the three states a theme actually has.
+ *
+ * "system" sets no attribute at all, which is what lets the stylesheet's
+ * `prefers-color-scheme` block decide; the other two stamp `data-theme` on the
+ * root and win over it. An application embedding this would more likely hand
+ * the choice down from its own theme control - this is here because an example
+ * that cannot show light mode has not demonstrated it.
+ */
+function useThemeChoice(): [ThemeChoice, (choice: ThemeChoice) => void] {
+  const [choice, setChoice] = useState<ThemeChoice>("system");
+  useEffect(() => {
+    const root = document.documentElement;
+    if (choice === "system") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", choice);
+  }, [choice]);
+  return [choice, setChoice];
+}
 
 /** Live, because a window can be resized and a phone can be turned. */
 function useViewportOrientation(): VideoOrientation {
@@ -195,9 +218,34 @@ function App() {
   const [error, setError] = useState<string>();
 
   const viewportOrientation = useViewportOrientation();
+  const [themeChoice, setThemeChoice] = useThemeChoice();
   const voice = useMemo(createSpokenVoice, []);
   const narration = useNarration({ voice });
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const historyRef = useRef<HTMLElement>(null);
+  const historyButtonRef = useRef<HTMLButtonElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLElement>(null);
+
+  // Speech goes to the box, never straight to the tutor: a mis-heard question
+  // costs a whole lesson, so what was heard is a draft to correct.
+  const listen = useVoiceInput(setDraft);
+
+  // Stable across renders, so the listeners are bound once per opening rather
+  // than torn down and rebuilt on every keystroke in the composer.
+  const historySurfaces = useMemo(() => [historyRef, historyButtonRef], []);
+  const settingsSurfaces = useMemo(() => [settingsRef, settingsButtonRef], []);
+  const noSurfaces = useMemo(() => [], []);
+  const closeHistory = useCallback(() => setHistoryOpen(false), []);
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
+  const closeSheet = useCallback(() => setSheetOpen(false), []);
+
+  useDismiss(historyOpen, closeHistory, historySurfaces);
+  useDismiss(settingsOpen, closeSettings, settingsSurfaces);
+  // The sheet is modal, so anywhere outside it is outside.
+  useDismiss(sheetOpen, closeSheet, noSurfaces);
+  useFocusTrap(sheetOpen, sheetRef);
 
   // The player reports which scene is showing; that is the cue for the voice
   // and for the subtitle, so the words and the picture arrive together rather
@@ -228,6 +276,7 @@ function App() {
     const question = value.trim();
     if (!question) return;
     setDraft("");
+    listen.stop();
     // Composing outlives the question that asked for it, so the next question
     // cancels it: otherwise a lesson nobody is waiting for arrives and
     // overwrites the one that replaced it.
@@ -419,7 +468,7 @@ function App() {
       window.clearTimeout(deadline);
       if (!inFlight.signal.aborted) setComposing(false);
     }
-  }, [narration, voice, theme, mode, viewportOrientation]);
+  }, [narration, voice, theme, mode, viewportOrientation, listen]);
 
   const current = answers.at(-1);
   const shown = viewing === undefined ? current : answers.find((answer) => answer.index === viewing) ?? current;
@@ -531,9 +580,12 @@ function App() {
       <div className="group">
         <button type="button" className="round" aria-label="New session" onClick={newSession}><Plus /></button>
         {answers.length > 0 && <button
+          ref={historyButtonRef}
           type="button"
           className="pill"
           aria-expanded={historyOpen}
+          aria-controls="session-history"
+          aria-haspopup="menu"
           onClick={() => { setHistoryOpen((open) => !open); setSettingsOpen(false); }}
         >
           {answers.length} asked
@@ -541,16 +593,20 @@ function App() {
       </div>
       <div className="group">
         <button
+          ref={settingsButtonRef}
           type="button"
           className="round"
-          aria-label="Visuals and style"
+          aria-label="Settings"
           aria-expanded={settingsOpen}
+          aria-controls="session-settings"
+          aria-haspopup="dialog"
           onClick={() => { setSettingsOpen((open) => !open); setHistoryOpen(false); }}
         ><Gear /></button>
         <button
           type="button"
           className="round"
           aria-label={muted ? "Unmute narration" : "Mute narration"}
+          aria-pressed={muted}
           onClick={() => setMuted((quiet) => !quiet)}
         >{muted ? <Muted /> : <Sound />}</button>
       </div>
@@ -578,7 +634,7 @@ function App() {
             : null}
       </div>
 
-      {historyOpen && <nav className="sheet-popover history" aria-label="This session">
+      {historyOpen && <nav ref={historyRef} id="session-history" className="sheet-popover history" aria-label="Questions this session">
         {answers.map((answer) => <button
           key={answer.index}
           type="button"
@@ -601,8 +657,21 @@ function App() {
         </button>)}
       </nav>}
 
-      {settingsOpen && <div className="sheet-popover settings">
-        <p className="settings-note">Applies to your next question.</p>
+      {settingsOpen && <div
+        ref={settingsRef}
+        id="session-settings"
+        className="sheet-popover settings"
+        role="dialog"
+        aria-label="Settings"
+      >
+        <fieldset>
+          <legend>Appearance</legend>
+          {([["system", "Match system"], ["light", "Light"], ["dark", "Dark"]] as const).map(([value, label]) => <label key={value}>
+            <input type="radio" name="theme" checked={value === themeChoice} onChange={() => setThemeChoice(value)} />
+            <span><strong>{label}</strong></span>
+          </label>)}
+        </fieldset>
+        <p className="settings-note">Visuals and style apply to your next question.</p>
         <fieldset>
           <legend>Visuals</legend>
           {visualModes.map((option) => <label key={option.id}>
@@ -653,10 +722,16 @@ function App() {
             }}
           />
           {transport && <button type="button" className="ghost" aria-label={transport.label} onClick={transport.action}>{transport.icon}</button>}
-          {/* Voice input is the shape this design is for, and the browser's
-              own recogniser is not in every browser. It is here as the
-              affordance it will be, disabled rather than pretended. */}
-          <button type="button" className="ghost" aria-label="Ask by voice (not wired up yet)" disabled><Mic /></button>
+          {/* Only where the browser can actually hear. A disabled mic is a
+              control that fails silently every time it is pressed; a button
+              that is not there explains itself. */}
+          {listen.supported && <button
+            type="button"
+            className={`ghost${listen.listening ? " listening" : ""}`}
+            aria-label={listen.listening ? "Stop listening" : "Ask by voice"}
+            aria-pressed={listen.listening}
+            onClick={listen.toggle}
+          ><Mic /></button>}
           <button type="submit" className="send" aria-label="Ask" disabled={!draft.trim() || status === "drawing"}><Send /></button>
         </form>
 
@@ -667,10 +742,10 @@ function App() {
     </div>
 
     {sheetOpen && shown && <div className="sheet-layer">
-      <button type="button" className="scrim" aria-label="Close the full answer" onClick={() => setSheetOpen(false)} />
-      <article className="sheet">
+      <button type="button" className="scrim" tabIndex={-1} aria-hidden="true" onClick={() => setSheetOpen(false)} />
+      <article ref={sheetRef} className="sheet" role="dialog" aria-modal="true" aria-labelledby="full-answer-title">
         <header>
-          <h1>{shown.question}</h1>
+          <h1 id="full-answer-title">{shown.question}</h1>
           <button type="button" className="round" aria-label="Close the full answer" onClick={() => setSheetOpen(false)}><Close /></button>
         </header>
         <div className="sheet-body">
