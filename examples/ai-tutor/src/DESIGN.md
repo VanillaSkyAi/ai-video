@@ -51,9 +51,16 @@ bare `:root`, `prefers-color-scheme: dark` for the OS preference, and
 `[data-theme]` winning over both. The dark block is guarded against
 `[data-theme="light"]` so a viewer who chooses light on a dark OS gets light.
 
-The neutrals are violet-tinted rather than cool grey — every surface is mixed
-from hue 300, the same hue the lesson is composed in, so the chrome and the
-picture belong to one palette.
+The neutrals come from the brand's own ink rather than from a neutral grey.
+The dark page sits *below* `#10073C` at `#050121`, so the ink itself becomes the
+surface a control rests on and the page recedes behind it; the surfaces ramp up
+from there through `#1C184B` and `#272657`. The light theme is mixed from the
+same hue at very low chroma, so the two themes are one palette at two ends
+rather than two palettes.
+
+Contrast ratio is the wrong instrument at this end of the scale — two
+near-blacks always compute close — so the ramp is spaced by lightness in oklch
+instead, about 0.06 a step, which is what makes a control read against the page.
 
 What is deliberately **not** themed is the video. Its palette is the brand the
 lesson was composed in and it is baked into the scenes, so a lesson that changed

@@ -128,15 +128,17 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    /* #10073C exactly. At this lightness the chroma reads as depth rather
-       than as hue, so it is a near-black that happens to be the brand's. */
-    --vs-bg: oklch(0.191 0.094 281);
+    /* Below the brand ink, so #10073C itself becomes the surface a control
+       rests on and the page recedes behind it. At this lightness the chroma
+       reads as depth rather than as hue - a near-black that happens to be
+       the brand's. */
+    --vs-bg: oklch(0.128 0.068 281);
     --vs-fg: oklch(0.97 0.012 281);
-    --vs-fg-muted: oklch(0.73 0.035 281);
-    --vs-surface-raised: oklch(0.27 0.085 281);
-    --vs-surface-hover: oklch(0.33 0.082 281);
-    --vs-surface-selected: oklch(0.38 0.08 281);
-    --vs-surface-pop: oklch(0.245 0.09 281 / 92%);
+    --vs-fg-muted: oklch(0.72 0.035 281);
+    --vs-surface-raised: oklch(0.191 0.094 281);
+    --vs-surface-hover: oklch(0.25 0.09 281);
+    --vs-surface-selected: oklch(0.3 0.086 281);
+    --vs-surface-pop: oklch(0.175 0.085 281 / 94%);
 
     --vs-border: oklch(1 0 0 / 14%);
     --vs-border-strong: oklch(1 0 0 / 24%);
@@ -152,13 +154,13 @@
 }
 
 :root[data-theme="dark"] {
-  --vs-bg: oklch(0.191 0.094 281);
+  --vs-bg: oklch(0.128 0.068 281);
   --vs-fg: oklch(0.97 0.012 281);
-  --vs-fg-muted: oklch(0.73 0.035 281);
-  --vs-surface-raised: oklch(0.27 0.085 281);
-  --vs-surface-hover: oklch(0.33 0.082 281);
-  --vs-surface-selected: oklch(0.38 0.08 281);
-  --vs-surface-pop: oklch(0.245 0.09 281 / 92%);
+  --vs-fg-muted: oklch(0.72 0.035 281);
+  --vs-surface-raised: oklch(0.191 0.094 281);
+  --vs-surface-hover: oklch(0.25 0.09 281);
+  --vs-surface-selected: oklch(0.3 0.086 281);
+  --vs-surface-pop: oklch(0.175 0.085 281 / 94%);
 
   --vs-border: oklch(1 0 0 / 14%);
   --vs-border-strong: oklch(1 0 0 / 24%);
