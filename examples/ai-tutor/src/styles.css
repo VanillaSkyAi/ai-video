@@ -94,11 +94,14 @@ body {
   min-height: 0;
   display: grid;
   place-items: center;
-  padding: 0 1rem;
-  /* So the frame below can size itself against this box in both directions. */
+  /* Vertical too, so the picture never butts against the panel below it. The
+     frame is sized in container units, and a size container measures its
+     content box - so this padding is space the stage will not grow into
+     rather than space added around a box that already filled the area. */
+  padding: 0.5rem 1rem;
   container-type: size;
 }
-@media (min-width: 900px) { .stage-area { padding: 0 1.5rem; } }
+@media (min-width: 900px) { .stage-area { padding: 0.75rem 1.5rem; } }
 
 /*
  * A frame in the lesson's own shape, as large as it will go.
