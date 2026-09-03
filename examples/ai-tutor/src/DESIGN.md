@@ -28,9 +28,8 @@ makes a scale a system rather than a list of sizes:
 
 | Step | Size | Leading | Tracking | Where |
 | --- | --- | --- | --- | --- |
-| `caption2` | 11 | 1.18 | +0.09em | Section labels, uppercase |
 | `caption` | 12 | 1.33 | 0 | History index, notes |
-| `footnote` | 13 | 1.38 | −0.006em | Chips, session pill |
+| `footnote` | 13 | 1.38 | −0.006em | Chips, session pill, section labels |
 | `subhead` | 15 | 1.33 | −0.015em | Option descriptions |
 | `body` | 17 | 1.47 | −0.022em | Subtitle line, composer, sheet |
 | `headline` | 17 | 1.29 | −0.025em | Titles, option labels (600) |
@@ -38,13 +37,23 @@ makes a scale a system rather than a list of sizes:
 | `display` | 28→44 | 1.05 | −0.03em | The question on the gradient |
 
 Two things to know about it. **Body is 17px, not 16** — the single change that
-most affects how the subtitle line reads at arm's length. And **tracking
-tightens as size grows**, which is what keeps a large question from reading
-loose; the one exception is `caption2`, tracked wide on purpose as a
-counterpoint to the display step. Tight where it is large, open where it is
-small, is the system's own signature rather than a borrowed one.
+most affects how the subtitle line reads at arm's length. And **nothing is
+uppercase.** Section labels are sentence case at 13px semibold, which is what
+macOS System Settings actually does; uppercase with wide tracking is a
+design-system habit rather than a system one, and eight of them down a popover
+reads as filing rather than as an interface.
 
 ## Colour
+
+Two accents, split by meaning rather than by taste. **Blue is what the viewer
+can act on** — send, focus, selection — which is the convention every system
+reader already knows. **Pink is the tutor's own voice**, and appears only while
+it is speaking or listening. One accent for you, one for it.
+
+The blue differs between themes, as Apple's does: `#0086D6` in light, because
+the brand blue on a near-white page is 2.63:1 and a primary action whose edge
+you cannot find is not primary, and `#00A5FF` in dark, where it reads at 7.6:1.
+The glyph on it is the brand ink rather than white in both.
 
 Three states, because that is what a theme actually is: the light palette on
 bare `:root`, `prefers-color-scheme: dark` for the OS preference, and

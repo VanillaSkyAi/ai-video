@@ -36,8 +36,16 @@ export const Mic = () => <Glyph>
   <path d="M5 11a7 7 0 0 0 14 0M12 18v4" />
 </Glyph>;
 export const Send = () => <Glyph><path d="M12 19V5M5 12l7-7 7 7" /></Glyph>;
-export const Stop = () => <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2" /></svg>;
-export const Play = () => <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="currentColor"><path d="M9 6.5v11l9-5.5z" /></svg>;
+/**
+ * Pause, not stop.
+ *
+ * A square says the lesson ends and starts again from the top; two bars say it
+ * waits where it is - which is what actually happens, since continue resumes
+ * the sentence from the word it was cut off at. The glyph was also the one
+ * control in the composer nobody could read at 18px.
+ */
+export const Stop = () => <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1.5" /><rect x="13.5" y="5" width="3.5" height="14" rx="1.5" /></svg>;
+export const Play = () => <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor"><path d="M8 5.5v13l11-6.5z" /></svg>;
 export const Replay = () => <Glyph><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></Glyph>;
 export const ChevronUp = () => <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" {...stroke}><path d="m6 15 6-6 6 6" /></svg>;
 export const Close = () => <Glyph><path d="M6 6l12 12M18 6 6 18" /></Glyph>;

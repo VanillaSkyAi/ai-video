@@ -13,8 +13,8 @@
   .doc { max-width: 44rem; margin: 0 auto; padding: 2.5rem 1.75rem 5rem; display: grid; gap: 2.75rem; }
   .doc h1 { margin: 0; font-size: var(--vs-text-title3); line-height: var(--vs-lead-title3); letter-spacing: var(--vs-track-title3); font-weight: 600; }
   .doc h2 {
-    margin: 0 0 0.9rem; font-size: var(--vs-text-caption2); line-height: var(--vs-lead-caption2);
-    letter-spacing: var(--vs-track-caption2); text-transform: uppercase; font-weight: 600; color: var(--vs-fg-muted);
+    margin: 0 0 0.9rem; font-size: var(--vs-text-footnote); line-height: var(--vs-lead-footnote);
+    letter-spacing: var(--vs-track-footnote); font-weight: 600; color: var(--vs-fg-muted);
   }
   .doc section { display: block; }
   .doc .note { margin: 0; font-size: var(--vs-text-subhead); line-height: var(--vs-lead-subhead); letter-spacing: var(--vs-track-subhead); color: var(--vs-fg-muted); }
@@ -37,7 +37,7 @@
   .type-row .n { font-size: var(--vs-text-caption); color: var(--vs-fg-muted); font-variant-numeric: tabular-nums; }
   .miniStage { border-radius: var(--vs-radius-lg); background: linear-gradient(175deg, #5b21b6 0%, #2563eb 100%); aspect-ratio: 16/9; display: grid; place-items: center; padding: 1.5rem; }
   .miniStage p { margin: 0; max-width: 22ch; text-align: center; color: var(--vs-on-media); font-size: var(--vs-text-display); line-height: var(--vs-lead-display); letter-spacing: var(--vs-track-display); font-weight: 700; text-wrap: balance; }
-  .themeTag { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--vs-text-caption2); letter-spacing: var(--vs-track-caption2); text-transform: uppercase; font-weight: 600; color: var(--vs-fg-muted); }
+  .themeTag { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--vs-text-footnote); letter-spacing: var(--vs-track-footnote); font-weight: 600; color: var(--vs-fg-muted); text-transform: capitalize; }
 </style>
 </head>
 <body>
@@ -77,12 +77,12 @@
   </section>
 
   <section>
-    <h2>Composer — narrating, then idle</h2>
+    <h2>Composer — focused and narrating, then idle</h2>
     <div class="stack">
-      <form class="composer" onsubmit="return false">
+      <form class="composer" style="border-color: var(--vs-accent); box-shadow: 0 0 0 1px var(--vs-accent);" onsubmit="return false">
         <span class="waveform on" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>
         <textarea rows="1" placeholder="Narrating — type to interrupt…"></textarea>
-        <button type="button" class="ghost" aria-label="Stop"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2"/></svg></button>
+        <button type="button" class="ghost transport" aria-label="Pause"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1.5"/><rect x="13.5" y="5" width="3.5" height="14" rx="1.5"/></svg></button>
         <button type="button" class="ghost" aria-label="Voice"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg></button>
         <button type="submit" class="send" aria-label="Ask"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
       </form>
@@ -175,9 +175,8 @@
   document.getElementById("tag").textContent = theme;
 
   const STEPS = [
-    ["caption2", "11 / 1.18 / +0.09em / 600", "Section labels", "APPEARANCE", "text-transform:uppercase"],
     ["caption", "12 / 1.33 / 0 / 500", "History index, notes", "Applies to your next question.", ""],
-    ["footnote", "13 / 1.38 / −0.006em / 500", "Chips, session pill", "What makes ocean waves break?", ""],
+    ["footnote", "13 / 1.38 / −0.006em / 500", "Chips, pill, section labels", "What makes ocean waves break?", ""],
     ["subhead", "15 / 1.33 / −0.015em / 400", "Option descriptions", "Every beat filmed · billed per clip", ""],
     ["body", "17 / 1.47 / −0.022em / 400", "Subtitle, composer, sheet", "Earth's gravity slowed the Moon's rotation.", ""],
     ["headline", "17 / 1.29 / −0.025em / 600", "Titles, option labels", "Why does the Moon show one face?", "font-weight:600"],
@@ -197,8 +196,9 @@
     ["--vs-surface-raised", "Controls on the page"], ["--vs-surface-hover", "Hover"],
     ["--vs-surface-selected", "Selected"], ["--vs-surface-pop", "Floating panels"],
     ["--vs-border", "Hairline"], ["--vs-border-strong", "Focused edge"],
-    ["--vs-accent", "Send, waveform, focus"], ["--vs-accent-deep", "Pressed"],
-    ["--vs-accent-fg", "Type on accent"], ["--vs-danger", "Errors"],
+    ["--vs-accent", "Send, focus, selection"], ["--vs-accent-deep", "Pressed"],
+    ["--vs-accent-fg", "Glyph on accent"], ["--vs-voice", "The tutor speaking"],
+    ["--vs-danger", "Errors"],
   ];
   document.getElementById("swatches").innerHTML = TOKENS.map(([t, use]) =>
     `<div class="swatch"><i style="background:var(${t})"></i><div><b>${t}</b><span>${use}</span></div></div>`).join("");

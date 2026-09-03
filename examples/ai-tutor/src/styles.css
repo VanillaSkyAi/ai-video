@@ -280,11 +280,10 @@ body {
 .settings fieldset { margin: 0; padding: 0; border: 0; display: grid; gap: 0.45rem; }
 .settings legend {
   padding: 0 0 0.45rem;
-  font-size: var(--vs-text-caption2);
-  line-height: var(--vs-lead-caption2);
+  font-size: var(--vs-text-footnote);
+  line-height: var(--vs-lead-footnote);
+  letter-spacing: var(--vs-track-footnote);
   font-weight: 600;
-  letter-spacing: var(--vs-track-caption2);
-  text-transform: uppercase;
   color: var(--vs-fg-muted);
 }
 .settings label { display: flex; align-items: baseline; gap: 0.6rem; cursor: pointer; }
@@ -360,8 +359,8 @@ body {
    the textarea inside it - which is what makes a composer look like one
    control instead of three. */
 .composer:focus-within {
-  border-color: var(--vs-border-strong);
-  box-shadow: 0 0 0 3px var(--vs-accent-ring);
+  border-color: var(--vs-accent);
+  box-shadow: 0 0 0 1px var(--vs-accent);
 }
 .composer textarea:focus-visible { outline: none; }
 .composer textarea {
@@ -397,7 +396,10 @@ body {
 .ghost:hover:not(:disabled) { color: var(--vs-fg); }
 .ghost:active:not(:disabled) { transform: scale(0.95); }
 .ghost:disabled { opacity: 0.35; cursor: default; }
-.ghost.listening { color: var(--vs-accent); background: var(--vs-accent-ring); }
+/* The transport carries more weight than the mic beside it: it is the control
+   a viewer reaches for while the tutor is talking. */
+.ghost.transport { color: var(--vs-fg); }
+.ghost.listening { color: var(--vs-voice); }
 
 .send {
   display: grid;
@@ -420,7 +422,7 @@ body {
 
 /* The voice, where the way to interrupt it is. */
 .waveform { display: flex; align-items: center; gap: 3px; height: 1rem; flex: 0 0 auto; }
-.waveform span { width: 2px; height: 100%; border-radius: var(--vs-radius-pill); background: var(--vs-accent); transform: scaleY(0.2); opacity: 0.6; }
+.waveform span { width: 2px; height: 100%; border-radius: var(--vs-radius-pill); background: var(--vs-voice); transform: scaleY(0.2); opacity: 0.6; }
 .waveform.on span { opacity: 1; animation-name: wave; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
 @keyframes wave { 0%, 100% { transform: scaleY(0.25); } 50% { transform: scaleY(1); } }
 

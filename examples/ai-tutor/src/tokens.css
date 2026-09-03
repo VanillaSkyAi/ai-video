@@ -45,16 +45,23 @@
   --vs-border-strong: oklch(0.21 0.05 281 / 26%);
 
   /*
-   * The brand pink (#FF3A71), with the gradient's magenta end (#FF006F) as
-   * its pressed state. The glyph on it is the brand ink rather than white:
-   * white on this pink is 3.45:1, which clears the bar for a graphical
-   * control and nothing more, where the ink is 5.45:1 and reads as deliberate
-   * rather than as the default choice.
+   * Two accents, split by meaning rather than by taste. Blue is what the
+   * viewer can act on - send, focus, selection - which is the convention every
+   * system reader already knows. Pink is the tutor's own voice, and appears
+   * only while it is speaking or listening. One accent for you, one for it.
+   *
+   * The glyph on the blue is the brand ink rather than white: white on
+   * #00A5FF measures 2.68:1, which fails even the bar for a graphical control,
+   * where the ink is 7.00:1.
    */
-  --vs-accent: #FF3A71;
-  --vs-accent-deep: #FF006F;
+  /* A step below the brand blue, because the brand blue on a near-white page
+     is 2.63:1 and a primary action whose edge you cannot find is not primary.
+     The same move Apple makes: a darker blue in light, the bright one in dark. */
+  --vs-accent: #0086D6;
+  --vs-accent-deep: #0079C4;
   --vs-accent-fg: #10073C;
-  --vs-accent-ring: oklch(0.664 0.231 10.5 / 55%);
+  --vs-accent-ring: oklch(0.6 0.16 244 / 45%);
+  --vs-voice: #FF3A71;
   /* Held away from the accent's hue on purpose - an error that looks like the
      send button is not an error. */
   --vs-danger: oklch(0.5 0.19 32);
@@ -67,10 +74,6 @@
    * cramped. Body is 17px, not 16: the single change that most affects how
    * the subtitle line reads at arm's length.
    */
-  --vs-text-caption2: 0.6875rem;   /* 11 - section labels */
-  --vs-lead-caption2: 1.18;
-  --vs-track-caption2: 0.09em;
-
   --vs-text-caption: 0.75rem;      /* 12 - history index, notes */
   --vs-lead-caption: 1.33;
   --vs-track-caption: 0;
@@ -143,10 +146,12 @@
     --vs-border: oklch(1 0 0 / 14%);
     --vs-border-strong: oklch(1 0 0 / 24%);
 
-    --vs-accent: #FF3A71;
-    --vs-accent-deep: #FF006F;
+    /* The brand blue itself: on the dark ground it reads at 7.6:1. */
+    --vs-accent: #00A5FF;
+    --vs-accent-deep: #0086D6;
     --vs-accent-fg: #10073C;
-    --vs-accent-ring: oklch(0.664 0.231 10.5 / 60%);
+    --vs-accent-ring: oklch(0.696 0.172 244.2 / 50%);
+    --vs-voice: #FF3A71;
     --vs-danger: oklch(0.75 0.16 32);
 
     --vs-shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 60%);
@@ -165,10 +170,12 @@
   --vs-border: oklch(1 0 0 / 14%);
   --vs-border-strong: oklch(1 0 0 / 24%);
 
-  --vs-accent: #FF3A71;
-  --vs-accent-deep: #FF006F;
+  /* The brand blue itself: on the dark ground it reads at 7.6:1. */
+  --vs-accent: #00A5FF;
+  --vs-accent-deep: #0086D6;
   --vs-accent-fg: #10073C;
-  --vs-accent-ring: oklch(0.664 0.231 10.5 / 60%);
+  --vs-accent-ring: oklch(0.696 0.172 244.2 / 50%);
+  --vs-voice: #FF3A71;
   --vs-danger: oklch(0.75 0.16 32);
 
   --vs-shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 60%);

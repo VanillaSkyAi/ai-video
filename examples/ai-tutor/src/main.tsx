@@ -721,7 +721,7 @@ function App() {
               }
             }}
           />
-          {transport && <button type="button" className="ghost" aria-label={transport.label} onClick={transport.action}>{transport.icon}</button>}
+          {transport && <button type="button" className="ghost transport" aria-label={transport.label} onClick={transport.action}>{transport.icon}</button>}
           {/* Only where the browser can actually hear. A disabled mic is a
               control that fails silently every time it is pressed; a button
               that is not there explains itself. */}
