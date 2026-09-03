@@ -322,7 +322,7 @@ body {
   font-weight: 600;
   text-wrap: balance;
 }
-/* The third line is the promise rather than the request, so it is the one
+/* The second line is the difference rather than the category, so it is the one
    thing on the screen that is not white. */
 .welcome-title em { font-style: normal; color: oklch(0.8 0.11 268); }
 

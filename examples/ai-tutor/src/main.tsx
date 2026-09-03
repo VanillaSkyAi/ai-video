@@ -764,7 +764,11 @@ function App() {
             placeholder={listen.listening ? "Listening…"
               : listen.thinking ? "Working out what you said…"
               : status === "narrating" ? "Talking — type to jump in…"
-              : answers.length > 0 ? "Ask a follow-up…" : "Ask a science question…"}
+              // A placeholder's job is to prompt what to type, not to restate
+              // the product - the headline above it already says the answer
+              // comes back as video. And "science question" narrowed a tutor
+              // that answers anything to one subject it does not enforce.
+              : answers.length > 0 ? "Ask a follow-up…" : "Ask anything…"}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {

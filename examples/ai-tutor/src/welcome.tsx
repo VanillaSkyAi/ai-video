@@ -98,8 +98,7 @@ export function Welcome({ data, onAsk }: { data?: WelcomeData; onAsk: (question:
           ChatGPT or Perplexity knows what this is by the end of line one, and
           the accent line carries the only part that is new. */}
       <h1 className="welcome-title">
-        An AI chat that<br />
-        answers in<br />
+        An AI chat that answers in<br />
         <em>video, not text.</em>
       </h1>
 
