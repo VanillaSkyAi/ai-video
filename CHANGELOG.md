@@ -4,6 +4,14 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds `paused` to `VideoPlayer`: hold the playhead where it is, and release it
+  from the same frame. It completes `controls={false}`. Turning the player's own
+  controls off hands playback to the application, and until now there was no
+  lever to drive it with - a narrated answer could silence its voice but not
+  stop its picture, and the two came apart. Leaving the prop undefined keeps the
+  player's own behaviour untouched, and a video already at its end is not
+  resumed by it, since starting again is a replay rather than a continuation.
+
 - Adds `maxResolvedMedia` to `createVideoHandler`: how many scenes in one
   request may resolve media at all. Unbounded by default, which is right when
   media is searched for and wrong when it is generated - the planner decides the

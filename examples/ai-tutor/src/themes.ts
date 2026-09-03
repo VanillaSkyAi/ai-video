@@ -15,15 +15,19 @@ import type { VideoBrandInput } from "@vanillaskyai/video";
 const GROUND = {
   font: "Inter",
   scriptFont: "Caveat",
-  // Violet into blue, one step deeper than it looks like it wants to be:
-  // white over the lighter pair measured 3.73:1 and the renderer holds
-  // captions to 4.5:1. The warm-up used to wear the lighter version because
-  // decoration is never contrast-checked - and then the first scene cut to
-  // something else entirely.
-  background: { colors: ["#5b21b6", "#2563eb"] as [string, string] },
+  // The brand's indigo into blue. Deeper than it looks like it wants to be:
+  // the renderer holds captions to 4.5:1 against this ground, and the brand's
+  // own bright blue (#00A5FF) measures 2.68:1 under white - so the light end
+  // stays at a blue that clears the bar (5.17:1) and the bright one is spent
+  // on accents instead, where it sits on the dark ground rather than under
+  // white type.
+  background: { colors: ["#1C0277", "#2563eb"] as [string, string] },
   foreground: "#ffffff",
-  surface: "#4a1a95",
+  surface: "#1C0277",
   surfaceElevated: "#2f4fc4",
+  // Not the brand's #7065A5: muted text still has to be read, and that violet
+  // measures 3.66:1 on the dark end of this ground and worse on the light one.
+  // The brand violet earns its place as a surface, not as type.
   muted: "#d7d3f0",
 };
 
@@ -42,25 +46,25 @@ export const themes: Theme[] = [
   {
     id: "documentary",
     label: "Documentary",
-    brand: look("#e04f8a", "#ec9a2c"),
+    brand: look("#FF3A71", "#FFB100"),
     generatedLook: "Natural daylight, documentary realism, shallow depth of field, fine 35mm grain, muted natural palette. Photoreal, no illustration.",
   },
   {
     id: "illustrated",
     label: "Illustrated",
-    brand: look("#5b7cfa", "#d1495b"),
+    brand: look("#00A5FF", "#FF006F"),
     generatedLook: "Hand-drawn cel animation, rough ink contours, visible paper grain, flat cobalt, crimson and ochre against a deep ground. No photorealism.",
   },
   {
     id: "blueprint",
     label: "Blueprint",
-    brand: look("#8ecae6", "#ffb703"),
+    brand: look("#00A5FF", "#FFB100"),
     generatedLook: "Technical blueprint drawing, precise white linework on deep cyanotype blue, faint measurement grid, one warm accent. Schematic, no photorealism.",
   },
 ];
 
 /**
- * The stage's ground, in CSS, so the warm-up can wear it too.
+ * The stage's ground, in CSS, so the wait can wear it too.
  *
  * The wait used to be a fixed purple that belonged to no theme, and the lesson
  * then cut to a different colour entirely - the one moment the page most needs
@@ -76,10 +80,6 @@ export function themeBackground(theme: Theme): string {
     return `linear-gradient(175deg, ${background.colors[0]} 0%, ${background.colors[1]} 100%)`;
   }
   return background?.color ?? "#4c2ba8";
-}
-
-export function themeForeground(theme: Theme): string {
-  return theme.brand.colors?.foreground ?? "#ffffff";
 }
 
 export const defaultTheme = themes[0];

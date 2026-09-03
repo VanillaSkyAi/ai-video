@@ -7,7 +7,7 @@ import { createVideoHandler } from "@vanillaskyai/video/server";
 // tells the planner when each one fits.
 import { templates } from "./vanillasky/server";
 import { findStockFootage } from "./stock";
-import type { VideoScene } from "@vanillaskyai/video";
+import type { VideoOrientation, VideoScene } from "@vanillaskyai/video";
 
 /**
  * The two routes a tutor needs.
@@ -60,6 +60,47 @@ export async function speakLine(request: Request): Promise<Response> {
 }
 
 /**
+ * Turn a recording into text.
+ *
+ * The browser has its own speech recognition and it is free, so it stays the
+ * first choice. What it is not is reliable: Chrome's implementation ships the
+ * audio to a Google service, and when that is unreachable - a blocked host, a
+ * captive network, a corporate proxy - it fails with `network` and there is
+ * nothing the page can do about it. This is the way back, and it depends on
+ * nothing but the key the tutor already has.
+ *
+ * It costs a fraction of a cent a go, which is why it is the fallback rather
+ * than the default.
+ */
+const TRANSCRIBE_MODEL = process.env.FAL_TRANSCRIBE_MODEL ?? "fal-ai/whisper";
+const MAX_CLIP_BYTES = 8 * 1024 * 1024;
+
+export async function transcribeSpeech(request: Request): Promise<Response> {
+  if (!process.env.FAL_KEY) return Response.json({ error: "Set FAL_KEY to transcribe speech." }, { status: 404 });
+  const audio = await request.arrayBuffer();
+  if (audio.byteLength === 0) return Response.json({ error: "No audio." }, { status: 400 });
+  // A recording is user input, and an unbounded upload is an unbounded bill.
+  if (audio.byteLength > MAX_CLIP_BYTES) return Response.json({ error: "That recording is too long." }, { status: 413 });
+
+  fal.config({ credentials: process.env.FAL_KEY });
+  const started = Date.now();
+  try {
+    const type = request.headers.get("content-type") || "audio/webm";
+    const url = await fal.storage.upload(new Blob([audio], { type }));
+    const result = await fal.subscribe(TRANSCRIBE_MODEL, {
+      input: { audio_url: url, task: "transcribe" },
+      abortSignal: AbortSignal.timeout(60_000),
+    });
+    const text = String((result?.data as { text?: unknown })?.text ?? "").trim();
+    console.log(`[transcribe] ${Date.now() - started}ms  ${text.slice(0, 60)}`);
+    return Response.json({ text });
+  } catch (cause) {
+    console.error("[transcribe] failed:", cause instanceof Error ? cause.message : cause);
+    return Response.json({ error: "The recording could not be transcribed." }, { status: 502 });
+  }
+}
+
+/**
  * Film one beat.
  *
  * The planner asks for a subject; every constraint is the host's. A model that
@@ -81,7 +122,7 @@ const SHOT_DEADLINE_MS = 180_000;
  * writes its own text into the frame competes with the caption over it, and one
  * that adds a voice talks over the narrator.
  */
-async function filmScene(subject: string, generatedLook: string | undefined, signal: AbortSignal) {
+async function filmScene(subject: string, generatedLook: string | undefined, orientation: VideoOrientation, signal: AbortSignal) {
   fal.config({ credentials: process.env.FAL_KEY });
   const started = Date.now();
   console.log(`[ai-tutor] filming: ${subject.slice(0, 70)}`);
@@ -89,7 +130,7 @@ async function filmScene(subject: string, generatedLook: string | undefined, sig
     const result = await fal.subscribe(VIDEO_MODEL, {
       input: {
         prompt: [
-          `Locked-off shot, 16:9. ${subject}.`,
+          `Locked-off shot, ${orientation === "portrait" ? "9:16 vertical" : "16:9"}. ${subject}.`,
           "One slow continuous camera move. Physically plausible motion.",
           "No on-screen text, captions, subtitles, watermarks or logos.",
           "Diegetic sound only. No music, no voiceover.",
@@ -97,6 +138,10 @@ async function filmScene(subject: string, generatedLook: string | undefined, sig
         ].filter(Boolean).join("\n\n"),
         duration: 5,
         resolution: "480P",
+        // The shape is decided by the device that asked, and it is baked into
+        // the file - which is why a filmed lesson can never be re-laid-out the
+        // way a templated one can.
+        aspect_ratio: orientation === "portrait" ? "9:16" : "16:9",
       },
       abortSignal: AbortSignal.any([signal, AbortSignal.timeout(SHOT_DEADLINE_MS)]),
     });
@@ -208,14 +253,18 @@ function lessonHandler(filmedScenes: number) {
     // templates-only lesson was every scene on a brand gradient, which is the
     // least a template can look like; a stock search costs a few hundred
     // milliseconds and nothing per request, so it never lands on the wait.
+    // Both of these bake an aspect ratio into a file, so both are told which
+    // one the lesson was composed in. It reaches them on the request's own
+    // input rather than as a handler option, because a handler is shared by
+    // every request and this differs per device.
     resolveMedia: filmedScenes > 0
       ? (process.env.FAL_KEY
-          ? async (query, { generatedLook, signal }) => ({
-              url: await filmScene(query, generatedLook, signal),
+          ? async (query, { generatedLook, input, signal }) => ({
+              url: await filmScene(query, generatedLook, input.orientation ?? "landscape", signal),
               type: "video" as const,
             })
           : undefined)
-      : async (query, { signal }) => findStockFootage(query, signal),
+      : async (query, { input, signal }) => findStockFootage(query, input.orientation ?? "landscape", signal),
   });
   handlers.set(filmedScenes, handler);
   return handler;
@@ -341,6 +390,44 @@ export async function hookLine(request: Request): Promise<Response> {
   const line = text.trim().replace(/^["']|["']$/g, "");
   console.log(`[hook] ${Date.now() - started}ms  ${line}`);
   return Response.json({ line });
+}
+
+/**
+ * The footage the welcome screen is built on.
+ *
+ * The opening screen is the one moment the tutor has to say what it does
+ * before it has done anything, and a gradient does not say it. Real footage
+ * behind the invitation, and a real still on each suggested question, shows
+ * the answer rather than describing it - and it costs nothing, because Pexels
+ * is a search rather than a generation.
+ *
+ * Cached for the life of the process: the same four questions are suggested to
+ * everyone, so searching for them once is enough.
+ */
+const WELCOME_SUBJECTS = [
+  { question: "Why does the Moon always show one face?", keyword: "full moon night sky" },
+  { question: "How does an atom hold itself together?", keyword: "abstract particles energy" },
+  { question: "What makes ocean waves break?", keyword: "ocean wave breaking" },
+  { question: "Why did dinosaurs disappear?", keyword: "dinosaur skeleton museum" },
+];
+const HERO_KEYWORD = process.env.TUTOR_WELCOME_KEYWORD ?? "underwater ocean sunlight";
+let welcome: Promise<Response> | undefined;
+
+export function welcomeScreen(): Promise<Response> {
+  welcome ??= (async () => {
+    const signal = AbortSignal.timeout(10_000);
+    const [hero, ...cards] = await Promise.all([
+      findStockFootage(HERO_KEYWORD, "landscape", signal).catch(() => null),
+      ...WELCOME_SUBJECTS.map((subject) =>
+        findStockFootage(subject.keyword, "landscape", signal).catch(() => null)),
+    ]);
+    return Response.json({
+      hero,
+      cards: WELCOME_SUBJECTS.map((subject, index) => ({ ...subject, media: cards[index] ?? null })),
+    });
+  })().catch(() => Response.json({ hero: null, cards: WELCOME_SUBJECTS.map((s) => ({ ...s, media: null })) }));
+  // A Response body can only be read once, so each caller gets its own copy.
+  return welcome.then((response) => response.clone());
 }
 
 const FOLLOWUPS_SYSTEM = [

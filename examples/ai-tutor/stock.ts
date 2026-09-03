@@ -12,6 +12,8 @@
  * asks for a subject, and what a search returns is not something to trust into
  * a page unexamined.
  */
+import type { VideoOrientation } from "@vanillaskyai/video";
+
 const VIDEO_SEARCH = "https://api.pexels.com/videos/search";
 const PHOTO_SEARCH = "https://api.pexels.com/v1/search";
 const MAX_KEYWORD_LENGTH = 80;
@@ -51,7 +53,7 @@ function trustedUrl(value: unknown, host: string): string {
   return url.toString();
 }
 
-function pickVideoFile(files: VideoFile[]): VideoFile & { link: string } | null {
+function pickVideoFile(files: VideoFile[], orientation: VideoOrientation): VideoFile & { link: string } | null {
   const usable = files
     .filter((file): file is VideoFile & { link: string } => typeof file.link === "string")
     // One file on an unexpected host is one file to skip, not a reason to give
@@ -64,9 +66,13 @@ function pickVideoFile(files: VideoFile[]): VideoFile & { link: string } | null 
       }
     })
     .filter((file) => file.width && file.height);
-  // Landscape only: the tutor's stage is 16:9, and a portrait clip cropped to
-  // it loses whatever the search was actually for.
-  return usable.find((file) => (file.width ?? 0) >= (file.height ?? 0)) ?? usable[0] ?? null;
+  // Matched to the stage, because a clip cropped to the other shape loses
+  // whatever the search was actually for - a landscape river in a portrait
+  // frame is a column of water with both banks cut off.
+  const wanted = orientation === "portrait"
+    ? (file: VideoFile) => (file.height ?? 0) >= (file.width ?? 0)
+    : (file: VideoFile) => (file.width ?? 0) >= (file.height ?? 0);
+  return usable.find(wanted) ?? usable[0] ?? null;
 }
 
 async function search(url: string, apiKey: string, signal: AbortSignal): Promise<unknown> {
@@ -93,18 +99,18 @@ async function search(url: string, apiKey: string, signal: AbortSignal): Promise
  * Returns null rather than throwing when there is nothing to show: the scene
  * falls back to the brand gradient, which is what it looked like before.
  */
-export async function findStockFootage(subject: string, signal: AbortSignal): Promise<StockMedia | null> {
+export async function findStockFootage(subject: string, orientation: VideoOrientation, signal: AbortSignal): Promise<StockMedia | null> {
   const apiKey = process.env.PEXELS_API_KEY;
   const keyword = normalizeKeyword(subject);
   if (!apiKey || !keyword) return null;
 
-  const params = new URLSearchParams({ query: keyword, orientation: "landscape", per_page: "3", page: "1" });
+  const params = new URLSearchParams({ query: keyword, orientation, per_page: "3", page: "1" });
   const started = Date.now();
   try {
     const videos = await search(`${VIDEO_SEARCH}?${params}`, apiKey, signal) as
       { videos?: Array<{ image?: unknown; video_files?: VideoFile[] }> } | null;
     for (const video of videos?.videos ?? []) {
-      const file = pickVideoFile(video.video_files ?? []);
+      const file = pickVideoFile(video.video_files ?? [], orientation);
       if (!file) continue;
       console.log(`[ai-tutor] stock video in ${Date.now() - started}ms: ${keyword}`);
       return {
