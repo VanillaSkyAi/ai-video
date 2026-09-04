@@ -281,6 +281,41 @@ describe("createVideoChatHandler", () => {
     expect(plannerUserPrompt).toContain(firstShot.narration);
   });
 
+  it("bounds provider first-shot direction instead of dropping the full-video fast path", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      streamText: plannedResponse(),
+      generateText: async () => JSON.stringify({
+        spokenHook: "One patient robot is about to make Mars bloom.",
+        mediaKeyword: "robot garden Mars",
+        firstShot: {
+          text: "The first seed",
+          narration: "Its careful hands press one fragile seed into the red soil.",
+          mediaKeyword: "robot metal hand gently pressing one tiny green seed",
+          camera: "close-up",
+        },
+      }),
+      generateVideo: async () => ({ url: "https://media.example/generated.mp4", type: "video" }),
+    });
+
+    const opening = await handler(new Request("https://app.example/api/video-chat?action=opening", {
+      method: "POST",
+      body: JSON.stringify({ prompt: "Tell a story about a robot garden on Mars", mode: "full" }),
+    }));
+
+    expect(await opening.json()).toEqual({
+      line: "One patient robot is about to make Mars bloom.",
+      keyword: "robot garden Mars",
+      firstShot: {
+        text: "The first seed",
+        narration: "Its careful hands press one fragile seed into the red soil.",
+        mediaKeyword: "robot metal hand gently pressing one tiny green",
+      },
+    });
+  });
+
   it("does not start a paid first shot before the composed video input is validated", async () => {
     const createVideoChatHandler = await loadCreateVideoChatHandler();
     let generated = 0;

@@ -275,6 +275,18 @@ function cleanGeneratedText(value: string): string {
   return value.trim().replace(/^["']|["']$/g, "");
 }
 
+function readGeneratedFirstShot(value: unknown): VideoChatFirstShot | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const shot = value as Record<string, unknown>;
+  const bounded = (field: unknown, maximum: number) => typeof field === "string"
+    ? [...field.trim()].slice(0, maximum).join("").trim()
+    : "";
+  const text = bounded(shot.text, 120);
+  const narration = bounded(shot.narration, 300);
+  const mediaKeyword = bounded(shot.mediaKeyword, 80).match(/\S+/gu)?.slice(0, 8).join(" ") ?? "";
+  return text && narration && mediaKeyword ? { text, narration, mediaKeyword } : undefined;
+}
+
 function readOpeningSubject(text: string): OpeningSubject {
   const opening = text.indexOf("{");
   const closing = text.lastIndexOf("}");
@@ -293,7 +305,7 @@ function readOpeningSubject(text: string): OpeningSubject {
       const keyword = typeof parsed.mediaKeyword === "string"
         ? parsed.mediaKeyword.trim()
         : typeof parsed.keyword === "string" ? parsed.keyword.trim() : "";
-      const firstShot = sanitizeVideoChatFirstShot(parsed.firstShot);
+      const firstShot = readGeneratedFirstShot(parsed.firstShot);
       return {
         line: hook.slice(0, 300),
         keyword: keyword.slice(0, 80),

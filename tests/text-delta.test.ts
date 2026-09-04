@@ -128,4 +128,20 @@ describe("text-delta planner", () => {
       scene: { timing: { fixedDuration: 4 } },
     });
   });
+
+  it("repairs a provider that places scene narration beside the scene", async () => {
+    const planner = createTextDeltaVideoPlanner({
+      streamText: async function* () {
+        yield '{"type":"scene.add","scene":{"id":"one","templateId":"notification","variables":{},"timing":{"fixedDuration":4}},"narration":"This line should stay with the scene."}\n';
+        yield '{"type":"plan.complete"}\n';
+      },
+    });
+
+    const parts = [];
+    for await (const part of planner(context)) parts.push(part);
+    expect(parts[0]).toMatchObject({
+      type: "scene.add",
+      scene: { narration: "This line should stay with the scene." },
+    });
+  });
 });
