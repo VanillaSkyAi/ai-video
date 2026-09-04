@@ -42,7 +42,7 @@ the optional template compiler.
 3. **`sanitizeVideoChatFirstShot`** — internal helper left behind when browser-
    supplied first-shot data was removed. Keep the small internal type where it
    is used and remove the unused sanitizer.
-4. **Merged local worktrees** — the workspace currently has 17 clean historical
+4. **Merged local worktrees** — the workspace currently has 17 clean completed
    worktrees in addition to the active one. They are not repository content;
    prune them separately after confirming no process still uses them.
 
@@ -67,8 +67,8 @@ the optional template compiler.
    recorded video-chat journey covering explanation, creative response,
    follow-up, templates, and full-video mode, then remove the old fixtures.
 
-Historical changelog entries remain historical and should not be rewritten when
-their old example code is deleted.
+Older changelog entries remain part of the release record and should not be
+rewritten when their old example code is deleted.
 
 ## Public API decision required
 
