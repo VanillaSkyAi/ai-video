@@ -24,6 +24,8 @@ export interface VanillaSkyCliEnvironment {
   write?: (line: string) => void;
   /** Test/host override for the packaged canonical starter. */
   starterRoot?: string;
+  /** Test/host override for the package spec supplied by npx. */
+  sdkSpec?: string;
   /** Test/host override for the package-manager operation performed by init. */
   installDependencies?: (cwd: string) => void | Promise<void>;
 }
@@ -116,6 +118,7 @@ export function runVanillaSkyCli(
         const result = await initVideoChatApp({
           cwd,
           starterRoot: environment.starterRoot,
+          sdkSpec: environment.sdkSpec ?? process.env.npm_config_package,
           installDependencies: environment.installDependencies,
         });
         if (!result.initialized) {

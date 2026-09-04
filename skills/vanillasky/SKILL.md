@@ -12,25 +12,18 @@ the complete experience works.
 
 ## Set up
 
-1. Work in an empty npm project, or create one before continuing. Install only
-   the SDK first:
+1. Work in an empty folder and generate the canonical application with the
+   scoped package command:
 
    ```bash
-   npm install @vanillaskyai/video
-   ```
-
-2. Generate the canonical application and install its app-owned provider
-   packages:
-
-   ```bash
-   npx vanillasky init
+   npx @vanillaskyai/video init
    ```
 
    If init reports a file, script, or package-type conflict, preserve the
    existing application and use a new empty npm project. Do not recreate the
    starter by copying SDK internals or the template source tree.
 
-3. Check setup through the safe, read-only interface:
+2. Check setup through the safe, read-only interface:
 
    ```bash
    npx vanillasky doctor
@@ -40,12 +33,12 @@ the complete experience works.
    required for answers; optional keys progressively enable generated speech,
    generated video, transcription, and stock media without client changes.
 
-4. If doctor reports a missing key, tell the developer which key name to add to
+3. If doctor reports a missing key, tell the developer which key name to add to
    the ignored `.env.local` themselves. Never read or print a secret value, and
    never ask the developer to paste one into chat. Do not open `.env.local`;
    rerun doctor to learn only whether each capability is ready.
 
-5. Start the application and keep it running:
+4. Start the application and keep it running:
 
    ```bash
    npm run dev

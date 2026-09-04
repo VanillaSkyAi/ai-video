@@ -18,6 +18,7 @@ const starterRoot = join(process.cwd(), "starters", "video-chat");
 
 afterEach(() => {
   for (const fixture of fixtures.splice(0)) rmSync(fixture, { recursive: true, force: true });
+  vi.unstubAllEnvs();
 });
 
 function project(): string {
@@ -28,6 +29,12 @@ function project(): string {
     private: true,
     dependencies: { "@vanillaskyai/video": "^0.6.0" },
   }, null, 2));
+  return cwd;
+}
+
+function blankProject(): string {
+  const cwd = mkdtempSync(join(tmpdir(), "vanillasky-init-blank-"));
+  fixtures.push(cwd);
   return cwd;
 }
 
@@ -47,6 +54,18 @@ async function run(
 }
 
 describe("vanillasky init", () => {
+  it("preserves the exact tarball when npx initializes a blank folder", async () => {
+    const cwd = blankProject();
+    vi.stubEnv("npm_config_package", "/private/tmp/vanillaskyai-video-candidate.tgz");
+
+    const result = await run(cwd, ["init"]);
+
+    expect(result.code, result.output).toBe(0);
+    const manifest = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+    expect(manifest.dependencies["@vanillaskyai/video"])
+      .toBe("file:/private/tmp/vanillaskyai-video-candidate.tgz");
+  });
+
   it("creates a runnable thin video-chat app and installs app-owned providers", async () => {
     const cwd = project();
 

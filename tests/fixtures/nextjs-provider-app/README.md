@@ -2,7 +2,8 @@
 
 This internal fixture proves that `createVideoChatHandler` and `VideoChat` work
 with supported AI SDK providers in a production Next.js build. The public setup
-path is `npx vanillasky init`; this directory is intentionally not an example.
+path is `npx @vanillaskyai/video init`; this directory is intentionally not an
+example.
 
 <!-- verify:start -->
 ```bash

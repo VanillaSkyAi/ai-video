@@ -14,7 +14,7 @@ const rootPackage = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8
 };
 
 describe("documented examples", () => {
-  it("keeps first install provider-neutral and public guides free of stale release or model defaults", () => {
+  it("keeps first command provider-neutral and public guides free of stale release or model defaults", () => {
     const publicFiles = [
       "README.md",
       "docs/getting-started.md",
@@ -26,7 +26,7 @@ describe("documented examples", () => {
     ].map((path) => [path, readFileSync(resolve(root, path), "utf8")] as const);
     const readme = publicFiles[0][1];
 
-    expect(readme).toContain("npm install @vanillaskyai/video");
+    expect(readme).toContain("npx @vanillaskyai/video init");
     expect(readme).not.toMatch(/shields\.io|!\[[^\]]*version[^\]]*\]/i);
     expect(readme).not.toMatch(/npm install @vanillaskyai\/video[^\n]*(?:\bai\b|@ai-sdk)/);
     for (const [path, contents] of publicFiles) {
@@ -47,7 +47,7 @@ describe("documented examples", () => {
     const guide = readFileSync(guidePath, "utf8");
     const evaluation = readFileSync(evaluationPath, "utf8");
     expect(guide).toContain("## Set up the canonical chat");
-    expect(guide).toContain("npx vanillasky init");
+    expect(guide).toContain("npx @vanillaskyai/video init");
     expect(guide).toContain("npx vanillasky doctor");
     expect(guide).toContain("npm run dev");
     expect(guide).toContain("Never read or print a secret value");
@@ -64,8 +64,8 @@ describe("documented examples", () => {
     const paths = ["README.md", "docs/getting-started.md", "docs/agent-integration.md"];
     for (const path of paths) {
       const guide = readFileSync(resolve(root, path), "utf8");
-      expect(guide, path).toContain("npm install @vanillaskyai/video");
-      expect(guide, path).toContain("npx vanillasky init");
+      expect(guide, path).toContain("npx @vanillaskyai/video init");
+      expect(guide, path).not.toContain("npx vanillasky init");
       expect(guide, path).toContain("npx vanillasky doctor");
       expect(guide, path).toContain("npm run dev");
       expect(guide, path).toMatch(/templates.*browser voice/is);
@@ -76,7 +76,7 @@ describe("documented examples", () => {
     expect(gettingStarted).toContain("<VideoChat />");
     expect(gettingStarted).not.toMatch(/createVideoHandler|useVideo\(|<VideoPlayer/);
     const providerGuide = readFileSync(resolve(root, "docs/provider-integration.md"), "utf8");
-    expect(providerGuide.indexOf("npx vanillasky init")).toBeLessThan(providerGuide.indexOf("createVideoChatHandler"));
+    expect(providerGuide.indexOf("npx @vanillaskyai/video init")).toBeLessThan(providerGuide.indexOf("createVideoChatHandler"));
 
     for (const path of ["README.md", "docs/getting-started.md", "docs/provider-integration.md"]) {
       const guide = readFileSync(resolve(root, path), "utf8");
@@ -195,7 +195,8 @@ describe("documented examples", () => {
     const onboarding = readFileSync(resolve(root, "scripts/verify-onboarding.mjs"), "utf8");
     expect(onboarding).toContain('"pack", "--silent", "--json"');
     expect(onboarding).toContain("installSpec = candidateArtifact.path");
-    expect(onboarding).toContain('runCli(["init"])');
+    expect(onboarding).toContain('run("npx", ["--yes", "--package", installSpec, "vanillasky", "init"], app)');
+    expect(onboarding).not.toContain('runCli(["init"])');
     expect(onboarding).toContain('responds in video, not text');
   });
 });

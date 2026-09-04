@@ -9,12 +9,12 @@ describe("human and agent onboarding", () => {
   it("offers one obvious package command and one optional agent command", () => {
     const readme = read("README.md");
     const product = readme.indexOf("VanillaSky is the open-source voice-and-video chat layer");
-    const install = readme.indexOf("npm install @vanillaskyai/video");
+    const setup = readme.indexOf("npx @vanillaskyai/video init");
     const skill = readme.indexOf("npx skills add VanillaSkyAi/video@vanillasky");
 
     expect(product).toBeGreaterThanOrEqual(0);
-    expect(install).toBeGreaterThan(product);
-    expect(skill).toBeGreaterThan(install);
+    expect(setup).toBeGreaterThan(product);
+    expect(skill).toBeGreaterThan(setup);
     expect(readme).not.toMatch(/npm install @vanillaskyai\/video[^\n]*(?:\bai\b|@ai-sdk)/);
     expect(readme).toContain("Use $vanillasky to set up and verify a general-purpose video chat in this project.");
     expect(readme.split("\n").length).toBeLessThan(200);
@@ -30,9 +30,8 @@ describe("human and agent onboarding", () => {
     expect(metadata).toContain("name: vanillasky");
     expect(metadata).toContain("@vanillaskyai/video");
     expect(metadata).not.toMatch(/POC|101|cold-start|evaluation|HyperFrames|Remotion/i);
-    expect(source).toContain("npm install @vanillaskyai/video");
-    expect(source).not.toMatch(/npm install @vanillaskyai\/video[^\n]*(?:\bai\b|@ai-sdk)/);
-    expect(source).toContain("npx vanillasky init");
+    expect(source).toContain("npx @vanillaskyai/video init");
+    expect(source).not.toContain("npx vanillasky init");
     expect(source).toContain("npx vanillasky doctor");
     expect(source).toContain("npm run dev");
     expect(source).toContain("templates + browser voice");
@@ -61,7 +60,7 @@ describe("human and agent onboarding", () => {
     const maintainerGuide = read("docs/maintainers/cold-start-evaluation.md");
     const agents = read("AGENTS.md");
 
-    expect(publicGuide).toContain("npx vanillasky init");
+    expect(publicGuide).toContain("npx @vanillaskyai/video init");
     expect(publicGuide).toContain("npx vanillasky doctor");
     expect(publicGuide).toContain("npm run dev");
     expect(publicGuide).toContain("VideoChat");

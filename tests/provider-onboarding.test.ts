@@ -63,7 +63,7 @@ describe("canonical provider onboarding", () => {
     expect(environment).toContain("OPENAI_API_KEY=replace-me");
     expect(environment).toContain("ANTHROPIC_API_KEY=");
     expect(readme).toContain("Internal Next.js video-chat fixture");
-    expect(readme).toContain("npx vanillasky init");
+    expect(readme).toContain("npx @vanillaskyai/video init");
     expect(readme).toContain("Replace `authorize`");
     expect(readme).not.toMatch(/public quickstart|one-shot/i);
   });

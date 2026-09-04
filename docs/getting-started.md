@@ -8,14 +8,14 @@ speech, stock, transcription, and generated video when their server keys exist.
 
 ## Create the app
 
-Start in an empty npm project:
+Start in an empty folder:
 
 ```bash
-npm install @vanillaskyai/video
-npx vanillasky init
+npx @vanillaskyai/video init
 ```
 
-Init creates a small application shell and installs its provider dependencies.
+Init installs the exact SDK version that ran it, creates a small application
+shell, and installs its provider dependencies.
 It does not copy VanillaSky's template tree. The important generated files are:
 
 | File | Your application owns |

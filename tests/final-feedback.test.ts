@@ -23,7 +23,7 @@ describe("final candidate feedback regressions", () => {
 
   it("links one generated chat path without embedding a release version", () => {
     for (const path of ["README.md", "docs/getting-started.md", "docs/provider-integration.md"]) {
-      expect(read(path), path).toContain("npx vanillasky init");
+      expect(read(path), path).toContain("npx @vanillaskyai/video init");
       expect(read(path), path).not.toMatch(/\/tree\/v\d/);
       expect(read(path), path).not.toMatch(/examples\/(?:react-vite|nextjs-quickstart|server-integrations)/);
     }

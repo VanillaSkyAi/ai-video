@@ -6,8 +6,7 @@ Start from the generated chat so provider work stays confined to the
 application-owned server:
 
 ```bash
-npm install @vanillaskyai/video
-npx vanillasky init
+npx @vanillaskyai/video init
 npx vanillasky doctor
 npm run dev
 ```

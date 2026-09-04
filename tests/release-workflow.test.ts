@@ -152,7 +152,7 @@ describe("release workflow", () => {
 
     for (const path of publicGuides) {
       const guide = readFileSync(path, "utf8");
-      expect(guide, path).toContain("npm install @vanillaskyai/video");
+      expect(guide, path).toContain("npx @vanillaskyai/video init");
       expect(guide, path).not.toContain(`@vanillaskyai/video@${manifest.version}`);
     }
     expect(releaseBuild).not.toContain("must pin the install command");
@@ -340,10 +340,10 @@ describe("release workflow", () => {
   it("compiles the source-owned template tree in the clean-room consumer", () => {
     const verifier = readFileSync("scripts/verify-onboarding.mjs", "utf8");
 
-    expect(verifier).toContain('run("npm", ["install", "--no-audit", "--no-fund", installSpec], app);');
+    expect(verifier).toContain('run("npx", ["--yes", "--package", installSpec, "vanillasky", "init"], app);');
     expect(verifier).not.toContain('writeFileSync(join(app, "package.json")');
     expect(verifier).toContain('run("npm", ["install", "--no-audit", "--no-fund", "--save-dev", "tsx@4.23.12"], app);');
-    expect(verifier.indexOf('const init = runCli(["init"]);'))
+    expect(verifier.indexOf('run("npx", ["--yes", "--package", installSpec, "vanillasky", "init"], app);'))
       .toBeLessThan(verifier.indexOf('"--save-dev", "tsx@4.23.12"'));
     expect(verifier).toContain('join(app, "src", "template-ownership.ts")');
     expect(verifier).toContain('export { templates as browserTemplates } from "../vanillasky/index";');
@@ -355,7 +355,7 @@ describe("release workflow", () => {
   it("exercises the complete packed CLI ownership journey without weakening the scaffold", () => {
     const verifier = readFileSync("scripts/verify-onboarding.mjs", "utf8");
 
-    expect(verifier).toContain('const init = runCli(["init"]);');
+    expect(verifier).toContain('run("npx", ["--yes", "--package", installSpec, "vanillasky", "init"], app);');
     expect(verifier).toContain('const missingDoctor = runCli(["doctor"], { expectFailure: true });');
     expect(verifier).toContain('const readyDoctor = runCli(["doctor"]);');
     expect(verifier).toContain("Packed init exposed the server key in the browser bundle");
