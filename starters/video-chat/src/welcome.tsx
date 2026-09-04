@@ -24,7 +24,7 @@ export function useWelcome(active: boolean): WelcomeData | undefined {
   useEffect(() => {
     if (!active || data) return;
     let live = true;
-    void fetch("/api/welcome", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })
+    void fetch("/api/video-chat?action=welcome")
       .then((response) => (response.ok ? response.json() : undefined))
       .then((payload) => { if (live && payload) setData(payload as WelcomeData); })
       // No footage is a plain gradient, not a broken screen.

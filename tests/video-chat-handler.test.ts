@@ -1,0 +1,309 @@
+import { describe, expect, it } from "vitest";
+import { decodeVideoSse } from "../src/protocol/sse";
+
+type CreateVideoChatHandler = (options: Record<string, unknown>) =>
+  (request: Request) => Promise<Response>;
+
+async function loadCreateVideoChatHandler(): Promise<CreateVideoChatHandler> {
+  const server = await import("../src/server") as unknown as {
+    createVideoChatHandler?: CreateVideoChatHandler;
+  };
+  expect(server.createVideoChatHandler).toBeTypeOf("function");
+  return server.createVideoChatHandler!;
+}
+
+function plannedResponse() {
+  return async function* () {
+    yield '{"type":"scene.add","scene":{"id":"body","templateId":"notification","variables":{"appName":"VanillaSky","message":"A useful answer"},"timing":{"fixedDuration":4}}}\n';
+    yield '{"type":"scene.add","placement":"closer","scene":{"id":"ending","templateId":"media","variables":{"texts":"A memorable ending","mediaType":"gradient"},"timing":{"fixedDuration":4}}}\n';
+    yield '{"type":"plan.complete"}\n';
+  };
+}
+
+describe("createVideoChatHandler", () => {
+  it("requires an explicit authorization policy", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    expect(() => createVideoChatHandler({
+      heartbeatMs: false,
+      streamText: plannedResponse(),
+      generateText: async () => "unused",
+    })).toThrow('createVideoChatHandler requires authorize or authorize: "none"');
+  });
+
+  it("exposes one provider-neutral endpoint with capability fallbacks", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      streamText: plannedResponse(),
+      generateText: async () => "unused",
+    });
+
+    const response = await handler(new Request("https://app.example/api/video-chat?action=capabilities"));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      templates: true,
+      generatedSpeech: false,
+      generatedVideo: false,
+      stockMedia: false,
+      transcription: false,
+      modes: ["templates"],
+    });
+  });
+
+  it("turns a prompt into the existing video stream with SDK-owned general guidance", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    let systemPrompt = "";
+    let userPrompt = "";
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      streamText: (context: { systemPrompt: string; userPrompt: string }) => {
+        systemPrompt = context.systemPrompt;
+        userPrompt = context.userPrompt;
+        return plannedResponse()();
+      },
+      generateText: async () => "unused",
+    });
+    const response = await handler(new Request("https://app.example/api/video-chat?action=response", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Invent a playful bedtime story about a moonlit bakery",
+        mode: "templates",
+        orientation: "landscape",
+        conversation: [{ prompt: "Make it whimsical", response: "We chose a tiny fox hero." }],
+      }),
+    }));
+    const events = [];
+    for await (const event of decodeVideoSse(response.body!)) events.push(event);
+
+    expect(response.status).toBe(200);
+    expect(events.at(-1)?.type).toBe("response.complete");
+    expect(systemPrompt).toContain("A story should feel like a story");
+    expect(systemPrompt).toContain("creative request");
+    expect(userPrompt).toContain("Invent a playful bedtime story");
+    expect(userPrompt).toContain("Make it whimsical");
+    expect(userPrompt).toContain("tiny fox hero");
+  });
+
+  it("keeps generated-video spend limits on the server", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    let generated = 0;
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      streamText: async function* () {
+        yield '{"type":"scene.add","scene":{"id":"film-one","templateId":"media","variables":{"texts":"First","mediaType":"video","mediaKeyword":"fox baking bread"},"timing":{"fixedDuration":4}}}\n';
+        yield '{"type":"scene.add","placement":"closer","scene":{"id":"film-two","templateId":"media","variables":{"texts":"Second","mediaType":"video","mediaKeyword":"moon over bakery"},"timing":{"fixedDuration":4}}}\n';
+        yield '{"type":"plan.complete"}\n';
+      },
+      generateText: async () => "unused",
+      generateVideo: async () => {
+        generated += 1;
+        return { url: "https://media.example/generated.mp4", type: "video" };
+      },
+    });
+    const response = await handler(new Request("https://app.example/api/video-chat?action=response", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Tell a story",
+        mode: "some",
+        orientation: "portrait",
+        maxGeneratedVideos: 99,
+      }),
+    }));
+
+    expect(response.status).toBe(400);
+    expect(generated).toBe(0);
+
+    const allowed = await handler(new Request("https://app.example/api/video-chat?action=response", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: "Tell a story", mode: "some", orientation: "portrait" }),
+    }));
+    await allowed.text();
+    expect(allowed.status).toBe(200);
+    expect(generated).toBe(1);
+  });
+
+  it("runs optional providers through bounded neutral adapters", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    const tasks: string[] = [];
+    const mediaPurposes: string[] = [];
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      streamText: plannedResponse(),
+      generateText: async ({ task }: { task: string }) => {
+        tasks.push(task);
+        return task === "suggestions"
+          ? '{"suggestions":[{"prompt":"Continue the story","keyword":"moon bakery"}]}'
+          : "A clean line";
+      },
+      generateSpeech: async () => ({ audio: new Uint8Array([1, 2, 3]), mediaType: "audio/test" }),
+      transcribe: async ({ audio }: { audio: Uint8Array }) => `heard ${audio.byteLength} bytes`,
+      searchMedia: async (_query: string, { purpose }: { purpose: string }) => {
+        mediaPurposes.push(purpose);
+        return {
+          url: "https://media.example/stock.mp4",
+          type: "video",
+          providerSecret: "must stay on the server",
+        };
+      },
+      generateVideo: async () => ({ url: "https://media.example/generated.mp4", type: "video" }),
+    });
+
+    const capabilities = await handler(new Request("https://app.example/api/video-chat?action=capabilities"));
+    expect(await capabilities.json()).toMatchObject({
+      generatedSpeech: true,
+      generatedVideo: true,
+      stockMedia: true,
+      transcription: true,
+      modes: ["templates", "some", "full"],
+    });
+
+    const opening = await handler(new Request("https://app.example/api/video-chat?action=opening", {
+      method: "POST",
+      body: JSON.stringify({ prompt: "Tell me something" }),
+    }));
+    expect(await opening.json()).toEqual({ line: "A clean line" });
+
+    const suggestions = await handler(new Request("https://app.example/api/video-chat?action=suggestions", {
+      method: "POST",
+      body: JSON.stringify({ prompt: "Tell me something", lines: ["One line"] }),
+    }));
+    expect(await suggestions.json()).toEqual({
+      suggestions: [{
+        prompt: "Continue the story",
+        media: { url: "https://media.example/stock.mp4", type: "video" },
+      }],
+    });
+
+    const speech = await handler(new Request("https://app.example/api/video-chat?action=speech", {
+      method: "POST",
+      body: JSON.stringify({ text: "Hello" }),
+    }));
+    expect(speech.headers.get("content-type")).toBe("audio/test");
+    expect([...new Uint8Array(await speech.arrayBuffer())]).toEqual([1, 2, 3]);
+
+    const transcription = await handler(new Request("https://app.example/api/video-chat?action=transcription", {
+      method: "POST",
+      headers: { "content-type": "audio/webm" },
+      body: new Uint8Array([4, 5]),
+    }));
+    expect(await transcription.json()).toEqual({ text: "heard 2 bytes" });
+
+    const welcome = await handler(new Request("https://app.example/api/video-chat?action=welcome"));
+    const welcomeBody = await welcome.json() as { hero: unknown; cards: unknown[] };
+    expect(welcomeBody.cards).toHaveLength(4);
+    expect(JSON.stringify(welcomeBody)).not.toContain("providerSecret");
+    expect(tasks).toEqual(["opening", "suggestions"]);
+    expect(mediaPurposes).toEqual(["suggestion", "welcome", "welcome", "welcome", "welcome", "welcome"]);
+  });
+
+  it("cancels welcome media work with the request", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    let providerSignal: AbortSignal | undefined;
+    let providerStarted!: () => void;
+    const started = new Promise<void>((resolve) => { providerStarted = resolve; });
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      streamText: plannedResponse(),
+      generateText: async () => "unused",
+      welcome: { heroQuery: "ocean", prompts: [] },
+      searchMedia: async (_query: string, { signal }: { signal: AbortSignal }) => {
+        providerSignal = signal;
+        providerStarted();
+        await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));
+        return null;
+      },
+    });
+    const controller = new AbortController();
+    const pending = handler(new Request("https://app.example/api/video-chat?action=welcome", {
+      signal: controller.signal,
+    }));
+
+    await started;
+    controller.abort("prompt replaced");
+    await pending;
+
+    expect(providerSignal?.aborted).toBe(true);
+  });
+
+  it("does not cache a failed welcome lookup", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    let calls = 0;
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      streamText: plannedResponse(),
+      generateText: async () => "unused",
+      welcome: { heroQuery: "ocean", prompts: [] },
+      searchMedia: () => {
+        calls += 1;
+        if (calls === 1) throw new Error("temporary provider failure");
+        return {
+          url: "https://media.example/recovered.jpg",
+          type: "image",
+          providerSecret: "must stay on the server",
+        };
+      },
+    });
+
+    const failed = await handler(new Request("https://app.example/api/video-chat?action=welcome"));
+    expect(await failed.json()).toEqual({ hero: null, cards: [] });
+    const recovered = await handler(new Request("https://app.example/api/video-chat?action=welcome"));
+    expect(await recovered.json()).toEqual({
+      hero: { url: "https://media.example/recovered.jpg", type: "image" },
+      cards: [],
+    });
+    await handler(new Request("https://app.example/api/video-chat?action=welcome"));
+    expect(calls).toBe(2);
+  });
+
+  it("returns a provider failure instead of blaming valid speech input", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    const errors: string[] = [];
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      streamText: plannedResponse(),
+      generateText: async () => "unused",
+      generateSpeech: async () => { throw new Error("private provider detail"); },
+      onError: (error: Error) => { errors.push(error.message); },
+    });
+    const response = await handler(new Request("https://app.example/api/video-chat?action=speech", {
+      method: "POST",
+      body: JSON.stringify({ text: "Hello" }),
+    }));
+
+    expect(response.status).toBe(502);
+    expect(await response.text()).not.toContain("private provider detail");
+    expect(errors).toEqual(["private provider detail"]);
+  });
+
+  it("keeps CORS headers on the streamed response", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      allowedOrigins: ["https://client.example"],
+      heartbeatMs: false,
+      streamText: plannedResponse(),
+      generateText: async () => "unused",
+    });
+    const response = await handler(new Request("https://api.example/video-chat?action=response", {
+      method: "POST",
+      headers: {
+        origin: "https://client.example",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ prompt: "A clear answer", mode: "templates" }),
+    }));
+
+    expect(response.headers.get("access-control-allow-origin")).toBe("https://client.example");
+  });
+});

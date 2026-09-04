@@ -549,6 +549,20 @@ describe("video response core", () => {
     expect(withMedia).not.toContain("https://cdn.example/screen.png");
   });
 
+  it("does not contradict a host that owns the opening wait", async () => {
+    const { buildVideoUserPrompt } = await import("../src/internal");
+    const prompt = buildVideoUserPrompt({
+      input: "Tell a story worth filming.",
+      opening: false,
+      knowledgeMode: "general",
+    });
+
+    expect(prompt).toContain("The host owns the opening wait");
+    expect(prompt).not.toContain("fully playable without external media");
+    expect(prompt).not.toContain("forbidden as the first generated body template");
+    expect(prompt).not.toContain("only on later scenes");
+  });
+
   it("streams a complete provider-neutral response without a hosted service", async () => {
     let sdk: typeof import("../src/internal") | undefined;
     try {

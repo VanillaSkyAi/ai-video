@@ -57,7 +57,7 @@ async function measureSeconds(bytes: ArrayBuffer): Promise<number> {
 }
 
 export function createSpokenVoice(): NarrationVoice & {
-  prepare: (text: string) => Promise<SpokenLine | undefined>;
+  prepare: (text: string, signal?: AbortSignal) => Promise<SpokenLine | undefined>;
   /** Hold the sentence being said, and let it go on from where it stopped. */
   pause: () => void;
   resume: () => void;
@@ -87,7 +87,7 @@ export function createSpokenVoice(): NarrationVoice & {
     }
   };
 
-  const load = (text: string) => {
+  const load = (text: string, signal?: AbortSignal) => {
     const existing = lines.get(text);
     if (existing) {
       // Re-inserted so the least recently played line is the one that goes.
@@ -96,10 +96,11 @@ export function createSpokenVoice(): NarrationVoice & {
       return existing;
     }
 
-    const pending = fetch("/api/speech", {
+    const pending = fetch("/api/video-chat?action=speech", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text }),
+      signal,
     })
       .then(async (response) => {
         if (!response.ok) return { source: "browser", seconds: estimatedBrowserSeconds(text) } as const;
@@ -113,7 +114,13 @@ export function createSpokenVoice(): NarrationVoice & {
       })
       // Generated speech is an upgrade. A provider or network failure returns
       // to the browser voice instead of turning the response silent.
-      .catch(() => ({ source: "browser", seconds: estimatedBrowserSeconds(text) } as const));
+      .catch((cause) => {
+        if (signal?.aborted) {
+          lines.delete(text);
+          throw cause;
+        }
+        return { source: "browser", seconds: estimatedBrowserSeconds(text) } as const;
+      });
 
     lines.set(text, pending);
     forgetOldest();
@@ -121,8 +128,8 @@ export function createSpokenVoice(): NarrationVoice & {
   };
 
   return {
-    async prepare(text) {
-      const line = await load(text);
+    async prepare(text, signal) {
+      const line = await load(text, signal);
       return { seconds: line.seconds };
     },
     pause() {
@@ -144,7 +151,7 @@ export function createSpokenVoice(): NarrationVoice & {
       }
     },
     async speak(text, { signal }) {
-      const line = await load(text);
+      const line = await load(text, signal);
       if (signal.aborted || silent) return;
       if (line.source === "browser") {
         const synthesis = globalThis.speechSynthesis;

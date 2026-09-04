@@ -2,6 +2,45 @@
 
 # Provider integration
 
+For the full chat experience, mount one `createVideoChatHandler` and keep every
+provider choice in its callbacks:
+
+```ts
+import "server-only";
+import { anthropic } from "@ai-sdk/anthropic";
+import { generateText, streamText } from "ai";
+import { createVideoChatHandler } from "@vanillaskyai/video/server";
+
+export const handler = createVideoChatHandler({
+  authorize: verifySession,
+  streamText: ({ systemPrompt, userPrompt, signal }) => streamText({
+    model: anthropic(process.env.TEXT_MODEL ?? "claude-sonnet-5"),
+    system: systemPrompt,
+    prompt: userPrompt,
+    abortSignal: signal,
+  }),
+  generateText: async ({ systemPrompt, userPrompt, maxOutputTokens, signal }) => {
+    const result = await generateText({
+      model: anthropic(process.env.TEXT_MODEL ?? "claude-sonnet-5"),
+      system: systemPrompt,
+      prompt: userPrompt,
+      maxOutputTokens,
+      abortSignal: signal,
+    });
+    return result.text;
+  },
+});
+```
+
+That one text provider gives the browser templated video responses and local
+browser speech. Supplying `generateSpeech`, `transcribe`, `searchMedia`, or
+`generateVideo` enables those capabilities automatically. The callbacks are
+structural and provider-neutral; their SDKs and credentials remain application
+dependencies and never enter the browser bundle.
+
+Use `createVideoHandler` below when the application wants the lower-level video
+composition route without the video-chat actions or default prompts.
+
 The model connection enters the SDK through `streamText` in
 `src/server/create-video-handler.ts`. The SDK does not instantiate or choose a
 model; the application passes the generated `systemPrompt` and `userPrompt` to

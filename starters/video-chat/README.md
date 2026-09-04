@@ -32,11 +32,11 @@ Restart the development server after changing keys. Open
 
 ## How a response is made
 
-1. `/api/response` plans five visual beats and resolves optional media.
-2. `/api/narration` writes one spoken line for each scene as it arrives.
+1. The SDK's `/api/video-chat` endpoint plans five visual beats and resolves optional media.
+2. Its narration action writes one spoken line for each scene as it arrives.
 3. The browser prepares the line before placing its scene on the timeline.
 4. `getSceneDuration` holds the scene for the measured or estimated speech time.
-5. `/api/suggestions` prepares four possible next prompts while playback continues.
+5. Its suggestions action prepares four possible next prompts while playback continues.
 
 The text model is the only required provider. Generated speech, transcription,
 stock media, and generated video are independent upgrades and never prevent a

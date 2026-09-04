@@ -2,86 +2,6 @@ import type { Video, VideoOrientation, VideoScene } from "@vanillaskyai/video";
 import type { Theme } from "./themes";
 import type { VisualMode } from "./modes";
 import type { Suggestion } from "./suggestion-cards";
-import { definitions } from "../vanillasky";
-
-const templateIds = definitions.map((template) => template.id);
-
-/**
- * How many scenes a response has.
- *
- * Fixed rather than left to the planner, because the visual mode is a ceiling
- * on filmed scenes and a ceiling only means "every beat" if you know how many
- * beats there are.
- */
-const RESPONSE_SCENES = 5;
-
-/**
- * Stream a response, narrating each scene as it arrives.
- *
- * Composing the whole response first is what keeps the words matched to the
- * pictures, but it costs the entire plan before a single frame - thirty to
- * ninety seconds of nothing. The scenes arrive one at a time, so the narration
- * can too: each line is written as its scene lands, and the first scene plays
- * within a few seconds with its own line spoken over it.
- *
- * The narrator is given the lines already written, so the script still joins up
- * into one explanation rather than four unrelated remarks. What it cannot do is
- * set up a payoff it has not seen yet - the price of not waiting.
- */
-/**
- * The brief, which depends on how much of the response is generated.
- *
- * A planner told only that a media template exists will not reach for it: the
- * cheaper templates always look like a reasonable choice. If the application is
- * willing to pay for footage, it has to ask for footage.
- */
-export function responseInstructions(filmedScenes: number): string {
-  const everyBeatFilmed = filmedScenes >= RESPONSE_SCENES;
-  return [
-    "The input is a prompt from a user. Respond as a short, coherent video.",
-    "Honor the requested purpose and tone. A story should feel like a story, a recommendation should be useful, an explanation should be clear, and a creative request should not be turned into a lecture.",
-    `Use exactly ${RESPONSE_SCENES} scenes and build a progression that fits the request:`,
-    "1. Open directly on the strongest image, action, claim, or idea.",
-    "2. Develop it with new information or movement.",
-    "3. Deepen, complicate, or advance the response.",
-    "4. Deliver the turn, consequence, recommendation, or emotional peak.",
-    "5. Close on the payoff or the one thing worth carrying forward, never a recap.",
-    "No scene may repeat another scene's job. If a scene could be deleted without weakening the response, replace it.",
-    "The prompt is already on screen, so never spend the opening scene restating it.",
-    "For factual requests, distinguish supplied facts from stable general knowledge and never invent statistics, quotations, sources, or personal experience.",
-    "For creative requests, create the requested material directly rather than explaining how one might create it.",
-    // Two briefs, not one with a clause bolted on. Asking for template variety
-    // and for everything to be filmed in the same breath gets a response that is
-    // half of each, which is what "full AI video" was producing.
-    everyBeatFilmed
-      // Naming the template is not enough: the media template has a no-footage
-      // mode, and the planner reaches for it. It opened on
-      // mediaType=gradient with no mediaKeyword at all, so there was nothing
-      // to film - the scene was never blocked, it never asked. Every beat here
-      // is filmed, so gradient is not an option and the keyword is mandatory.
-      ? "Use the media template for every scene, including the first and the closer. Every scene must set mediaType to video and carry a mediaKeyword: a concrete, filmable subject, a real object doing a real thing, never a diagram or an abstraction. Never use mediaType gradient and never omit mediaKeyword - a scene without one has nothing to film. If a beat seems too abstract to film, film the closest real thing that shows it."
-      : filmedScenes > 0
-        ? `Choose the template that fits each beat honestly - a figure belongs in a number scene, an ordered process in steps, a comparison in a chart - rather than repeating one shape. Use the media template for ${filmedScenes === 1 ? "the single beat" : `the ${filmedScenes} beats`} most worth watching happen, and give each one a mediaKeyword: a concrete, filmable subject, a real object doing a real thing, never a diagram or an abstraction.`
-        // Stock footage rather than none. A response of cards on a brand gradient
-        // is the least a template set can look like, and a search costs a few
-        // hundred milliseconds - so the media template is available here too,
-        // for the beats that are worth watching happen.
-        : "Choose the template that fits each beat honestly - a figure belongs in a number scene, an ordered process in steps, a comparison in a chart - rather than repeating one shape. Give any scene that would be stronger over real footage a mediaKeyword: a concrete, filmable subject, a real object doing a real thing, never a diagram or an abstraction. Use the media template for the one or two beats most worth watching happen.",
-    // Without this the plan comes back with no closer, and the runtime drops
-    // every scene it was holding for one - five planned, three delivered. Only
-    // a template with a payoff job may close, and naming it is the difference
-    // between a response that ends and a response that stops.
-    everyBeatFilmed
-      ? 'Mark the final scene placement:"closer". Use the media template for it, as for every other beat.'
-      // Only a template with a payoff job may close, and there are two: media
-      // and milestone. Naming them is the difference between a response that
-      // ends and a response that stops - without it the plan comes back with no
-      // closer and the runtime drops every scene it was holding for one.
-      : 'Mark the final scene placement:"closer" and use either the milestone or the media template for it. Those are the only two here that may close, so the response must end on one.',
-    "Every scene must carry a timing object, even an empty one. A scene without it fails the whole response.",
-    "Never mention the video, the scenes, or yourself.",
-  ].join("\n");
-}
 
 export interface StreamedResponse {
   /** Resolves when the last scene has been planned and narrated. */
@@ -94,7 +14,7 @@ async function narrateScene(
   earlier: string[],
   signal?: AbortSignal,
 ): Promise<string> {
-  const result = await fetch("/api/narration", {
+  const result = await fetch("/api/video-chat?action=narration", {
     method: "POST",
     headers: { "content-type": "application/json" },
     signal,
@@ -175,45 +95,17 @@ export async function streamResponse(options: {
   onStyle: (style: Video["style"]) => void;
 }): Promise<{ video: Video; suggestions: Suggestion[] }> {
   const started = Date.now();
-  const response = await fetch(`/api/response?filmed=${options.mode.filmedScenes}`, {
+  const response = await fetch("/api/video-chat?action=response", {
     method: "POST",
     headers: { "content-type": "application/json" },
     signal: options.signal,
     body: JSON.stringify({
-      protocolVersion: "0.5",
-      requestId: `video-chat-${Date.now()}`,
-      // The templates this page can render - and, when every beat is filmed,
-      // the one it wants. Narrowing the catalogue is what makes a filmed
-      // response filmed: asking the planner in prose to use the media template
-      // throughout still leaves the others in front of it, and it opens on a
-      // number card often enough to matter. A brief is a preference; a
-      // catalogue of one is not.
-      capabilities: {
-        templates: options.mode.filmedScenes >= RESPONSE_SCENES ? ["media"] : templateIds,
-      },
-      input: {
-        input: options.prompt,
-        instructions: responseInstructions(options.mode.filmedScenes),
-        // Without this the planner refuses outright, and says why: a prompt
-        // carries no facts, and it will not invent what the input does not
-        // contain. A video chat is the case where the response has to come from the
-        // model's own knowledge rather than from the material handed to it.
-        knowledgeMode: "general",
-        // No opening card. It is composed by the runtime rather than the
-        // model, so it arrives instantly - but it is a rendered scene either
-        // way, it plays before anything real, and the first scene of a video
-        // never resolves media, so in a filmed mode it is a gradient standing
-        // where a clip should be. The warm-up covers the wait instead.
-        opening: false,
-        orientation: options.orientation,
-        maxDurationSec: 40,
-        brand: options.theme.brand,
-        style: {
-          density: "airy",
-          motion: "calm",
-          textArchetype: "cinematic",
-          generatedLook: options.theme.generatedLook,
-        },
+      prompt: options.prompt,
+      mode: options.mode.id,
+      orientation: options.orientation,
+      brand: options.theme.brand,
+      style: {
+        generatedLook: options.theme.generatedLook,
       },
     }),
   });
@@ -319,7 +211,7 @@ export async function streamResponse(options: {
   await Promise.all(pending);
   if (scenes.length === 0) throw new Error("The planner returned no scenes");
 
-  const suggestions = await fetch("/api/suggestions", {
+  const suggestions = await fetch("/api/video-chat?action=suggestions", {
     method: "POST",
     headers: { "content-type": "application/json" },
     signal: options.signal,

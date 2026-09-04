@@ -235,6 +235,14 @@
           "declare function createServerTemplateRegistry(options: {\n    templates: readonly SceneTemplateMetadata[];\n}): ServerTemplateRegistry;"
         ]
       },
+      "createVideoChatHandler": {
+        "kinds": [
+          "value"
+        ],
+        "declaration": [
+          "declare function createVideoChatHandler(options: VideoChatHandlerOptions): VideoChatHandler;"
+        ]
+      },
       "createVideoHandler": {
         "kinds": [
           "value"
@@ -281,6 +289,22 @@
         ],
         "declaration": [
           "interface ServerTemplateRegistry {\n    readonly capabilities: VideoCapabilities;\n    getTemplateMetadata(id: string): SceneTemplateMetadata | undefined;\n    listTemplateMetadata(): SceneTemplateMetadata[];\n}"
+        ]
+      },
+      "VideoChatCapabilities": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatCapabilities {\n    templates: true;\n    generatedSpeech: boolean;\n    generatedVideo: boolean;\n    stockMedia: boolean;\n    transcription: boolean;\n    modes: VideoChatMode[];\n}"
+        ]
+      },
+      "VideoChatHandlerOptions": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatHandlerOptions extends Omit<VideoHandlerOptions, \"allowMediaUrl\" | \"basePrompt\" | \"maxResolvedMedia\" | \"narrate\" | \"resolveMedia\"> {\n    generateText: VideoChatTextGenerator;\n    generateSpeech?: VideoChatSpeechGenerator;\n    transcribe?: VideoChatTranscriber;\n    searchMedia?: VideoChatMediaResolver;\n    generateVideo?: VideoChatMediaResolver;\n    instructions?: string;\n    welcome?: VideoChatWelcomeOptions;\n    maxAudioBytes?: number;\n}"
         ]
       },
       "VideoFinishReason": {
@@ -348,6 +372,13 @@
       "interface VideoBrandColors {\n    primary: string;\n    secondary: string;\n    foreground: string;\n    surface: string;\n    surfaceElevated: string;\n    muted: string;\n}",
       "interface VideoBrandInput {\n    name?: string;\n    logoUrl?: string;\n    font?: string;\n    scriptFont?: string;\n    background?: VideoBackgroundInput;\n    colors?: Partial<VideoBrandColors>;\n}",
       "interface VideoCapabilities {\n    templates?: string[];\n    extensions?: string[];\n}",
+      "interface VideoChatMediaContext {\n    purpose: \"response\" | \"welcome\" | \"suggestion\";\n    orientation: VideoOrientation;\n    generatedLook?: string;\n    signal: AbortSignal;\n    requestId?: string;\n    scene?: Readonly<VideoScene>;\n    templateId?: string;\n    preferredType?: \"image\" | \"video\" | \"any\";\n}",
+      "interface VideoChatSpeechContext {\n    text: string;\n    signal: AbortSignal;\n}",
+      "interface VideoChatSpeechResult {\n    audio: Uint8Array | ArrayBuffer;\n    mediaType?: string;\n}",
+      "interface VideoChatTextContext {\n    task: VideoChatTextTask;\n    systemPrompt: string;\n    userPrompt: string;\n    maxOutputTokens: number;\n    signal: AbortSignal;\n}",
+      "interface VideoChatTranscriptionContext {\n    audio: Uint8Array;\n    mediaType: string;\n    signal: AbortSignal;\n}",
+      "interface VideoChatWelcomeOptions {\n    heroQuery?: string;\n    prompts?: readonly VideoChatWelcomePrompt[];\n}",
+      "interface VideoChatWelcomePrompt {\n    prompt: string;\n    mediaQuery?: string;\n}",
       "interface VideoEventDataMap {\n    \"response.start\": {\n        requestId: string;\n        format: {\n            orientation: VideoOrientation;\n        };\n        style: VideoStyle;\n        meta?: Video[\"meta\"];\n        capabilities?: VideoCapabilities;\n    };\n    \"audio.set\": {\n        audio: VideoAudio;\n    };\n    \"scene.add\": {\n        scene: VideoScene;\n        position: number;\n    };\n    \"response.warning\": {\n        warning: VideoWarning;\n    };\n    \"response.complete\": {\n        finishReason: VideoFinishReason;\n        snapshot: Video;\n        checksum: string;\n    };\n    \"response.error\": {\n        error: {\n            code: string;\n            message: string;\n            recoverable: boolean;\n        };\n        terminal: boolean;\n        snapshot?: Video;\n    };\n    \"response.abort\": {\n        reason: string;\n        snapshot?: Video;\n    };\n}",
       "interface VideoEventEnvelope<TType extends string, TData> {\n    protocolVersion: typeof VIDEO_PROTOCOL_VERSION;\n    runId: string;\n    sequence: number;\n    eventId: string;\n    type: TType;\n    data: TData;\n}",
       "interface VideoGenerationContext {\n    request: VideoRequest;\n    systemPrompt: string;\n    userPrompt: string;\n    initialConfig: Video;\n    signal: AbortSignal;\n}",
@@ -371,6 +402,13 @@
       "type VideoBackground = {\n    type: \"solid\";\n    color: string;\n} | {\n    type: \"gradient\";\n    colors: [\n        string,\n        string\n    ];\n};",
       "type VideoBackgroundInput = VideoBackgroundPreset | {\n    color: string;\n} | {\n    colors: [\n        string,\n        string\n    ];\n};",
       "type VideoBackgroundPreset = \"cosmic\" | \"horizon\" | \"twilight\" | \"meadow\" | \"velvet\" | \"flamingo\" | \"peach\" | \"saffron\" | \"black\" | \"midnight\" | \"aubergine\" | \"coal\" | \"navy\";",
+      "type VideoChatHandler = (request: Request) => Promise<Response>;",
+      "type VideoChatMediaResolver = (query: string, context: VideoChatMediaContext) => ResolvedMedia | null | Promise<ResolvedMedia | null>;",
+      "type VideoChatMode = \"templates\" | \"some\" | \"full\";",
+      "type VideoChatSpeechGenerator = (context: VideoChatSpeechContext) => VideoChatSpeechResult | Promise<VideoChatSpeechResult>;",
+      "type VideoChatTextGenerator = (context: VideoChatTextContext) => string | Promise<string>;",
+      "type VideoChatTextTask = \"opening\" | \"opening-continuation\" | \"narration\" | \"suggestions\";",
+      "type VideoChatTranscriber = (context: VideoChatTranscriptionContext) => string | Promise<string>;",
       "type VideoCoreEvent = {\n    [TType in VideoCoreEventType]: VideoEventEnvelope<TType, VideoEventDataMap[TType]>;\n}[VideoCoreEventType];",
       "type VideoCoreEventType = keyof VideoEventDataMap;",
       "type VideoEvent = VideoCoreEvent | VideoExtensionEvent;",

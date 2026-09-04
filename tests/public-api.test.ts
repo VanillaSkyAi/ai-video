@@ -15,7 +15,11 @@ describe("public API", () => {
   });
   it("exposes one obvious server path", async () => {
     const api = await import("../src/server");
-    expect(Object.keys(api).sort()).toEqual(["createServerTemplateRegistry", "createVideoHandler"]);
+    expect(Object.keys(api).sort()).toEqual([
+      "createServerTemplateRegistry",
+      "createVideoChatHandler",
+      "createVideoHandler",
+    ]);
   });
 
   it("exposes one obvious React path", async () => {

@@ -60,8 +60,8 @@ try {
   writeFileSync(join(serverConsumer, "package.json"), JSON.stringify({ private: true, type: "module" }));
   execFileSync("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", tarball, "typescript@5.9.3"], { cwd: serverConsumer, stdio: "inherit" });
   writeFileSync(join(serverConsumer, "server.ts"), `
-import { createVideoHandler, createServerTemplateRegistry } from "@vanillaskyai/video/server";
-import type { VideoGenerationSummary, VideoHandlerOptions, VideoProviderUsage, VideoWarning } from "@vanillaskyai/video/server";
+import { createVideoChatHandler, createVideoHandler, createServerTemplateRegistry } from "@vanillaskyai/video/server";
+import type { VideoChatCapabilities, VideoChatHandlerOptions, VideoGenerationSummary, VideoHandlerOptions, VideoProviderUsage, VideoWarning } from "@vanillaskyai/video/server";
 import { createMockVideoPlanner, simulateVideoStream, videoFixtures } from "@vanillaskyai/video/test";
 import type { MockVideoPlannerOptions, SimulatedVideoStreamOptions } from "@vanillaskyai/video/test";
 // @ts-expect-error VideoPlanner is internal and must not be exported from the test entry.
@@ -75,6 +75,8 @@ import type { VideoGenerationContext } from "@vanillaskyai/video/test";
 // @ts-expect-error VideoState is internal to the test entry and must not be exported.
 import type { VideoState } from "@vanillaskyai/video/test";
 declare const options: VideoHandlerOptions;
+declare const chatOptions: VideoChatHandlerOptions;
+declare const chatCapabilities: VideoChatCapabilities;
 declare const summary: VideoGenerationSummary;
 declare const usage: VideoProviderUsage;
 declare const warning: VideoWarning;
@@ -82,7 +84,7 @@ declare const mockOptions: MockVideoPlannerOptions;
 declare const simulationOptions: SimulatedVideoStreamOptions;
 const mock = createMockVideoPlanner(mockOptions);
 const simulation = simulateVideoStream(videoFixtures.portrait.parts, simulationOptions);
-void [createVideoHandler, createServerTemplateRegistry, options, summary, usage, warning, mock, simulation];
+void [createVideoChatHandler, createVideoHandler, createServerTemplateRegistry, chatCapabilities, chatOptions, options, summary, usage, warning, mock, simulation];
 `);
   writeFileSync(join(serverConsumer, "tsconfig.json"), JSON.stringify({ compilerOptions: { strict: true, noEmit: true, target: "ES2022", module: "NodeNext", moduleResolution: "NodeNext", skipLibCheck: false, types: [] }, include: ["server.ts"] }));
   execFileSync(process.execPath, [join(serverConsumer, "node_modules", "typescript", "bin", "tsc")], { cwd: serverConsumer, stdio: "inherit" });
@@ -127,7 +129,7 @@ try {
     env: { ...process.env, VANILLASKY_PERSISTED_VIDEO_FIXTURE: persistedVideoFixture },
   });
   writeFileSync(join(serverConsumer, "server.mjs"), `
-import { createVideoHandler } from "@vanillaskyai/video/server";
+import { createVideoChatHandler, createVideoHandler } from "@vanillaskyai/video/server";
 let completed;
 const handler = createVideoHandler({
   authorize: "none",
@@ -157,6 +159,24 @@ const complete = body
 if (complete?.data.checksum !== "fnv1a32:de1aa1a5") throw new Error("Packed replay checksum drifted");
 if (complete.data.snapshot.schemaVersion !== "0.1") throw new Error("Packed terminal snapshot lost its schema version");
 if (complete.data.snapshot.scenes[0]?.id !== "supplied-opening") throw new Error("Packed terminal snapshot lost its default opening");
+
+const videoChat = createVideoChatHandler({
+  authorize: "none",
+  heartbeatMs: false,
+  streamText: async function* () {
+    yield '{"type":"scene.add","scene":{"id":"chat-body","templateId":"notification","variables":{"appName":"VanillaSky","message":"Provider neutral"},"timing":{"fixedDuration":4}}}\\n';
+    yield '{"type":"scene.add","placement":"closer","scene":{"id":"chat-ending","templateId":"media","variables":{"texts":"Ready to continue","mediaType":"gradient"},"timing":{"fixedDuration":4}}}\\n';
+    yield '{"type":"plan.complete"}\\n';
+  },
+  generateText: async () => "Provider-neutral text",
+});
+const chatCapabilities = await videoChat(new Request("https://app.example/api/video-chat?action=capabilities"));
+if ((await chatCapabilities.json()).modes.join() !== "templates") throw new Error("Packed video chat capabilities drifted");
+const chatResponse = await videoChat(new Request("https://app.example/api/video-chat?action=response", {
+  method: "POST",
+  body: JSON.stringify({ prompt: "Tell me a tiny story", mode: "templates" }),
+}));
+if (!(await chatResponse.text()).includes('"type":"response.complete"')) throw new Error("Packed video chat response did not complete");
 `);
   execFileSync(process.execPath, [join(serverConsumer, "server.mjs")], { cwd: serverConsumer, stdio: "inherit" });
 
@@ -413,7 +433,7 @@ const rootVideo = root.parseVideo({ schemaVersion: "0.1", scenes: [{ id: "one", 
 if (root.getVideoDuration(rootVideo) !== 4 || !Object.isFrozen(rootVideo)) {
   throw new Error("Packed duration helper returned an unexpected timeline");
 }
-if (Object.keys(server).sort().join() !== "createServerTemplateRegistry,createVideoHandler") throw new Error("Unexpected server API");
+if (Object.keys(server).sort().join() !== "createServerTemplateRegistry,createVideoChatHandler,createVideoHandler") throw new Error("Unexpected server API");
 if (Object.keys(react).sort().join() !== "VideoError,VideoPlayer,useNarration,useVideo") throw new Error("Unexpected React API");
 if (Object.keys(templates).sort().join() !== "createTemplateRegistry,defineTemplate") throw new Error("Unexpected template API");
 if (builtinTemplates.length !== 28) throw new Error("Unexpected built-in template manifest");
@@ -501,7 +521,7 @@ import { VideoError, VideoPlayer } from "@vanillaskyai/video/react";
 import type { UseVideoResult } from "@vanillaskyai/video/react";
 // @ts-expect-error VideoPlayerBinding is internal and must not be exported from React.
 import type { VideoPlayerBinding } from "@vanillaskyai/video/react";
-import type { VideoGenerationSummary, VideoHandlerOptions, VideoProviderUsage, VideoWarning } from "@vanillaskyai/video/server";
+import type { VideoChatCapabilities, VideoChatHandlerOptions, VideoGenerationSummary, VideoHandlerOptions, VideoProviderUsage, VideoWarning } from "@vanillaskyai/video/server";
 import type { BuiltinTemplateId, BuiltinTemplateMetadata } from "@vanillaskyai/video/templates/catalog";
 import type { SceneTemplate, SceneTemplateMetadata, SceneTemplateProps, TemplateFamily, TemplateRegistry, TemplateTimingMetadata, TemplateTransitionTiming } from "@vanillaskyai/video/templates";
 // @ts-expect-error Undocumented Template alias is not part of 0.1.
@@ -529,6 +549,8 @@ declare const validationError: VideoValidationError;
 declare const error: VideoError;
 declare const hook: UseVideoResult;
 declare const handlerOptions: VideoHandlerOptions;
+declare const chatHandlerOptions: VideoChatHandlerOptions;
+declare const chatCapabilities: VideoChatCapabilities;
 declare const summary: VideoGenerationSummary;
 declare const usage: VideoProviderUsage;
 declare const warning: VideoWarning;
@@ -549,7 +571,7 @@ hook.state;
 hook.config;
 // @ts-expect-error Handler behavior selectors are not callback-shaped.
 handlerOptions.onInvalidPart;
-void [input, brandedInput, resolvedBackground, semanticBrand, video.schemaVersion, parsedVideo, validationCode, validationError.code, hook.video, hook.warnings, handlerOptions.invalidPartBehavior, summary, usage, warning, error.code, error.status, error.requestId, error.runId, savedPlayer, builtinId, builtinMetadata, family, sceneTemplate, sceneMetadata, sceneProps, templateRegistry, timingMetadata, transitionTiming];
+void [input, brandedInput, resolvedBackground, semanticBrand, video.schemaVersion, parsedVideo, validationCode, validationError.code, hook.video, hook.warnings, handlerOptions.invalidPartBehavior, chatHandlerOptions.generateText, chatCapabilities.modes, summary, usage, warning, error.code, error.status, error.requestId, error.runId, savedPlayer, builtinId, builtinMetadata, family, sceneTemplate, sceneMetadata, sceneProps, templateRegistry, timingMetadata, transitionTiming];
 `);
   writeFileSync(join(consumer, "types-tsconfig.json"), JSON.stringify({ compilerOptions: { strict: true, noEmit: true, target: "ES2022", module: "NodeNext", moduleResolution: "NodeNext", skipLibCheck: false }, include: ["types.ts"] }));
   execFileSync(process.execPath, [join(consumer, "node_modules", "typescript", "bin", "tsc"), "-p", "types-tsconfig.json"], { cwd: consumer, stdio: "inherit" });

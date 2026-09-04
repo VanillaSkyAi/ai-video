@@ -5,6 +5,11 @@ export {
   type ResolvedMedia,
 } from "./server/create-video-handler.js";
 export type { VideoHandlerOptions } from "./server/create-video-handler.js";
+export { createVideoChatHandler } from "./server/create-video-chat-handler.js";
+export type {
+  VideoChatCapabilities,
+  VideoChatHandlerOptions,
+} from "./server/create-video-chat-handler.js";
 export { createServerTemplateRegistry } from "./visual-system/catalog/server-kit.js";
 export type { ServerTemplateRegistry } from "./visual-system/catalog/server-kit.js";
 export type { SceneTemplateMetadata as ServerTemplateMetadata } from "./visual-system/catalog/catalog-types.js";
