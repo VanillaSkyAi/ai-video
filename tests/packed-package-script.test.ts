@@ -90,13 +90,16 @@ describe("packed package verification", () => {
     expect(script).toContain("React 19 isolated crossfade motion progress diverged from raw progress");
     expect(script).toContain("React 19 terminal poster did not settle at the readable hold frame");
     expect(script).toContain("React 19 transition players did not start synchronously");
+    expect(script).toContain("await page.clock.pauseAt(Date.now() + 1_000)");
     expect(script).toContain("React 19 transition did not preserve the outgoing template timeline");
     expect(script).toContain("React 19 transition preview advanced the incoming template timeline");
     expect(script).toContain("incomingProgress.raw !== 0");
     expect(script).toContain("incomingProgress.motion !== 0");
     expect(script).toContain("React 19 shared background incorrectly crossfaded scene layers");
     expect(script).toContain("React 19 shared background did not preserve native template motion");
-    expect(script).toContain("await page.clock.fastForward(600)");
+    expect(script).toContain("await page.clock.runFor(450)");
+    expect(script).toContain("await page.clock.runFor(650)");
+    expect(script).not.toContain("page.clock.fastForward");
     expect(script).toContain("React 19 settled final scene did not preserve the readable hold frame");
     expect(script).toContain("settledProgress.motion !== 0.7");
     expect(script).toContain("Math.abs(progress.raw - progress.motion)");

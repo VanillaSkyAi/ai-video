@@ -81,7 +81,7 @@ describe("VideoPlayer", () => {
       return element!;
     });
     expect(sceneVideo.muted).toBe(true);
-    expect(sceneVideo.volume).toBe(0.35);
+    await waitFor(() => expect(sceneVideo.volume).toBe(0.35));
     fireEvent.click(view.getByRole("button", { name: "Unmute video response" }));
     await waitFor(() => expect(sceneVideo.muted).toBe(false));
   });

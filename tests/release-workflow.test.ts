@@ -255,6 +255,7 @@ describe("release workflow", () => {
     expect(example.dependencies.react).toMatch(/^\^19\./);
     expect(example.dependencies["react-dom"]).toMatch(/^\^19\./);
     expect(reactCompatibility).toContain("react: [18]");
+    expect(reactCompatibility).toContain("npm install --no-audit --no-save --package-lock=false");
     expect(reactCompatibility).toContain("react@${{ matrix.react }}.3.1");
     expect(reactCompatibility).toContain("react-dom@${{ matrix.react }}.3.1");
     expect(reactCompatibility).toContain("@types/react@18.3.28");
@@ -278,6 +279,9 @@ describe("release workflow", () => {
 
     expect(consumerGate).toContain("gate: [documented-examples, public-api, packed-package, onboarding]");
     expect(consumerGate).toContain("npm run examples:verify-documented");
+    expect(consumerGate).toMatch(
+      /- run: npm run examples:verify-documented\n\s+if: matrix\.gate == 'documented-examples'\n\s+env:\n\s+npm_config_audit: "false"/,
+    );
     expect(consumerGate).toContain("npm run verify:api");
     expect(consumerGate).toContain("npm run verify:package");
     expect(consumerGate).toContain("npm run verify:onboarding");
@@ -325,6 +329,12 @@ describe("release workflow", () => {
     expect(config).toContain("maxWorkers: 2");
     expect(config).not.toContain("testTimeout");
     expect(config).not.toContain("fileParallelism: false");
+  });
+
+  it("audits the shipped dependency tree without re-auditing development tools", () => {
+    const workflow = readFileSync(".github/workflows/ci.yml", "utf8");
+
+    expect(workflow).toContain("npm audit --audit-level=low --omit=dev");
   });
 
   it("compiles the source-owned template tree in the clean-room consumer", () => {
