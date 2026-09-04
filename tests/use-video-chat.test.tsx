@@ -563,6 +563,18 @@ describe("useVideoChat", () => {
 });
 
 describe("createVideoChatVoice", () => {
+  it("remembers the server's browser-voice fallback without repeating requests", async () => {
+    const { createVideoChatVoice } = await import("../src/react");
+    const fetcher = vi.fn(async () => new Response(null, { status: 204 }));
+    const voice = createVideoChatVoice({ fetcher });
+
+    await voice.prepare("The first browser-spoken line.");
+    await voice.prepare("The second browser-spoken line.");
+
+    expect(fetcher).toHaveBeenCalledOnce();
+    voice.dispose?.();
+  });
+
   it("falls back to browser speech when generated speech is unavailable", async () => {
     const { createVideoChatVoice } = await import("../src/react");
     const speak = vi.fn((utterance: { onend?: () => void }) => utterance.onend?.());

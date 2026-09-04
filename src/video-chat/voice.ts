@@ -54,8 +54,8 @@ async function measureSeconds(bytes: ArrayBuffer): Promise<number> {
 /**
  * Create the SDK's generated-speech client with a browser-voice fallback.
  *
- * The endpoint is provider-neutral. A 404 means generated speech was not
- * configured, so the same video chat remains useful with speech synthesis.
+ * The endpoint is provider-neutral. A no-content response (or a compatible
+ * endpoint's 404) selects browser speech for the rest of the session.
  */
 export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}): VideoChatVoice {
   const endpoint = options.endpoint ?? "/api/video-chat";
@@ -70,6 +70,7 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
   let held = false;
   let silent = false;
   let disposed = false;
+  let generatedSpeechUnavailable = false;
 
   const forgetOldest = () => {
     while (lines.size > maximum) {
@@ -102,29 +103,36 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
     let createdSrc: string | undefined;
     try {
       try {
-        const response = await fetcher(actionEndpoint(endpoint, "speech"), {
-          method: "POST",
-          headers,
-          credentials: options.credentials,
-          signal: controller.signal,
-          body: JSON.stringify({ text: normalized }),
-        });
-        if (controller.signal.aborted) {
-          throw controller.signal.reason ?? new DOMException("Speech preparation cancelled", "AbortError");
-        }
-        if (!response.ok) {
+        if (generatedSpeechUnavailable) {
           prepared = { source: "browser", seconds: estimatedBrowserSeconds(normalized) };
         } else {
-          const bytes = await response.arrayBuffer();
+          const response = await fetcher(actionEndpoint(endpoint, "speech"), {
+            method: "POST",
+            headers,
+            credentials: options.credentials,
+            signal: controller.signal,
+            body: JSON.stringify({ text: normalized }),
+          });
           if (controller.signal.aborted) {
             throw controller.signal.reason ?? new DOMException("Speech preparation cancelled", "AbortError");
           }
-          createdSrc = URL.createObjectURL(new Blob([bytes], {
-            type: response.headers.get("content-type") || "audio/mpeg",
-          }));
-          prepared = { source: "generated", src: createdSrc, seconds: await measureSeconds(bytes) };
-          if (controller.signal.aborted) {
-            throw controller.signal.reason ?? new DOMException("Speech preparation cancelled", "AbortError");
+          if (response.status === 204 || response.status === 404) {
+            generatedSpeechUnavailable = true;
+            prepared = { source: "browser", seconds: estimatedBrowserSeconds(normalized) };
+          } else if (!response.ok) {
+            prepared = { source: "browser", seconds: estimatedBrowserSeconds(normalized) };
+          } else {
+            const bytes = await response.arrayBuffer();
+            if (controller.signal.aborted) {
+              throw controller.signal.reason ?? new DOMException("Speech preparation cancelled", "AbortError");
+            }
+            createdSrc = URL.createObjectURL(new Blob([bytes], {
+              type: response.headers.get("content-type") || "audio/mpeg",
+            }));
+            prepared = { source: "generated", src: createdSrc, seconds: await measureSeconds(bytes) };
+            if (controller.signal.aborted) {
+              throw controller.signal.reason ?? new DOMException("Speech preparation cancelled", "AbortError");
+            }
           }
         }
       } catch (cause) {

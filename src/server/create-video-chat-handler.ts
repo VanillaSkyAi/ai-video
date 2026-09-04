@@ -625,7 +625,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
         }
       }
       if (action === "speech") {
-        if (!generateSpeech) return jsonError(404, "capability_unavailable", "Generated speech is not configured", headers);
+        if (!generateSpeech) return new Response(null, { status: 204, headers });
         const value = record(body, "request");
         allowedKeys(value, ["text"], "request");
         const text = boundedString(value.text, "request.text", 4_000);

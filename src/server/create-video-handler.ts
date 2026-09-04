@@ -159,6 +159,7 @@ export function createVideoHandler(
         basePrompt,
         knowledgeMode: request.input.knowledgeMode,
         mediaResolverAvailable: resolveMedia != null,
+        suppliedMediaAvailable: (request.input.suppliedMedia?.length ?? 0) > 0,
         // The same condition the resolver gate uses. The two have to agree:
         // letting the first scene resolve media while still telling the
         // planner not to put any there films nothing.

@@ -50,6 +50,13 @@ describe("createVideoChatHandler", () => {
       transcription: false,
       modes: ["templates"],
     });
+
+    const speech = await handler(new Request("https://app.example/api/video-chat?action=speech", {
+      method: "POST",
+      body: JSON.stringify({ text: "Use the browser voice" }),
+    }));
+    expect(speech.status).toBe(204);
+    expect(await speech.text()).toBe("");
   });
 
   it("turns a prompt into the existing video stream with SDK-owned general guidance", async () => {
@@ -83,6 +90,8 @@ describe("createVideoChatHandler", () => {
     expect(events.at(-1)?.type).toBe("response.complete");
     expect(systemPrompt).toContain("A story should feel like a story");
     expect(systemPrompt).toContain("creative request");
+    expect(systemPrompt).not.toContain('"id":"reaction"');
+    expect(systemPrompt).not.toContain('"id":"ctaMedia"');
     expect(userPrompt).toContain("Invent a playful bedtime story");
     expect(userPrompt).toContain("Make it whimsical");
     expect(userPrompt).toContain("tiny fox hero");
