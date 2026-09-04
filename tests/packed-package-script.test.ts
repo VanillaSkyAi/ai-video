@@ -90,6 +90,7 @@ describe("packed package verification", () => {
     expect(script).toContain("React 19 isolated crossfade motion progress diverged from raw progress");
     expect(script).toContain("React 19 terminal poster did not settle at the readable hold frame");
     expect(script).toContain("React 19 transition players did not start synchronously");
+    expect(script).toContain("await page.clock.pauseAt(Date.now() + 1_000)");
     expect(script).toContain("React 19 transition did not preserve the outgoing template timeline");
     expect(script).toContain("React 19 transition preview advanced the incoming template timeline");
     expect(script).toContain("incomingProgress.raw !== 0");

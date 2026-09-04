@@ -799,6 +799,7 @@ createRoot(document.getElementById("root")).render(createElement("main", null,
     }
     if (!opened) throw new Error("React 19 transition consumer did not start");
     await page.clock.install();
+    await page.clock.pauseAt(Date.now() + 1_000);
     const startedPlayers = await page
       .locator('[data-case] button[aria-label="Play video response"]')
       .evaluateAll((buttons) => {
