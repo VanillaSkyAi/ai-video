@@ -60,6 +60,7 @@ describe("video chat starter", () => {
     expect(client).not.toContain("createSpokenVoice");
     expect(server).toContain("async ({ text, signal })");
     expect(server).toContain("abortSignal: signal");
+    expect(server).toContain("Uint8Array.from(audio)");
     expect(server).not.toContain("JSON.stringify(detail)");
   });
 
@@ -80,5 +81,14 @@ describe("video chat starter", () => {
     ]) {
       expect(() => readFileSync(join(starterRoot, "src", duplicated), "utf8")).toThrow();
     }
+  });
+
+  it("uses packaged templates until the application opts into source ownership", () => {
+    const client = readFileSync(join(starterRoot, "src/main.tsx"), "utf8");
+    const server = readFileSync(join(starterRoot, "server.ts"), "utf8");
+
+    expect(client).not.toContain("createTemplateRegistry");
+    expect(client).not.toContain("../vanillasky");
+    expect(server).not.toContain("./vanillasky/server");
   });
 });

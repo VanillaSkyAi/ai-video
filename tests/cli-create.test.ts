@@ -72,16 +72,16 @@ describe("vanillasky create", () => {
   it("is discoverable and creates, syncs, and explains one source-owned template", async () => {
     const cwd = project();
     const help = await run(cwd, ["help"]);
-    const result = await run(cwd, ["create", "customer-health"]);
+    const result = await run(cwd, ["templates", "create", "customer-health"]);
 
-    expect(help.output.join("\n")).toContain("vanillasky create <id>");
+    expect(help.output.join("\n")).toContain("vanillasky templates create <id>");
     expect(result).toEqual({
       exit: 0,
       output: [
         "Created template: vanillasky/templates/customer-health.tsx",
         "Synced 1 template to vanillasky/index.ts and vanillasky/server.ts.",
         "Source: vanillasky/templates/customer-health.tsx",
-        "Validate templates: vanillasky check",
+        "Validate templates: vanillasky templates check",
       ],
     });
     expect(readdirSync(join(cwd, "vanillasky/templates"))).toEqual(["customer-health.tsx"]);
@@ -90,7 +90,7 @@ describe("vanillasky create", () => {
   });
 
   it.each([
-    [[], "Choose one template id. Usage: vanillasky create <id>."],
+    [[], "Choose one template id. Usage: vanillasky templates create <id>."],
     [["one", "two"], "Unexpected create argument: two"],
     [["metric", "--overwrite"], "Unknown create option: --overwrite"],
     [["../metric"], 'Invalid template id: "../metric". Use a letter first, followed by letters, numbers, _ or -.' ],
@@ -101,7 +101,7 @@ describe("vanillasky create", () => {
     [["a".repeat(129)], 'Invalid template id: template ids must be at most 128 UTF-8 bytes.'],
   ])("rejects invalid CLI input %#", async (args, message) => {
     const cwd = project();
-    const result = await run(cwd, ["create", ...args]);
+    const result = await run(cwd, ["templates", "create", ...args]);
 
     expect(result).toEqual({ exit: 1, output: [message] });
     expect(existsSync(join(cwd, "vanillasky"))).toBe(false);
@@ -113,7 +113,7 @@ describe("vanillasky create", () => {
     mkdirSync(dirname(destination), { recursive: true });
     writeFileSync(destination, "customer owned\n");
 
-    const result = await run(cwd, ["create", "metric"]);
+    const result = await run(cwd, ["templates", "create", "metric"]);
 
     expect(result.exit).toBe(1);
     expect(result.output.join("\n")).toContain("already exists");
@@ -135,7 +135,7 @@ describe("vanillasky create", () => {
       symlinkSync(outside, join(cwd, "vanillasky"));
     }
 
-    const result = await run(cwd, ["create", "metric"]);
+    const result = await run(cwd, ["templates", "create", "metric"]);
 
     expect(result.exit).toBe(1);
     expect(result.output.join("\n")).toContain("symbolic link");
@@ -151,7 +151,7 @@ describe("vanillasky create", () => {
     writeFileSync(outsideFile, "outside user file\n");
     symlinkSync(outsideFile, join(cwd, "vanillasky", output));
 
-    const result = await run(cwd, ["create", "metric"]);
+    const result = await run(cwd, ["templates", "create", "metric"]);
 
     expect(result.exit).toBe(1);
     expect(result.output.join("\n")).toMatch(/symbolic link|symlink/i);
@@ -162,8 +162,8 @@ describe("vanillasky create", () => {
   it("writes deterministic public-only source with one template export", async () => {
     const first = project();
     const second = project();
-    await run(first, ["create", "customerHealth"]);
-    await run(second, ["create", "customerHealth"]);
+    await run(first, ["templates", "create", "customerHealth"]);
+    await run(second, ["templates", "create", "customerHealth"]);
 
     const firstSource = readFileSync(join(first, "vanillasky/templates/customerHealth.tsx"), "utf8");
     const secondSource = readFileSync(join(second, "vanillasky/templates/customerHealth.tsx"), "utf8");
@@ -275,7 +275,7 @@ describe("vanillasky create", () => {
 
   it("compiles the scaffold with strict noUnused Vite React settings", async () => {
     const cwd = project();
-    await run(cwd, ["create", "customer-health"]);
+    await run(cwd, ["templates", "create", "customer-health"]);
     const source = join(cwd, "vanillasky/templates/customer-health.tsx");
     const tsconfig = join(cwd, "tsconfig.json");
     writeFileSync(tsconfig, JSON.stringify({

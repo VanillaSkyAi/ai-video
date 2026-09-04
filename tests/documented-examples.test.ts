@@ -110,9 +110,9 @@ describe("documented examples", () => {
   it("documents which catalog commands execute trusted application code", () => {
     const security = readFileSync(new URL("../docs/security.md", import.meta.url), "utf8");
     expect(security).toContain("trusted application build code");
-    expect(security).toMatch(/`vanillasky list`[\s\S]*`vanillasky describe`/);
-    expect(security).toMatch(/`vanillasky add`[\s\S]*`--dry-run`[\s\S]*`--diff`/);
-    expect(security).toMatch(/`vanillasky sync`[\s\S]*`vanillasky check`/);
+    expect(security).toMatch(/`vanillasky templates list`[\s\S]*`vanillasky templates describe`/);
+    expect(security).toMatch(/`vanillasky templates add`[\s\S]*`--dry-run`[\s\S]*`--diff`/);
+    expect(security).toMatch(/`vanillasky templates sync`[\s\S]*`vanillasky templates check`/);
     expect(security).toContain("--builtin");
     expect(security).toContain("does not execute project template modules");
   });

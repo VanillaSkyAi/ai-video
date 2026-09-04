@@ -2,7 +2,7 @@
 
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -122,10 +122,15 @@ function assertProjectImports() {
 }
 let server;
 let browser;
+let welcomeServer;
+let welcomeBrowser;
 
 try {
-  run("npm", ["exec", "--yes", "--no-audit", "create-vite@9.1.2", "--", "video-demo", "--no-interactive", "--template", "react-ts"], workspace);
-  run("npm", ["install", "--no-audit", "--no-fund"], app);
+  mkdirSync(app);
+  writeFileSync(join(app, "package.json"), `${JSON.stringify({
+    name: "video-demo",
+    private: true,
+  }, null, 2)}\n`);
   let installSpec = process.env.VANILLASKY_INSTALL_SPEC;
   let candidateArtifact;
   if (!installSpec) {
@@ -147,7 +152,80 @@ try {
   }
   run("npm", ["install", "--no-audit", "--no-fund", installSpec, "tsx@4.23.12"], app);
   cli = join(app, "node_modules", "@vanillaskyai", "video", "bin", "vanillasky.js");
+  const init = runCli(["init"]);
+  if (!init.output.includes("Video chat initialized")) throw new Error(`Packed init failed:\n${init.output}`);
   if (existsSync(join(app, "vanillasky"))) throw new Error("Default onboarding unexpectedly copied templates");
+  const generatedClient = readFileSync(join(app, "src", "main.tsx"), "utf8");
+  const generatedServer = readFileSync(join(app, "server.ts"), "utf8");
+  if (!generatedClient.includes("<VideoChat") || generatedClient.includes("../vanillasky")) {
+    throw new Error("Packed init did not create the thin SDK-owned VideoChat shell");
+  }
+  if (generatedServer.includes("./vanillasky/server")) {
+    throw new Error("Packed init copied a source-owned template registry into the default server");
+  }
+  const missingDoctor = runCli(["doctor"], { expectFailure: true });
+  if (missingDoctor.status === 0 || !missingDoctor.output.includes("MISSING  ANTHROPIC_API_KEY")) {
+    throw new Error(`Packed doctor did not report the missing required key:\n${missingDoctor.output}`);
+  }
+  const textKeyCanary = "server-only-anthropic-canary";
+  writeFileSync(join(app, ".env.local"), `ANTHROPIC_API_KEY=${textKeyCanary}\n`);
+  const readyDoctor = runCli(["doctor"]);
+  if (!readyDoctor.output.includes("READY    ANTHROPIC_API_KEY") || readyDoctor.output.includes(textKeyCanary)) {
+    throw new Error(`Packed doctor did not report readiness without exposing the key:\n${readyDoctor.output}`);
+  }
+  run("npm", ["run", "build"], app);
+  const bundledClient = readdirSync(join(app, "dist"), { recursive: true })
+    .filter((path) => typeof path === "string")
+    .map((path) => join(app, "dist", path))
+    .filter((path) => !statSync(path).isDirectory())
+    .map((path) => readFileSync(path))
+    .map((contents) => contents.toString("utf8"))
+    .join("\n");
+  if (bundledClient.includes(textKeyCanary)) throw new Error("Packed init exposed the server key in the browser bundle");
+
+  let welcomeServerOutput = "";
+  const viteCli = join(app, "node_modules", "vite", "bin", "vite.js");
+  welcomeServer = spawn(process.execPath, [viteCli, "--host", "127.0.0.1", "--port", "4174", "--strictPort"], {
+    cwd: app,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const captureWelcomeOutput = (chunk) => { welcomeServerOutput = `${welcomeServerOutput}${chunk}`.slice(-8_000); };
+  welcomeServer.stdout.on("data", captureWelcomeOutput);
+  welcomeServer.stderr.on("data", captureWelcomeOutput);
+  const welcomeDeadline = Date.now() + SERVER_START_TIMEOUT_MS;
+  while (Date.now() < welcomeDeadline) {
+    try { if ((await fetch("http://127.0.0.1:4174/")).ok) break; } catch { /* starting */ }
+    if (welcomeServer.exitCode != null) {
+      throw new Error(`Initialized Vite server exited with code ${welcomeServer.exitCode}:\n${welcomeServerOutput}`);
+    }
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 200));
+  }
+  welcomeBrowser = await chromium.launch();
+  const welcomeContext = await welcomeBrowser.newContext({ reducedMotion: "no-preference" });
+  const welcomePage = await welcomeContext.newPage();
+  const welcomeErrors = [];
+  welcomePage.on("console", (message) => { if (message.type() === "error") welcomeErrors.push(message.text()); });
+  welcomePage.on("pageerror", (error) => welcomeErrors.push(error.message));
+  await welcomePage.goto("http://127.0.0.1:4174/");
+  await welcomePage.getByRole("heading", { name: /responds in video, not text/i }).waitFor();
+  await welcomePage.getByPlaceholder("Ask anything…").waitFor();
+  const initializedCapabilities = await welcomePage.evaluate(async () =>
+    fetch("/api/video-chat?action=capabilities").then((response) => response.json()));
+  if (JSON.stringify(initializedCapabilities) !== JSON.stringify({
+    templates: true,
+    generatedSpeech: false,
+    generatedVideo: false,
+    stockMedia: false,
+    transcription: false,
+    modes: ["templates"],
+  })) throw new Error(`Initialized capability fallback drifted: ${JSON.stringify(initializedCapabilities)}`);
+  if (welcomeErrors.length) throw new Error(`Initialized browser errors: ${welcomeErrors.join(" | ")}`);
+  await welcomeBrowser.close();
+  welcomeBrowser = undefined;
+  welcomeServer.kill("SIGTERM");
+  welcomeServer.stdout?.destroy();
+  welcomeServer.stderr?.destroy();
+  welcomeServer = undefined;
   const tsconfigPaths = ["tsconfig.json", "tsconfig.app.json", "tsconfig.node.json"]
     .filter((path) => existsSync(join(app, path)));
   const tsconfigSnapshot = Object.fromEntries(tsconfigPaths.map((path) => [path, readFileSync(join(app, path), "utf8")]));
@@ -156,13 +234,13 @@ try {
     if (!strictSettings.includes(setting)) throw new Error(`Current Vite React TypeScript scaffold is missing ${setting}`);
   }
 
-  const builtinList = runCli(["list", "--builtin", "--json"]).output;
+  const builtinList = runCli(["templates", "list", "--builtin", "--json"]).output;
   if (!JSON.parse(builtinList).some(({ id }) => id === "bigNumber")) throw new Error("Packed list did not include bigNumber");
-  const builtinDescription = JSON.parse(runCli(["describe", "bigNumber", "--builtin", "--json"]).output);
+  const builtinDescription = JSON.parse(runCli(["templates", "describe", "bigNumber", "--builtin", "--json"]).output);
   if (builtinDescription.id !== "bigNumber") throw new Error("Packed describe returned the wrong template");
   const previewBefore = projectHash();
-  const dryRun = runCli(["add", "bigNumber", "--dry-run"]).output;
-  const diff = runCli(["add", "bigNumber", "--diff"]).output;
+  const dryRun = runCli(["templates", "add", "bigNumber", "--dry-run"]).output;
+  const diff = runCli(["templates", "add", "bigNumber", "--diff"]).output;
   if (projectHash() !== previewBefore) throw new Error("Packed add preview applied a proposed write in the clean-room fixture");
   for (const path of [
     "vanillasky/templates/bigNumber.tsx",
@@ -173,13 +251,13 @@ try {
   }
   const previewAfter = parseCreatedPreviewDiff(diff);
   if (previewAfter.size === 0) throw new Error("Packed add --diff did not expose any proposed after bytes");
-  runCli(["add", "bigNumber"]);
+  runCli(["templates", "add", "bigNumber"]);
   for (const [path, expected] of previewAfter) {
     const actual = readFileSync(join(app, path), "utf8");
     if (actual !== expected) throw new Error(`Packed add preview bytes did not match the applied file: ${path}`);
   }
   const repeatedAddTreeHash = generatedHash();
-  runCli(["add", "bigNumber"]);
+  runCli(["templates", "add", "bigNumber"]);
   if (generatedHash() !== repeatedAddTreeHash) {
     throw new Error("Repeating packed add changed the customer-owned template tree");
   }
@@ -218,10 +296,14 @@ export default function App() {
   </main>;
 }
 `);
-  run("npm", ["run", "build"], app);
+  writeFileSync(join(app, "src", "main.tsx"), `import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App";
 
+createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);
+`);
+  run("npm", ["run", "build"], app);
   let serverOutput = "";
-  const viteCli = join(app, "node_modules", "vite", "bin", "vite.js");
   server = spawn(process.execPath, [viteCli, "--host", "127.0.0.1", "--port", "4175", "--strictPort"], {
     cwd: app,
     stdio: ["ignore", "pipe", "pipe"],
@@ -274,7 +356,7 @@ export default function App() {
   await waitForStatus("Complete:1:Northstar");
   await page.getByText("Northstar's quarter").waitFor({ timeout: 10_000 });
   if (browserErrors.length) throw new Error(`Clean-room browser errors: ${browserErrors.join(" | ")}`);
-  runCli(["create", "ownershipProof"]);
+  runCli(["templates", "create", "ownershipProof"]);
   const ownedTemplatePath = join(app, "vanillasky", "templates", "bigNumber.tsx");
   const ownedTemplate = readFileSync(ownedTemplatePath, "utf8");
   const canonicalDescription = "A single animated count-up metric with headline and label.";
@@ -286,12 +368,12 @@ export default function App() {
     const path = join(app, "vanillasky", generated);
     writeFileSync(path, `${readFileSync(path, "utf8")}\n// deliberate acceptance drift\n`);
   }
-  const drift = runCli(["sync", "--check"], { expectFailure: true });
+  const drift = runCli(["templates", "sync", "--check"], { expectFailure: true });
   if (drift.status === 0) throw new Error("Expected sync --check to detect deliberate drift");
   if (!drift.output.includes("Generated template files are out of date")) {
     throw new Error(`Packed sync --check returned the wrong drift diagnostic:\n${drift.output}`);
   }
-  runCli(["sync"]);
+  runCli(["templates", "sync"]);
   if (!readFileSync(join(app, "vanillasky", "server.ts"), "utf8").includes(customerDescription)) {
     throw new Error("Packed sync did not regenerate server metadata from edited customer source");
   }
@@ -330,17 +412,17 @@ export { templates as serverTemplates } from "../vanillasky/server";
 `);
   run("npm", ["run", "build"], app);
   const tsc = join(app, "node_modules", "typescript", "bin", "tsc");
-  run(process.execPath, [tsc, "--project", "tsconfig.app.json", "--strict"], app);
+  run(process.execPath, [tsc, "--project", "tsconfig.json", "--strict"], app);
   const firstHash = generatedHash();
-  runCli(["sync"]);
+  runCli(["templates", "sync"]);
   if (generatedHash() !== firstHash) throw new Error("Optional template ownership was not deterministic");
-  runCli(["sync", "--check"]);
-  runCli(["check"]);
-  const effectiveList = JSON.parse(runCli(["list", "--json"]).output);
+  runCli(["templates", "sync", "--check"]);
+  runCli(["templates", "check"]);
+  const effectiveList = JSON.parse(runCli(["templates", "list", "--json"]).output);
   if (!effectiveList.some(({ id, origin }) => id === "bigNumber" && origin === "project")) {
     throw new Error("Packed list did not report the copied template as project-owned");
   }
-  const effectiveDescription = JSON.parse(runCli(["describe", "bigNumber", "--json"]).output);
+  const effectiveDescription = JSON.parse(runCli(["templates", "describe", "bigNumber", "--json"]).output);
   if (effectiveDescription.summary !== customerDescription) {
     throw new Error("Packed describe did not report the edited customer-owned metadata");
   }
@@ -365,6 +447,12 @@ export { templates as serverTemplates } from "../vanillasky/server";
   }
   console.log("Fresh Vite onboarding passed exact packed CLI ownership, strict generated-source compilation, input-only defaults, lazy streaming playback, recomposition, and browser error checks.");
 } finally {
+  if (welcomeBrowser) await welcomeBrowser.close();
+  if (welcomeServer) {
+    welcomeServer.kill("SIGTERM");
+    welcomeServer.stdout?.destroy();
+    welcomeServer.stderr?.destroy();
+  }
   if (browser) await browser.close();
   if (server) {
     server.kill("SIGTERM");

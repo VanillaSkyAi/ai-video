@@ -353,29 +353,29 @@ export const templates = createTemplateRegistry({ definitions: [] });
     "custom-template-preview-tsconfig.json",
   ], { cwd: consumer, stdio: "inherit" });
   rmSync(join(consumer, "vanillasky"), { recursive: true, force: true });
-  execFileSync(process.execPath, [packedCli, "add", "bigNumber", "--dry-run"], { cwd: consumer, stdio: "ignore" });
-  execFileSync(process.execPath, [packedCli, "add", "bigNumber", "--diff"], { cwd: consumer, stdio: "ignore" });
+  execFileSync(process.execPath, [packedCli, "templates", "add", "bigNumber", "--dry-run"], { cwd: consumer, stdio: "ignore" });
+  execFileSync(process.execPath, [packedCli, "templates", "add", "bigNumber", "--diff"], { cwd: consumer, stdio: "ignore" });
   if (existsSync(join(consumer, "vanillasky"))) {
     throw new Error("Packed add preview commands changed the consumer");
   }
-  execFileSync(process.execPath, [packedCli, "add", "bigNumber"], { cwd: consumer, stdio: "inherit" });
-  const copiedCheckOutput = execFileSync(process.execPath, [packedCli, "check"], { cwd: consumer, encoding: "utf8" });
+  execFileSync(process.execPath, [packedCli, "templates", "add", "bigNumber"], { cwd: consumer, stdio: "inherit" });
+  const copiedCheckOutput = execFileSync(process.execPath, [packedCli, "templates", "check"], { cwd: consumer, encoding: "utf8" });
   if (!copiedCheckOutput.includes("12 deterministic renders")) {
     throw new Error(`Packed copied-template check failed:\n${copiedCheckOutput}`);
   }
   rmSync(join(consumer, "vanillasky"), { recursive: true, force: true });
-  execFileSync(process.execPath, [packedCli, "add", "--all"], { cwd: consumer, stdio: "inherit" });
-  const catalogCheckOutput = execFileSync(process.execPath, [packedCli, "check"], { cwd: consumer, encoding: "utf8" });
+  execFileSync(process.execPath, [packedCli, "templates", "add", "--all"], { cwd: consumer, stdio: "inherit" });
+  const catalogCheckOutput = execFileSync(process.execPath, [packedCli, "templates", "check"], { cwd: consumer, encoding: "utf8" });
   const catalogSummary = "Checked 28 templates, 28 examples, and 336 deterministic renders.";
   if (!catalogCheckOutput.includes(catalogSummary)) throw new Error(`Packed built-in catalog check failed:\n${catalogCheckOutput}`);
   rmSync(join(consumer, "vanillasky"), { recursive: true, force: true });
 
-  const createOutput = execFileSync(process.execPath, [packedCli, "create", "customer-health"], { cwd: consumer, encoding: "utf8" });
+  const createOutput = execFileSync(process.execPath, [packedCli, "templates", "create", "customer-health"], { cwd: consumer, encoding: "utf8" });
   for (const expected of [
     "Created template: vanillasky/templates/customer-health.tsx",
     "Synced 1 template to vanillasky/index.ts and vanillasky/server.ts.",
     "Source: vanillasky/templates/customer-health.tsx",
-    "vanillasky check",
+    "vanillasky templates check",
   ]) {
     if (!createOutput.includes(expected)) throw new Error(`Packed create output omitted ${JSON.stringify(expected)}:\n${createOutput}`);
   }
@@ -384,18 +384,18 @@ export const templates = createTemplateRegistry({ definitions: [] });
     include: ["vanillasky/**/*.ts", "vanillasky/**/*.tsx"],
   }));
   execFileSync(process.execPath, [join(consumer, "node_modules", "typescript", "bin", "tsc"), "-p", "tsconfig.json"], { cwd: consumer, stdio: "inherit" });
-  const checkOutput = execFileSync(process.execPath, [packedCli, "check"], { cwd: consumer, encoding: "utf8" });
+  const checkOutput = execFileSync(process.execPath, [packedCli, "templates", "check"], { cwd: consumer, encoding: "utf8" });
   if (!checkOutput.includes("12 deterministic renders")) throw new Error(`Packed template check failed:\n${checkOutput}`);
-  execFileSync(process.execPath, [packedCli, "list"], { cwd: consumer, stdio: "ignore" });
-  execFileSync(process.execPath, [packedCli, "describe", "customer-health"], { cwd: consumer, stdio: "ignore" });
-  const effectiveCatalog = JSON.parse(execFileSync(process.execPath, [packedCli, "list", "--json"], { cwd: consumer, encoding: "utf8" }));
+  execFileSync(process.execPath, [packedCli, "templates", "list"], { cwd: consumer, stdio: "ignore" });
+  execFileSync(process.execPath, [packedCli, "templates", "describe", "customer-health"], { cwd: consumer, stdio: "ignore" });
+  const effectiveCatalog = JSON.parse(execFileSync(process.execPath, [packedCli, "templates", "list", "--json"], { cwd: consumer, encoding: "utf8" }));
   const customerCatalogEntry = effectiveCatalog.find(({ id }) => id === "customer-health");
   if (customerCatalogEntry?.origin !== "project" || customerCatalogEntry.status !== "current") {
     throw new Error(`Packed effective catalog lost current customer source:\n${JSON.stringify(customerCatalogEntry, null, 2)}`);
   }
-  const builtinCatalog = JSON.parse(execFileSync(process.execPath, [packedCli, "list", "--builtin", "--json"], { cwd: consumer, encoding: "utf8" }));
+  const builtinCatalog = JSON.parse(execFileSync(process.execPath, [packedCli, "templates", "list", "--builtin", "--json"], { cwd: consumer, encoding: "utf8" }));
   if (builtinCatalog.some(({ id }) => id === "customer-health")) throw new Error("Packed built-in catalog included project source");
-  const customerDescription = JSON.parse(execFileSync(process.execPath, [packedCli, "describe", "customer-health", "--json"], { cwd: consumer, encoding: "utf8" }));
+  const customerDescription = JSON.parse(execFileSync(process.execPath, [packedCli, "templates", "describe", "customer-health", "--json"], { cwd: consumer, encoding: "utf8" }));
   if (customerDescription.origin !== "project" || customerDescription.generated?.current !== true) {
     throw new Error(`Packed describe did not report current project source:\n${JSON.stringify(customerDescription, null, 2)}`);
   }
@@ -410,12 +410,12 @@ export const templates = createTemplateRegistry({ definitions: [] });
   // Exercise the source-owned copy of SceneBackground against VideoPlayer
   // from the tarball. This is a distinct module boundary from packaged
   // built-ins and must share the Mobile Safari backdrop contract safely.
-  execFileSync(process.execPath, [packedCli, "add", "media"], { cwd: consumer, stdio: "inherit" });
+  execFileSync(process.execPath, [packedCli, "templates", "add", "media"], { cwd: consumer, stdio: "inherit" });
   const suppliedMediaSource = readFileSync(join(customerTemplates, "supplied-media.tsx"), "utf8");
   const previewImageUrl = suppliedMediaSource.match(/const previewImageUrl = ("[^"]+")/)?.[1];
   if (!previewImageUrl) throw new Error("Packed supplied-media reference omitted its inline preview image");
-  execFileSync(process.execPath, [packedCli, "sync"], { cwd: consumer, stdio: "inherit" });
-  const referenceCheckOutput = execFileSync(process.execPath, [packedCli, "check"], { cwd: consumer, encoding: "utf8" });
+  execFileSync(process.execPath, [packedCli, "templates", "sync"], { cwd: consumer, stdio: "inherit" });
+  const referenceCheckOutput = execFileSync(process.execPath, [packedCli, "templates", "check"], { cwd: consumer, encoding: "utf8" });
   if (!referenceCheckOutput.includes("48 deterministic renders")) {
     throw new Error(`Packed custom reference check failed:\n${referenceCheckOutput}`);
   }
@@ -1011,7 +1011,7 @@ createRoot(document.getElementById("root")).render(createElement("main", null,
   for (const relative of ["dist/index.js", "dist/server.js", "dist/react.js", "dist/templates.js", "dist/template-catalog.js", "dist/test.js", "dist/check-runtime.js", "styles/video-chat.css", "bin/vanillasky.js", "registry/items/notification.json"]) {
     if (!existsSync(join(packageRoot, relative))) throw new Error(`Packed package is missing ${relative}`);
   }
-  execFileSync(process.execPath, [join(packageRoot, "bin", "vanillasky.js"), "list"], { cwd: consumer, stdio: "ignore" });
+  execFileSync(process.execPath, [join(packageRoot, "bin", "vanillasky.js"), "templates", "list"], { cwd: consumer, stdio: "ignore" });
   console.log(`Packed SDK artifact ${selectedArtifact.integrity} created, checked, built, parsed, and replayed with zero generation requests.`);
 } finally {
   rmSync(workspace, { recursive: true, force: true });

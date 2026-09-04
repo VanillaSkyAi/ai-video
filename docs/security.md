@@ -15,10 +15,10 @@ The SDK validates protocol shape; your application still owns identity, authoriz
 - Keep provider keys, system prompts, tools, signed-URL credentials, and admin tokens server-side.
 - Use the same generated template registry on the server and in React; the handler infers validation.
 - Treat every project-owned template as trusted application build code and
-  review it before using the CLI. Normal `vanillasky list`,
-  `vanillasky describe`, `vanillasky add`, `vanillasky sync`, and
-  `vanillasky check` commands execute project template modules locally. This
-  includes `vanillasky add` previews with `--dry-run` or `--diff`, because the
+  review it before using the CLI. Normal `vanillasky templates list`,
+  `vanillasky templates describe`, `vanillasky templates add`, `vanillasky templates sync`, and
+  `vanillasky templates check` commands execute project template modules locally. This
+  includes `vanillasky templates add` previews with `--dry-run` or `--diff`, because the
   CLI must derive the proposed browser and server registries. Resource and
   environment boundaries reduce accidental damage but are not a portable
   JavaScript sandbox.

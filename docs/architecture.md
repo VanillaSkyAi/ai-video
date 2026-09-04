@@ -34,7 +34,7 @@ visual vocabulary, validation, streaming lifecycle, and player.
 | `src/visual-system/backgrounds/` | Standalone background renderers |
 | `src/visual-system/motion/` | Animation functions and timing behavior |
 | `src/visual-system/theme/` | Color and design tokens |
-| `src/cli/` | `vanillasky create`, `add`, `sync`, `check`, `list`, and `describe` for customer-owned templates |
+| `src/cli/` | `vanillasky init` and `doctor`, plus `vanillasky templates create`, `add`, `sync`, `check`, `list`, and `describe` |
 | `registry/items/` | Generated distributable copies installed into customer projects |
 | `src/index.ts`, `src/server.ts`, `src/react.ts`, `src/templates.ts`, `src/template-catalog.ts`, `src/test.ts`, `styles/video-chat.css` | The six small code entry points and one scoped stylesheet |
 
@@ -45,7 +45,7 @@ every installable item by a stable name. Their `meta.vanillasky.layer` and
 support code. Run `npm run registry:sync` after changing canonical visual source.
 
 Customer applications do not edit those internal locations. Their source of
-truth is one file per visual under `vanillasky/templates/`; `vanillasky sync`
+truth is one file per visual under `vanillasky/templates/`; `vanillasky templates sync`
 derives a browser registry in `vanillasky/index.ts` and a React-free
 prompt/validation registry in `vanillasky/server.ts`.
 

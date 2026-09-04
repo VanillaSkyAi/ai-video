@@ -8,7 +8,6 @@ picture.
 <!-- verify:start -->
 ```bash
 npm install
-cp .env.example .env.local
 npm run build
 npm run dev
 ```

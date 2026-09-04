@@ -54,7 +54,7 @@ describe("effective template catalog CLI", () => {
     const cwd = project();
     await syncTemplates({ cwd });
 
-    const result = await run(["list"], cwd);
+    const result = await run(["templates", "list"], cwd);
 
     expect(result.code).toBe(0);
     const rows = result.output.split("\n");
@@ -69,7 +69,7 @@ describe("effective template catalog CLI", () => {
   it("supports machine-readable effective and packaged-only catalogs", async () => {
     const cwd = project();
 
-    const effective = await run(["list", "--json"], cwd);
+    const effective = await run(["templates", "list", "--json"], cwd);
     expect(effective.code).toBe(0);
     const effectiveItems = JSON.parse(effective.output) as Array<Record<string, unknown>>;
     expect(effectiveItems.find(({ id }) => id === "bigNumber")).toMatchObject({
@@ -78,7 +78,7 @@ describe("effective template catalog CLI", () => {
     });
     expect(effectiveItems.find(({ id }) => id === "customerHealth")).toMatchObject({ origin: "project" });
 
-    const builtin = await run(["list", "--builtin", "--json"], cwd);
+    const builtin = await run(["templates", "list", "--builtin", "--json"], cwd);
     expect(builtin.code).toBe(0);
     const builtinItems = JSON.parse(builtin.output) as Array<Record<string, unknown>>;
     expect(builtinItems.find(({ id }) => id === "bigNumber")).toMatchObject({
@@ -91,7 +91,7 @@ describe("effective template catalog CLI", () => {
     const cwd = project();
     await syncTemplates({ cwd });
 
-    const json = await run(["describe", "bigNumber", "--json"], cwd);
+    const json = await run(["templates", "describe", "bigNumber", "--json"], cwd);
     expect(json.code).toBe(0);
     expect(JSON.parse(json.output)).toMatchObject({
       id: "bigNumber",
@@ -118,7 +118,7 @@ describe("effective template catalog CLI", () => {
     });
 
     writeFileSync(join(cwd, "vanillasky/server.ts"), `${readFileSync(join(cwd, "vanillasky/server.ts"), "utf8")}\n// drift`);
-    const stale = await run(["describe", "bigNumber", "--json"], cwd);
+    const stale = await run(["templates", "describe", "bigNumber", "--json"], cwd);
     expect(JSON.parse(stale.output)).toMatchObject({
       status: "stale",
       generated: {
@@ -128,7 +128,7 @@ describe("effective template catalog CLI", () => {
       },
     });
 
-    const text = await run(["describe", "bigNumber"], cwd);
+    const text = await run(["templates", "describe", "bigNumber"], cwd);
     expect(text.output).toContain("Origin\tproject");
     expect(text.output).toContain("Generated files\tstale");
     expect(text.output).toContain("Use when\tUse the project metric treatment.");
@@ -143,11 +143,11 @@ describe("effective template catalog CLI", () => {
     const cwd = project();
     writeFileSync(join(cwd, "vanillasky/templates/hang.tsx"), "while (true) {}\n");
 
-    const listed = await run(["list", "--builtin", "--json"], cwd);
+    const listed = await run(["templates", "list", "--builtin", "--json"], cwd);
     expect(listed.code).toBe(0);
     expect((JSON.parse(listed.output) as Array<{ id: string }>).some(({ id }) => id === "bigNumber")).toBe(true);
 
-    const result = await run(["describe", "bigNumber", "--builtin", "--json"], cwd);
+    const result = await run(["templates", "describe", "bigNumber", "--builtin", "--json"], cwd);
 
     expect(result.code).toBe(0);
     expect(JSON.parse(result.output)).toMatchObject({
@@ -165,10 +165,10 @@ describe("effective template catalog CLI", () => {
 
   it("rejects unexpected list arguments and preserves describe JSON selection guidance", async () => {
     const cwd = project();
-    const garbage = await run(["list", "garbage"], cwd);
+    const garbage = await run(["templates", "list", "garbage"], cwd);
     expect(garbage).toEqual({ code: 1, output: "Unexpected list argument: garbage" });
 
-    const described = await run(["describe", "bigNumber", "--json"], cwd);
+    const described = await run(["templates", "describe", "bigNumber", "--json"], cwd);
     expect(JSON.parse(described.output)).toMatchObject({
       useWhen: "Use the project metric treatment.",
       summary: "Project description",

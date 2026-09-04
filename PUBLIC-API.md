@@ -371,14 +371,21 @@ invalid scenes, provider failure, content filtering, abort, and timeout.
 
 The `vanillasky` binary supports:
 
-- `list`
-- `describe`
-- `create`
-- `add`
-- `sync`
-- `check`
-- `add --dry-run`
-- `add --diff`
+- `init`
+- `doctor`
+- `templates list`
+- `templates describe`
+- `templates create`
+- `templates add`
+- `templates sync`
+- `templates check`
+- `templates add --dry-run`
+- `templates add --diff`
+
+`init` writes the canonical app-owned provider and configuration shell while
+using the SDK's packaged interface, session, handler, and built-in templates.
+`doctor` is read-only and offline. The old top-level template commands are not
+aliases; this is an intentional pre-1.0 namespace change.
 
 Generated customer files import only the public entry points in this document.
 Browser registries import `createTemplateRegistry` from `/templates`. Server

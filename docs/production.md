@@ -101,7 +101,7 @@ In CI, build and test the application. If the project owns copied templates,
 also verify that its registry is current:
 
 ```bash
-npx vanillasky sync --check
+npx vanillasky templates sync --check
 npm run build
 npm test
 ```

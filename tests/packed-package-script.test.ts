@@ -67,7 +67,7 @@ describe("packed package verification", () => {
     const script = readFileSync(new URL("../scripts/verify-packed-package.mjs", import.meta.url), "utf8");
 
     expect(script).toContain('from "playwright"');
-    expect(script).toContain('[packedCli, "create", "customer-health"]');
+    expect(script).toContain('[packedCli, "templates", "create", "customer-health"]');
     expect(script).toContain('data-template-id="minimal-text"');
     expect(script).toContain('data-template-id="bigNumber"');
     expect(script).toContain("new VideoError");
@@ -190,8 +190,8 @@ describe("packed package verification", () => {
   it("checks every unchanged built-in copied by the packed add-all command", () => {
     const script = readFileSync(new URL("../scripts/verify-packed-package.mjs", import.meta.url), "utf8");
 
-    expect(script).toContain('[packedCli, "add", "--all"]');
-    expect(script).toContain('[packedCli, "check"]');
+    expect(script).toContain('[packedCli, "templates", "add", "--all"]');
+    expect(script).toContain('[packedCli, "templates", "check"]');
     expect(script).toContain("Checked 28 templates, 28 examples, and 336 deterministic renders.");
   });
 
@@ -202,8 +202,8 @@ describe("packed package verification", () => {
       expect(script).toContain(file);
     }
     expect(script).toContain('join(packageRoot, "examples", "custom-template")');
-    expect(script).toContain('[packedCli, "sync"]');
-    expect(script).toContain('[packedCli, "check"]');
+    expect(script).toContain('[packedCli, "templates", "sync"]');
+    expect(script).toContain('[packedCli, "templates", "check"]');
     expect(script).toContain("noUnusedLocals: true");
     expect(script).toContain('data-template-id="minimal-text"');
     expect(script).toContain('data-template-id="structured-data"');
@@ -216,22 +216,22 @@ describe("packed package verification", () => {
   it("runs every documented template command through the packed CLI", () => {
     const script = readFileSync(new URL("../scripts/verify-packed-package.mjs", import.meta.url), "utf8");
 
-    expect(script).toContain('[packedCli, "create", "customer-health"]');
-    expect(script).toContain('[packedCli, "add", "bigNumber"]');
-    expect(script).toContain('[packedCli, "add", "bigNumber", "--dry-run"]');
-    expect(script).toContain('[packedCli, "add", "bigNumber", "--diff"]');
-    expect(script).toContain('[packedCli, "list"]');
-    expect(script).toContain('[packedCli, "describe", "customer-health"]');
-    expect(script).toContain('[packedCli, "sync"]');
-    expect(script).toContain('[packedCli, "check"]');
+    expect(script).toContain('[packedCli, "templates", "create", "customer-health"]');
+    expect(script).toContain('[packedCli, "templates", "add", "bigNumber"]');
+    expect(script).toContain('[packedCli, "templates", "add", "bigNumber", "--dry-run"]');
+    expect(script).toContain('[packedCli, "templates", "add", "bigNumber", "--diff"]');
+    expect(script).toContain('[packedCli, "templates", "list"]');
+    expect(script).toContain('[packedCli, "templates", "describe", "customer-health"]');
+    expect(script).toContain('[packedCli, "templates", "sync"]');
+    expect(script).toContain('[packedCli, "templates", "check"]');
   });
 
   it("exercises effective list and describe through the packed consumer CLI", () => {
     const script = readFileSync(new URL("../scripts/verify-packed-package.mjs", import.meta.url), "utf8");
 
-    expect(script).toContain('[packedCli, "list", "--json"]');
-    expect(script).toContain('[packedCli, "list", "--builtin", "--json"]');
-    expect(script).toContain('[packedCli, "describe", "customer-health", "--json"]');
+    expect(script).toContain('[packedCli, "templates", "list", "--json"]');
+    expect(script).toContain('[packedCli, "templates", "list", "--builtin", "--json"]');
+    expect(script).toContain('[packedCli, "templates", "describe", "customer-health", "--json"]');
     expect(script).toContain('origin !== "project"');
     expect(script).toContain('current !== true');
     expect(script).not.toContain("customerCatalogEntry.current");

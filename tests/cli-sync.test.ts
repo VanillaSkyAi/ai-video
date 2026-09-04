@@ -166,8 +166,8 @@ describe("vanillasky sync", () => {
     const { runVanillaSkyCli } = await import("../src/cli/index");
     const output: string[] = [];
 
-    await expect(runVanillaSkyCli(["sync"], { cwd, write: (line) => output.push(line) })).resolves.toBe(0);
-    await expect(runVanillaSkyCli(["sync", "--check"], { cwd, write: (line) => output.push(line) })).resolves.toBe(0);
+    await expect(runVanillaSkyCli(["templates", "sync"], { cwd, write: (line) => output.push(line) })).resolves.toBe(0);
+    await expect(runVanillaSkyCli(["templates", "sync", "--check"], { cwd, write: (line) => output.push(line) })).resolves.toBe(0);
     expect(output).toEqual([
       "Synced 1 template to vanillasky/index.ts and vanillasky/server.ts.",
       "Template entrypoints are up to date.",

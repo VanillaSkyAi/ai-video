@@ -40,7 +40,7 @@ function reachableFiles(item: RegistryItem, seen = new Set<string>()): Set<strin
  * A registry item's `files` list is hand-maintained — the sync script only
  * refreshes each file's content. Adding an import to shared template source
  * therefore ships customers a module that imports a file nobody installed,
- * and `vanillasky add` emits source that cannot compile. Nothing else in the
+ * and `vanillasky templates add` emits source that cannot compile. Nothing else in the
  * suite notices, because the generated JSON stays internally consistent.
  */
 describe("registry item file closure", () => {

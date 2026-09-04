@@ -654,8 +654,8 @@ async function verifyProvider({ provider, tarball, packed, browser }) {
   if (!lock.includes(packed.integrity)) {
     throw new Error(`${provider} package lock does not identify exact integrity ${packed.integrity}`);
   }
-  run("npx", ["--no-install", "vanillasky", "sync", "--check"], app, environment);
-  run("npx", ["--no-install", "vanillasky", "check"], app, environment);
+  run("npx", ["--no-install", "vanillasky", "templates", "sync", "--check"], app, environment);
+  run("npx", ["--no-install", "vanillasky", "templates", "check"], app, environment);
 
   const buildStarted = performance.now();
   run("npm", ["run", "build"], app, environment);
@@ -867,8 +867,8 @@ async function verifyCompatibilityProvider({ expectation, tarball, packed, brows
   if (lock.packages?.["node_modules/@vanillaskyai/video"]?.integrity !== packed.integrity) {
     throw new Error(`${provider} package lock does not identify exact SDK integrity ${packed.integrity}`);
   }
-  run("npx", ["--no-install", "vanillasky", "sync", "--check"], app);
-  run("npx", ["--no-install", "vanillasky", "check"], app);
+  run("npx", ["--no-install", "vanillasky", "templates", "sync", "--check"], app);
+  run("npx", ["--no-install", "vanillasky", "templates", "check"], app);
 
   const buildStarted = performance.now();
   run("npm", ["run", "build"], app);

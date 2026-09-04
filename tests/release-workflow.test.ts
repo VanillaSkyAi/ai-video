@@ -351,20 +351,27 @@ describe("release workflow", () => {
     expect(verifier).toContain('join(app, "src", "template-ownership.ts")');
     expect(verifier).toContain('export { templates as browserTemplates } from "../vanillasky/index";');
     expect(verifier).toContain('export { templates as serverTemplates } from "../vanillasky/server";');
-    expect(verifier.indexOf('runCli(["add", "bigNumber"])'))
+    expect(verifier.indexOf('runCli(["templates", "add", "bigNumber"])'))
       .toBeLessThan(verifier.lastIndexOf('run("npm", ["run", "build"], app)'));
   });
 
   it("exercises the complete packed CLI ownership journey without weakening the scaffold", () => {
     const verifier = readFileSync("scripts/verify-onboarding.mjs", "utf8");
 
-    expect(verifier).toContain('["exec", "--yes", "--no-audit", "create-vite@9.1.2"');
+    expect(verifier).toContain('const init = runCli(["init"]);');
+    expect(verifier).toContain('const missingDoctor = runCli(["doctor"], { expectFailure: true });');
+    expect(verifier).toContain('const readyDoctor = runCli(["doctor"]);');
+    expect(verifier).toContain("Packed init exposed the server key in the browser bundle");
+    expect(verifier).toContain('getByRole("heading", { name: /responds in video, not text/i })');
+    expect(verifier).toContain("Initialized capability fallback drifted");
+    expect(verifier).toContain("Initialized browser errors");
+    expect(verifier).not.toContain("create-vite@");
     for (const command of ["list", "describe", "create", "add", "sync", "check"]) {
-      expect(verifier).toContain(`runCli(["${command}"`);
+      expect(verifier).toContain(`runCli(["templates", "${command}"`);
     }
-    expect(verifier).toContain('runCli(["add", "bigNumber", "--dry-run"]');
-    expect(verifier).toContain('runCli(["add", "bigNumber", "--diff"]');
-    expect(verifier).toContain('runCli(["sync", "--check"]');
+    expect(verifier).toContain('runCli(["templates", "add", "bigNumber", "--dry-run"]');
+    expect(verifier).toContain('runCli(["templates", "add", "bigNumber", "--diff"]');
+    expect(verifier).toContain('runCli(["templates", "sync", "--check"]');
     expect(verifier).toContain("assertProjectImports");
     expect(verifier).toContain("tsconfigSnapshot");
     expect(verifier).toContain("customer-owned acceptance edit");

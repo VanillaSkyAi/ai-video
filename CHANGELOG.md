@@ -4,6 +4,14 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds `vanillasky init` and `vanillasky doctor`. Init creates the canonical
+  thin video-chat app, installs its app-owned provider packages, starts with
+  packaged templates and browser voice, and requests one server-only text key.
+  Doctor checks the generated shell and reports optional speech, media,
+  transcription, and generated-video capabilities without calling providers or
+  printing secrets. Template ownership commands now live under the breaking
+  pre-1.0 `vanillasky templates` namespace.
+
 - Adds the complete default `VideoChat` interface and its explicitly imported,
   fully scoped `video-chat.css`. Applications can now mount the same polished
   voice-and-video chat in one component while retaining `useVideoChat` for

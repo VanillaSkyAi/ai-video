@@ -39,13 +39,13 @@ describe("customer-owned template registry", () => {
   it("describes a template schema as text and JSON", async () => {
     const { runVanillaSkyCli } = await import("../src/cli/index");
     const text: string[] = [];
-    expect(runVanillaSkyCli(["describe", "steps"], { write: (line) => text.push(line) })).toBe(0);
+    expect(runVanillaSkyCli(["templates", "describe", "steps"], { write: (line) => text.push(line) })).toBe(0);
     expect(text.join("\n")).toContain("steps — Steps");
     expect(text.join("\n")).toContain("steps\tstring-array[2..3]\trequired");
     expect(text.join("\n")).toContain("stepEmojis\tstring-array[0..3]\toptional");
 
     const json: string[] = [];
-    expect(runVanillaSkyCli(["describe", "beforeAfter", "--json"], { write: (line) => json.push(line) })).toBe(0);
+    expect(runVanillaSkyCli(["templates", "describe", "beforeAfter", "--json"], { write: (line) => json.push(line) })).toBe(0);
     const described = JSON.parse(json.join("\n"));
     expect(described.id).toBe("beforeAfter");
     expect(described).not.toHaveProperty("type");
@@ -126,8 +126,8 @@ describe("customer-owned template registry", () => {
   it("fails clearly when describe receives an unknown template", async () => {
     const { runVanillaSkyCli } = await import("../src/cli/index");
     const output: string[] = [];
-    expect(runVanillaSkyCli(["describe", "missing"], { write: (line) => output.push(line) })).toBe(1);
-    expect(output).toEqual(["Unknown template: missing. Run `vanillasky list` to see the catalog."]);
+    expect(runVanillaSkyCli(["templates", "describe", "missing"], { write: (line) => output.push(line) })).toBe(1);
+    expect(output).toEqual(["Unknown template: missing. Run `vanillasky templates list` to see the catalog."]);
   });
 
   it("lists all templates and installs selected source plus a shared motion kit", async () => {
@@ -197,10 +197,10 @@ describe("customer-owned template registry", () => {
       "});",
     ].join("\n"));
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    expect(api.runVanillaSkyCli(["list"], { cwd, write: (line) => output.push(line) })).toBe(0);
+    expect(api.runVanillaSkyCli(["templates", "list"], { cwd, write: (line) => output.push(line) })).toBe(0);
     expect(output.join("\n")).toContain("bigNumber");
 
-    const exitCode = await api.runVanillaSkyCli(["add", "notification"], {
+    const exitCode = await api.runVanillaSkyCli(["templates", "add", "notification"], {
       cwd,
       write: (line) => output.push(line),
     });
@@ -280,7 +280,7 @@ describe("customer-owned template registry", () => {
     const output: string[] = [];
     const cwd = mkdtempSync(join(tmpdir(), "vanillasky-template-only-"));
 
-    expect(api.runVanillaSkyCli(["list"], {
+    expect(api.runVanillaSkyCli(["templates", "list"], {
       cwd,
       write: (line) => output.push(line),
     })).toBe(0);
@@ -288,7 +288,7 @@ describe("customer-owned template registry", () => {
     expect(output.join("\n")).not.toMatch(/\tmotion\t|\tlib\t/);
 
     output.length = 0;
-    expect(api.runVanillaSkyCli(["list", "--type", "lib"], {
+    expect(api.runVanillaSkyCli(["templates", "list", "--type", "lib"], {
       cwd,
       write: (line) => output.push(line),
     })).toBe(1);
@@ -311,7 +311,7 @@ describe("customer-owned template registry", () => {
     const dryRunCwd = mkdtempSync(join(tmpdir(), "vanillasky-dry-run-"));
     const dryRunBefore = snapshotTree(dryRunCwd);
     const dryOutput: string[] = [];
-    await expect(runVanillaSkyCli(["add", "steps", "--dry-run"], {
+    await expect(runVanillaSkyCli(["templates", "add", "steps", "--dry-run"], {
       cwd: dryRunCwd,
       write: (line) => dryOutput.push(line),
     })).resolves.toBe(0);
@@ -324,7 +324,7 @@ describe("customer-owned template registry", () => {
 
     const diffBefore = snapshotTree(join(cwd, "vanillasky"));
     const diffOutput: string[] = [];
-    await expect(runVanillaSkyCli(["add", "bigNumber", "--diff"], {
+    await expect(runVanillaSkyCli(["templates", "add", "bigNumber", "--diff"], {
       cwd,
       write: (line) => diffOutput.push(line),
     })).resolves.toBe(0);
@@ -383,7 +383,7 @@ describe("customer-owned template registry", () => {
     ];
 
     expect(snapshotTree(cwd)).toEqual(before);
-    await expect(runVanillaSkyCli(["add", "bigNumber"], { cwd })).resolves.toBe(0);
+    await expect(runVanillaSkyCli(["templates", "add", "bigNumber"], { cwd })).resolves.toBe(0);
 
     for (const change of changes) {
       expect(readFileSync(join(cwd, change.path), "utf8"), change.path).toBe(change.after);
@@ -440,7 +440,7 @@ describe("customer-owned template registry", () => {
 
     for (const address of addresses) {
       const output: string[] = [];
-      await expect(runVanillaSkyCli(["add", address], {
+      await expect(runVanillaSkyCli(["templates", "add", address], {
         cwd,
         write: (line) => output.push(line),
       })).resolves.toBe(1);
@@ -458,7 +458,7 @@ describe("customer-owned template registry", () => {
     const cwd = mkdtempSync(join(tmpdir(), "vanillasky-safe-diagnostic-"));
     const malicious = "missing\u001b[31m\u0007-template";
 
-    const result = runVanillaSkyCli(["add", malicious], {
+    const result = runVanillaSkyCli(["templates", "add", malicious], {
       cwd,
       write: (line) => output.push(line),
     });
