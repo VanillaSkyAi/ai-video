@@ -92,7 +92,7 @@ The generated local authorization accepts localhost only. Replace it with your
 real session check, rate limits, and usage policy before deploying.
 
 If you prefer a committed Next.js example of the lower-level response APIs,
-use the tested [Next.js quickstart](../examples/nextjs-quickstart). The default
+use the tested [Next.js one-shot example](../examples/nextjs-quickstart). The default
 chat path above is the shortest way to reproduce the complete experience.
 
 ## Continue

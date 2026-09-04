@@ -4,6 +4,11 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Removes the obsolete source-owned template copy and transcript probes from
+  the video-chat starter. The package, lower-level examples, and remaining
+  documentation now consistently present voice-and-video chat as the primary
+  path, with packed onboarding as its single clean-room browser gate.
+
 - Makes the complete voice-and-video chat the primary README, getting-started,
   agent, provider, concepts, and architecture path. The one-shot composition
   APIs remain documented as an advanced non-chat integration.

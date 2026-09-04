@@ -1,11 +1,12 @@
 [← Documentation home](../README.md)
 
-# Video response use cases
+# One-shot video response use cases
 
-These four inputs show the primary product shape: AI answers and live
-application context become embedded video responses. The application decides
+These lower-level, one-shot examples use `video.generate()` when an application
+needs a standalone response instead of a conversation. The application decides
 which context matters and keeps it current. VanillaSky grounds, validates,
-composes, and plays the visual response.
+composes, and plays the visual response. For the primary voice-and-video chat
+experience, start with [`VideoChat`](getting-started.md).
 
 ## News summary
 

@@ -30,7 +30,6 @@ try {
 
   const consumers = [
     { name: "react-vite", path: join("examples", "react-vite") },
-    { name: "video-chat", path: join("starters", "video-chat") },
     { name: "server-integrations", path: join("examples", "server-integrations") },
     { name: "nextjs-quickstart", path: join("examples", "nextjs-quickstart") },
   ];

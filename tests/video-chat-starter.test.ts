@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -81,6 +81,11 @@ describe("video chat starter", () => {
     ]) {
       expect(() => readFileSync(join(starterRoot, "src", duplicated), "utf8")).toThrow();
     }
+  });
+
+  it("does not keep an obsolete source-owned template tree or transcript harness", () => {
+    expect(existsSync(join(starterRoot, "vanillasky"))).toBe(false);
+    expect(existsSync(join(starterRoot, "scripts"))).toBe(false);
   });
 
   it("uses packaged templates until the application opts into source ownership", () => {

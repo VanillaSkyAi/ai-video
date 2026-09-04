@@ -1,6 +1,6 @@
 # Provider onboarding evidence
 
-## Canonical path
+## Next.js provider fixture
 
 The committed Next.js quickstart has one route, planner, and React client. A
 server-only module selects `openai` or `anthropic` from `VIDEO_PROVIDER` and the
@@ -74,11 +74,11 @@ Observed before this work package:
 - the packed test replaced the planner, so it bypassed the documented AI SDK
   integration and could not prove provider parity;
 - lifecycle warnings and server-only normalized usage were documented elsewhere
-  but absent from the canonical app;
+  but absent from the provider fixture;
 - the app did not show how to persist, validate, time, or replay its result;
 - no project-owned template proved server/browser registry wiring;
 - fail-closed production auth was tested only by the broad documented-example
-  verifier, not by both provider variants in the canonical gate.
+  verifier, not by both provider variants in the provider compatibility gate.
 - the first dual-provider verifier used port `4190`, which Node's standards-based
   `fetch` correctly rejects as an unsafe port even though Next.js was healthy;
   the gate now uses safe ports and cleans up its process tree on readiness errors.

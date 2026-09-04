@@ -96,7 +96,7 @@ That compiler is needed only for source-owned templates. See
 The default chat is the primary product path. The lower-level
 `createVideoHandler`, `useVideo`, and `VideoPlayer` APIs remain available for
 applications that need individual video responses without the chat lifecycle.
-See the [Next.js quickstart](examples/nextjs-quickstart) and
+See the [Next.js one-shot example](examples/nextjs-quickstart) and
 [advanced integration guide](docs/integrate-nextjs.md).
 
 Completed responses are deterministic JSON and can be stored and replayed.

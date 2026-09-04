@@ -1,7 +1,8 @@
-# Next.js quickstart
+# Next.js one-shot example
 
-This is the smallest complete VanillaSky app: one server route, one React page,
-and the built-in templates.
+This lower-level, one-shot example has one server route, one React page, and the
+built-in templates. Use `vanillasky init` for the primary voice-and-video chat
+experience.
 
 <!-- verify:start -->
 ```bash

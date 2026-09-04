@@ -1,13 +1,14 @@
 {
   "name": "@vanillaskyai/video",
   "version": "0.6.0",
-  "description": "Open-source video response SDK for personalized AI applications.",
+  "description": "Open-source voice-and-video chat SDK for AI applications.",
   "keywords": [
+    "video-chat",
+    "voice-chat",
+    "ai-chat",
     "generative-video",
-    "personalized-video",
     "video-response",
     "ai-output",
-    "contextual-ai",
     "streaming",
     "react",
     "llm",

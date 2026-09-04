@@ -2,9 +2,10 @@
 
 # Next.js integration
 
-After installing VanillaSky, choose the provider and model for your server. This
-complete example uses Anthropic and asks you to select a current Claude Sonnet
-model explicitly instead of baking a model ID into the SDK docs:
+This lower-level, one-shot integration is for applications that need a custom
+Next.js response route instead of the default `VideoChat` experience. It uses
+Anthropic and asks you to select a current Claude Sonnet model explicitly
+instead of baking a model ID into the SDK docs:
 
 ```bash
 npm install @vanillaskyai/video ai @ai-sdk/anthropic
@@ -72,7 +73,8 @@ export function Video() {
 }
 ```
 
-That is the complete first path. Built-in templates need no registry setup.
+That is the complete lower-level one-shot path. Built-in templates need no
+registry setup.
 The development authorization accepts only local requests and denies production
 requests; replace it with your application's session validation before
 deploying.
@@ -83,4 +85,4 @@ The copy-and-run app is in the
 For another LLM, replace `anthropic(...)` with the matching AI SDK model. The route
 shape and React code stay the same. See [Provider integration](provider-integration.md)
 for adapters, authentication, diagnostics, and production controls. Add media,
-audio, persistence, or custom templates only after the default path works.
+audio, persistence, or custom templates only after this basic route works.

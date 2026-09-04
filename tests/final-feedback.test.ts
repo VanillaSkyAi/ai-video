@@ -20,7 +20,7 @@ describe("final candidate feedback regressions", () => {
   });
 
   it("links quickstart documentation without embedding a release version", () => {
-    expect(read("README.md")).toContain("[Next.js quickstart](examples/nextjs-quickstart)");
+    expect(read("README.md")).toContain("[Next.js one-shot example](examples/nextjs-quickstart)");
     for (const path of ["docs/getting-started.md", "docs/integrate-nextjs.md"]) {
       expect(read(path), path).toContain("(../examples/nextjs-quickstart)");
     }

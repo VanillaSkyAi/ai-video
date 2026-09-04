@@ -84,13 +84,24 @@ describe("documented examples", () => {
     expect(gettingStarted).not.toMatch(/createVideoHandler|useVideo\(|<VideoPlayer/);
     const providerGuide = readFileSync(resolve(root, "docs/provider-integration.md"), "utf8");
     expect(providerGuide.indexOf("npx vanillasky init")).toBeLessThan(providerGuide.indexOf("createVideoChatHandler"));
+
+    const useCases = readFileSync(resolve(root, "docs/use-cases.md"), "utf8");
+    const nextjsGuide = readFileSync(resolve(root, "docs/integrate-nextjs.md"), "utf8");
+    const nextjsExample = readFileSync(resolve(root, "examples/nextjs-quickstart/README.md"), "utf8");
+    expect(useCases).toMatch(/lower-level.*one-shot/is);
+    expect(useCases).not.toContain("primary product shape");
+    expect(nextjsGuide).toMatch(/lower-level.*one-shot/is);
+    expect(nextjsExample).toMatch(/lower-level.*one-shot/is);
+    expect(nextjsExample).not.toContain("smallest complete VanillaSky app");
   });
 
-  it("defines audio as a soundtrack and names narration as outside the 0.1 contract", () => {
+  it("separates low-level soundtrack audio from VideoChat narration", () => {
     const guide = readFileSync(resolve(root, "docs/media-and-audio.md"), "utf8");
 
     expect(guide).toContain("soundtrack");
-    expect(guide).toContain("does not provide narration, TTS, or speech synchronization");
+    expect(guide).toContain("VideoChat");
+    expect(guide).toMatch(/narration.*speech synchronization/is);
+    expect(guide).not.toContain("SDK does not provide narration");
   });
 
   it("documents app-owned AI SDK media generation without adding it to the core install", () => {
@@ -209,10 +220,16 @@ describe("documented examples", () => {
 
   it("runs documented commands against the unpublished packed candidate", () => {
     const verifier = readFileSync(resolve(root, "scripts/verify-documented-examples.mjs"), "utf8");
+    const installer = readFileSync(resolve(root, "scripts/install-current-examples.mjs"), "utf8");
+    const onboarding = readFileSync(resolve(root, "scripts/verify-onboarding.mjs"), "utf8");
     expect(verifier).toContain('"pack", "--silent", "--json", "--pack-destination", workspace');
     expect(verifier).toContain('manifest.dependencies["@vanillaskyai/video"] = `file:${candidateTarball}`');
     expect(verifier).toContain("installedVersion !== candidateVersion");
     expect(verifier).toContain('npm_config_audit: "false"');
     expect(verifier).toContain('npm_config_fund: "false"');
+    expect(verifier).not.toContain('{ name: "video-chat"');
+    expect(installer).not.toContain('{ name: "video-chat"');
+    expect(onboarding).toContain('runCli(["init"])');
+    expect(onboarding).toContain('responds in video, not text');
   });
 });
