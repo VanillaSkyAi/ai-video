@@ -3,77 +3,72 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "..");
-const example = resolve(root, "examples", "nextjs-quickstart");
-const read = (path: string) => readFileSync(resolve(example, path), "utf8");
+const fixture = resolve(root, "tests", "fixtures", "nextjs-provider-app");
+const read = (path: string) => readFileSync(resolve(fixture, path), "utf8");
 const packageVersion = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")).version as string;
 
 describe("canonical provider onboarding", () => {
-  it("ships one small Anthropic path without custom-template or persistence setup", () => {
+  it("keeps broad provider compatibility in an internal fixture", () => {
     const manifest = JSON.parse(read("package.json")) as {
       dependencies: Record<string, string>;
-      devDependencies?: Record<string, string>;
+      devDependencies: Record<string, string>;
     };
 
     expect(manifest.dependencies).toMatchObject({
       "@ai-sdk/anthropic": expect.any(String),
+      "@ai-sdk/openai": expect.any(String),
       "@vanillaskyai/video": packageVersion,
       ai: expect.any(String),
       next: expect.any(String),
       react: expect.any(String),
       "react-dom": expect.any(String),
     });
-    expect(manifest.dependencies).not.toHaveProperty("@ai-sdk/openai");
-    expect(manifest.devDependencies).not.toHaveProperty("tsx");
-    expect(existsSync(resolve(example, "config"))).toBe(false);
-    expect(existsSync(resolve(example, "vanillasky"))).toBe(false);
-    expect(existsSync(resolve(example, "src/app/api/video/provider.ts"))).toBe(false);
-    expect(existsSync(resolve(example, "src/app/api/video/planner.ts"))).toBe(false);
+    expect(manifest.devDependencies).toHaveProperty("tsx");
+    expect(existsSync(resolve(fixture, "src/app/api/video-chat/providers/openai.ts"))).toBe(true);
+    expect(existsSync(resolve(fixture, "src/app/api/video-chat/providers/anthropic.ts"))).toBe(true);
+    expect(existsSync(resolve(fixture, "src/app/api/video"))).toBe(false);
   });
 
-  it("connects the model directly in one fail-closed server route", () => {
-    const route = read("src/app/api/video/route.ts");
-    const manifest = JSON.parse(read("package.json")) as {
-      scripts: Record<string, string>;
-      devDependencies: Record<string, string>;
-    };
+  it("connects supported models to one fail-closed chat route", () => {
+    const route = read("src/app/api/video-chat/route.ts");
+    const planner = read("src/app/api/video-chat/planner.ts");
+    const provider = read("src/app/api/video-chat/provider.ts");
 
-    expect(route).toContain('from "@ai-sdk/anthropic"');
-    expect(route).toContain('from "ai"');
     expect(route).toContain('from "@vanillaskyai/video/server"');
-    expect(route).toContain("createVideoHandler({");
-    expect(route).toContain("streamText:");
+    expect(route).toContain("createVideoChatHandler({");
+    expect(route).toContain("streamText: streamVideoPlan");
+    expect(route).toContain("generateText:");
     expect(route).toContain('process.env.VANILLASKY_LOCAL_DEMO !== "1"');
-    expect(manifest.scripts.dev).toBe("cross-env VANILLASKY_LOCAL_DEMO=1 next dev");
-    expect(manifest.devDependencies["cross-env"]).toBe("10.1.0");
-    expect(route).not.toMatch(/templates,|onWarning:|onComplete:|onError:|providerMetadata/);
+    expect(route).toContain("export const GET = handle");
+    expect(route).toContain("export const POST = handle");
+    expect(planner).toContain('from "ai"');
+    expect(provider).toContain('from "./providers/openai"');
+    expect(provider).toContain('from "./providers/anthropic"');
   });
 
-  it("generates and plays one personalized video without replay plumbing", () => {
+  it("renders the complete SDK-owned chat interface", () => {
     const page = read("src/app/page.tsx");
 
-    expect(page).toContain('VideoPlayer, useVideo');
-    expect(page).toContain("video.generate({");
-    expect(page).toContain("personalization:");
-    expect(page).toContain("<VideoPlayer {...video.playerProps}");
-    expect(page).not.toMatch(/parseVideo|getVideoDuration|localStorage|templates=|vanillasky\//);
+    expect(page).toContain('import { VideoChat } from "@vanillaskyai/video/react"');
+    expect(page).toContain('import "@vanillaskyai/video/video-chat.css"');
+    expect(page).toContain("<VideoChat options={{ templates }} />");
+    expect(page).not.toMatch(/useVideo\(|<VideoPlayer|video\.generate\(/);
   });
 
-  it("documents only the copy-run-generate path", () => {
+  it("labels the fixture as internal and points users to init", () => {
     const readme = read("README.md");
     const environment = read(".env.example");
 
-    expect(environment).toBe(
-      "ANTHROPIC_API_KEY=replace-me\nANTHROPIC_MODEL=replace-with-current-sonnet-model\n",
-    );
-    expect(readme).toContain("npm install");
-    expect(readme).toContain("cp .env.example .env.local");
-    expect(readme).toContain("npm run dev");
-    expect(readme).toContain("Replace the local-only authorization before deploying");
-    expect(readme).toContain("Claude Sonnet");
-    expect(readme).not.toMatch(/OpenAI|provider selector|custom template|localStorage|replay/i);
+    expect(environment).toContain("VIDEO_PROVIDER=openai");
+    expect(environment).toContain("OPENAI_API_KEY=replace-me");
+    expect(environment).toContain("ANTHROPIC_API_KEY=");
+    expect(readme).toContain("Internal Next.js video-chat fixture");
+    expect(readme).toContain("npx vanillasky init");
+    expect(readme).toContain("Replace `authorize`");
+    expect(readme).not.toMatch(/public quickstart|one-shot/i);
   });
 
-  it("keeps broad provider compatibility in an internal fixture, not the public quickstart", () => {
+  it("verifies chat streaming, safety, and provider compatibility without live keys", () => {
     const verifier = readFileSync(resolve(root, "scripts", "verify-nextjs-onboarding.mjs"), "utf8");
 
     expect(verifier).toContain('"tests", "fixtures", "nextjs-provider-app"');
@@ -83,8 +78,10 @@ describe("canonical provider onboarding", () => {
     expect(verifier).toContain("provider_warning");
     expect(verifier).toContain("credentialForbiddenValues");
     expect(verifier).toContain("allocateLocalPort");
-    expect(verifier).toContain('assertSavedDuration(page, "8 seconds"');
-    expect(verifier).toContain('scenes?.[0]?.id !== "supplied-opening"');
+    expect(verifier).toContain('url.pathname === "/api/video-chat"');
+    expect(verifier).toContain('getByRole("textbox", { name: "Prompt", exact: true })');
+    expect(verifier).toContain('getByRole("button", { name: "Ask", exact: true })');
+    expect(verifier).not.toMatch(/assertSavedDuration|localStorage|video\.generate|<VideoPlayer/);
     expect(verifier).not.toMatch(/const (?:production|development)Port = 43\d{2}/);
   });
 

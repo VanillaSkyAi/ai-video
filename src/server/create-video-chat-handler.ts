@@ -342,7 +342,13 @@ function replaceTextStream(
     ? source as TextDeltaVideoSource
     : undefined;
   if (!enriched) return textStream;
-  return { ...enriched, textStream };
+  const wrapper: TextDeltaVideoSource = { textStream };
+  return new Proxy(wrapper, {
+    get(target, property, receiver) {
+      if (property === "textStream") return Reflect.get(target, property, receiver);
+      return Reflect.get(enriched, property, enriched);
+    },
+  });
 }
 
 interface OpeningChannel {

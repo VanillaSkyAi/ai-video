@@ -36,8 +36,8 @@ const providers = ["openai", "anthropic"];
 const commandLog = [];
 const retainedProviderEvidence = [];
 const providerEvidenceFilename = "provider-evidence.json";
-const routeRelative = "src/app/api/video/route.ts";
-const plannerRelative = "src/app/api/video/planner.ts";
+const routeRelative = "src/app/api/video-chat/route.ts";
+const plannerRelative = "src/app/api/video-chat/planner.ts";
 const clientRelative = "src/app/page.tsx";
 const tsconfigRelative = "tsconfig.json";
 const routeHash = hashFile(join(source, routeRelative));
@@ -240,7 +240,7 @@ export function ${exportName}(modelId: string) {
           controller.enqueue({
             type: "text-delta",
             id: "text-1",
-            delta: '{"type":"scene.add","scene":{"id":"activation","templateId":"activationLift","variables":{"title":"Packed quickstart","previous":41,"current":58,"explanation":"Guided onboarding helped more users reach value."},"timing":{"fixedDuration":6}}}\\n{"type":"plan.complete"}\\n',
+            delta: '{"type":"video-chat.opening","spokenHook":"Activation climbed after guided onboarding.","mediaKeyword":"product onboarding"}\\n{"type":"scene.add","scene":{"id":"activation","templateId":"activationLift","variables":{"title":"Packed video chat","previous":41,"current":58,"explanation":"Guided onboarding helped more users reach value."},"timing":{"fixedDuration":6},"narration":"Guided onboarding raised activation from forty-one to fifty-eight percent."}}\\n{"type":"plan.complete"}\\n',
           });
           controller.enqueue({ type: "text-end", id: "text-1" });
           controller.enqueue({
@@ -261,17 +261,17 @@ export function ${exportName}(modelId: string) {
 
 function installDeterministicProviders(app) {
   writeFileSync(
-    join(app, "src/app/api/video/providers/openai.ts"),
+    join(app, "src/app/api/video-chat/providers/openai.ts"),
     deterministicProviderSource("openai"),
   );
   writeFileSync(
-    join(app, "src/app/api/video/providers/anthropic.ts"),
+    join(app, "src/app/api/video-chat/providers/anthropic.ts"),
     deterministicProviderSource("anthropic"),
   );
 }
 
 function compatibilityNativeSse(expectation) {
-  const plan = '{"type":"scene.add","scene":{"id":"activation","templateId":"activationLift","variables":{"title":"Packed provider compatibility","previous":41,"current":58,"explanation":"A real provider package parsed its native stream without a network call."},"timing":{"fixedDuration":6}}}\n{"type":"plan.complete"}\n';
+  const plan = '{"type":"video-chat.opening","spokenHook":"Provider streaming works inside video chat.","mediaKeyword":"video conversation"}\n{"type":"scene.add","scene":{"id":"activation","templateId":"activationLift","variables":{"title":"Packed provider compatibility","previous":41,"current":58,"explanation":"A real provider package parsed its native stream without a network call."},"timing":{"fixedDuration":6},"narration":"The provider streamed a validated video-chat response without a network call."}}\n{"type":"plan.complete"}\n';
   if (expectation.provider === "google") {
     return [
       {
@@ -480,15 +480,6 @@ async function waitForOutput(output, pattern) {
   throw new Error(`Server output did not match ${pattern}:\n${output.value}`);
 }
 
-async function assertSavedDuration(page, expected, provider) {
-  const duration = page.getByTestId("saved-duration");
-  await duration.waitFor();
-  const actual = (await duration.innerText()).trim();
-  if (actual !== expected) {
-    throw new Error(`${provider} saved duration was ${JSON.stringify(actual)}, expected ${JSON.stringify(expected)}`);
-  }
-}
-
 function jsonEvents(output, event) {
   const events = [];
   for (const line of output.value.split("\n")) {
@@ -671,7 +662,7 @@ async function verifyProvider({ provider, tarball, packed, browser }) {
     true,
   );
   try {
-    const response = await fetch(new URL("/api/video", production.url), {
+    const response = await fetch(new URL("/api/video-chat?action=response", production.url), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({}),
@@ -702,36 +693,33 @@ async function verifyProvider({ provider, tarball, packed, browser }) {
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("request", (request) => {
-    if (new URL(request.url()).pathname === "/api/video" && request.method() === "POST") {
+    const url = new URL(request.url());
+    if (url.pathname === "/api/video-chat"
+      && url.searchParams.get("action") === "response"
+      && request.method() === "POST") {
       generationPostCount += 1;
     }
   });
   page.on("response", (response) => {
-    if (new URL(response.url()).pathname !== "/api/video" || response.request().method() !== "POST") return;
+    const url = new URL(response.url());
+    if (url.pathname !== "/api/video-chat"
+      || url.searchParams.get("action") !== "response"
+      || response.request().method() !== "POST") return;
     void response.text()
       .then((body) => { responseBodies.push(body); })
       .catch((error) => { responseCaptureErrors.push(error instanceof Error ? error.message : String(error)); });
   });
   try {
     await page.goto(development.url);
-    await page.getByRole("button", { name: "Generate video" }).click();
-    await page.getByTestId("status").filter({ hasText: "streaming" }).waitFor();
-    await page.getByTestId("status").filter({ hasText: "complete" }).waitFor({ timeout: 15_000 });
+    await page.getByText("in video, not text.").waitFor();
+    await page.getByRole("textbox", { name: "Prompt", exact: true }).fill("Activation increased from 41% to 58% after guided onboarding.");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
     await page.locator('[data-template-id="activationLift"]').first().waitFor({ timeout: 10_000 });
-    await page.getByText("provider/provider_warning:").waitFor({ timeout: 10_000 });
-    await page.getByRole("region", { name: "Saved replay" }).waitFor({ timeout: 10_000 });
-    await assertSavedDuration(page, "8 seconds", provider);
-    const savedBeforeReload = await page.evaluate(() => globalThis.localStorage.getItem("vanillasky-quickstart-video"));
-    const savedVideo = savedBeforeReload ? JSON.parse(savedBeforeReload) : undefined;
-    if (savedVideo?.scenes?.[0]?.id !== "supplied-opening"
-      || savedVideo.scenes[0].templateId !== "media"
-      || savedVideo.scenes[1]?.templateId !== "activationLift") {
-      throw new Error(`${provider} did not persist the completed project-owned video`);
-    }
     await waitForResponseBodies(responseBodies, 1);
     await waitForOutput(development.output, /"event":"video\.complete"/);
     const complete = await waitForJsonEvent(development.output, "video.complete");
-    publicLifecycleEvidence.push(complete);
+    const warning = await waitForJsonEvent(development.output, "video.warning");
+    publicLifecycleEvidence.push(complete, warning);
     if (JSON.stringify(complete.usage) !== JSON.stringify(expectedUsage)) {
       throw new Error(`${provider} normalized usage was ${JSON.stringify(complete.usage)}, expected ${JSON.stringify(expectedUsage)}`);
     }
@@ -750,34 +738,29 @@ async function verifyProvider({ provider, tarball, packed, browser }) {
     assertBrowserSafe(provider, {
       "successful SSE": responseBodies[0],
       DOM: firstDom,
-      localStorage: savedBeforeReload,
     });
 
     const postsBeforeReload = generationPostCount;
     await page.reload();
-    await page.getByRole("region", { name: "Saved replay" }).waitFor({ timeout: 10_000 });
-    await assertSavedDuration(page, "8 seconds", provider);
-    const savedAfterReload = await page.evaluate(() => globalThis.localStorage.getItem("vanillasky-quickstart-video"));
-    if (savedAfterReload !== savedBeforeReload) throw new Error(`${provider} reload changed the saved video`);
+    await page.getByText("in video, not text.").waitFor();
+    await page.waitForTimeout(250);
     if (generationPostCount !== postsBeforeReload) {
       throw new Error(`${provider} reload issued ${generationPostCount - postsBeforeReload} generation POST(s)`);
     }
 
-    await page.getByLabel("Grounded input").fill("FORCE_PROVIDER_FAILURE");
-    await page.getByRole("button", { name: "Generate video" }).click();
-    await page.getByRole("alert").filter({ hasText: "generation_failed:" }).waitFor({ timeout: 15_000 });
+    await page.getByRole("textbox", { name: "Prompt", exact: true }).fill("FORCE_PROVIDER_FAILURE");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    await page.getByRole("status").waitFor({ timeout: 15_000 });
     const errorEvent = await waitForJsonEvent(development.output, "video.error");
     publicLifecycleEvidence.push(errorEvent);
-    await waitForResponseBodies(responseBodies, 2);
-    if (generationPostCount !== postsBeforeReload + 1) {
-      throw new Error(`${provider} forced failure issued ${generationPostCount - postsBeforeReload} generation POST(s)`);
+    await waitForResponseBodies(responseBodies, 3);
+    if (generationPostCount !== postsBeforeReload + 2) {
+      throw new Error(`${provider} forced failure and its bounded pre-playback retry issued ${generationPostCount - postsBeforeReload} generation POST(s)`);
     }
     const failedDom = await page.locator("body").innerText();
-    const savedAfterFailure = await page.evaluate(() => globalThis.localStorage.getItem("vanillasky-quickstart-video"));
     assertBrowserSafe(provider, {
       "all SSE": responseBodies.join("\n"),
       DOM: failedDom,
-      localStorage: savedAfterFailure ?? "",
     });
     if (responseCaptureErrors.length) {
       throw new Error(`${provider} response capture errors: ${responseCaptureErrors.join(" | ")}`);
@@ -811,8 +794,8 @@ async function verifyProvider({ provider, tarball, packed, browser }) {
     providerSelection: "verified server-side and absent from browser surfaces",
     forcedFailure: "generation_failed + video.error",
     projectTemplate: "activationLift",
-    persistence: "localStorage + parseVideo + reload without generation",
-    browserBoundary: "SSE + DOM + localStorage + static bundle",
+    reload: "returns to welcome without a response request",
+    browserBoundary: "SSE + DOM + static bundle",
     credentialBoundary: "fake provider credentials consumed server-side and absent from public evidence",
   };
   assertCredentialSafe({
@@ -846,9 +829,9 @@ async function verifyCompatibilityProvider({ expectation, tarball, packed, brows
   manifest.dependencies.ai = aiVersion;
   manifest.dependencies[expectation.packageName] = expectation.version;
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  rmSync(join(app, "src/app/api/video/providers"), { recursive: true });
+  rmSync(join(app, "src/app/api/video-chat/providers"), { recursive: true });
   writeFileSync(
-    join(app, "src/app/api/video/provider.ts"),
+    join(app, "src/app/api/video-chat/provider.ts"),
     compatibilityProviderSource(expectation),
   );
 
@@ -884,7 +867,7 @@ async function verifyCompatibilityProvider({ expectation, tarball, packed, brows
     true,
   );
   try {
-    const response = await fetch(new URL("/api/video", production.url), {
+    const response = await fetch(new URL("/api/video-chat?action=response", production.url), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({}),
@@ -916,24 +899,28 @@ async function verifyCompatibilityProvider({ expectation, tarball, packed, brows
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("request", (request) => {
-    if (new URL(request.url()).pathname === "/api/video" && request.method() === "POST") {
+    const url = new URL(request.url());
+    if (url.pathname === "/api/video-chat"
+      && url.searchParams.get("action") === "response"
+      && request.method() === "POST") {
       generationPostCount += 1;
     }
   });
   page.on("response", (response) => {
-    if (new URL(response.url()).pathname !== "/api/video" || response.request().method() !== "POST") return;
+    const url = new URL(response.url());
+    if (url.pathname !== "/api/video-chat"
+      || url.searchParams.get("action") !== "response"
+      || response.request().method() !== "POST") return;
     void response.text()
       .then((body) => { responseBodies.push(body); })
       .catch((error) => { responseCaptureErrors.push(error instanceof Error ? error.message : String(error)); });
   });
   try {
     await page.goto(development.url);
-    await page.getByRole("button", { name: "Generate video" }).click();
-    await page.getByTestId("status").filter({ hasText: "streaming" }).waitFor();
-    await page.getByTestId("status").filter({ hasText: "complete" }).waitFor({ timeout: 15_000 });
+    await page.getByText("in video, not text.").waitFor();
+    await page.getByRole("textbox", { name: "Prompt", exact: true }).fill("Activation increased from 41% to 58% after guided onboarding.");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
     await page.locator('[data-template-id="activationLift"]').first().waitFor({ timeout: 10_000 });
-    await page.getByRole("region", { name: "Saved replay" }).waitFor({ timeout: 10_000 });
-    await assertSavedDuration(page, "8 seconds", provider);
     await waitForResponseBodies(responseBodies, 1);
 
     const complete = await waitForJsonEvent(development.output, "video.complete");
@@ -971,28 +958,17 @@ async function verifyCompatibilityProvider({ expectation, tarball, packed, brows
       throw new Error(`${provider} browser issued ${generationPostCount} generation POST(s), expected one`);
     }
 
-    const savedBeforeReload = await page.evaluate(() => globalThis.localStorage.getItem("vanillasky-quickstart-video"));
-    const savedVideo = savedBeforeReload ? JSON.parse(savedBeforeReload) : undefined;
-    if (savedVideo?.scenes?.[0]?.id !== "supplied-opening"
-      || savedVideo.scenes[0].templateId !== "media"
-      || savedVideo.scenes[1]?.templateId !== "activationLift") {
-      throw new Error(`${provider} did not persist the completed project-owned video`);
-    }
     const firstDom = await page.locator("body").innerText();
     assertCompatibilityBrowserSafe(expectation, {
       "successful SSE": responseBodies[0],
       DOM: firstDom,
-      localStorage: savedBeforeReload,
     });
 
     const postsBeforeReload = generationPostCount;
     const fetchesBeforeReload = jsonEvents(development.output, "video.compatibility.fetch").length;
     await page.reload();
-    await page.getByRole("region", { name: "Saved replay" }).waitFor({ timeout: 10_000 });
-    await assertSavedDuration(page, "8 seconds", provider);
+    await page.getByText("in video, not text.").waitFor();
     await page.waitForTimeout(250);
-    const savedAfterReload = await page.evaluate(() => globalThis.localStorage.getItem("vanillasky-quickstart-video"));
-    if (savedAfterReload !== savedBeforeReload) throw new Error(`${provider} reload changed the saved video`);
     if (generationPostCount !== postsBeforeReload) {
       throw new Error(`${provider} reload issued ${generationPostCount - postsBeforeReload} generation POST(s)`);
     }
@@ -1003,7 +979,6 @@ async function verifyCompatibilityProvider({ expectation, tarball, packed, brows
     assertCompatibilityBrowserSafe(expectation, {
       "all SSE": responseBodies.join("\n"),
       DOM: reloadedDom,
-      localStorage: savedAfterReload ?? "",
     });
     if (responseCaptureErrors.length) {
       throw new Error(`${provider} response capture errors: ${responseCaptureErrors.join(" | ")}`);
@@ -1044,8 +1019,8 @@ async function verifyCompatibilityProvider({ expectation, tarball, packed, brows
     resolvedModel: expectation.resolvedModel,
     nativeFetchCount: 1,
     providerMetadata: "observed server-side and absent from browser surfaces",
-    persistence: "localStorage + parseVideo + reload with zero generation requests",
-    browserBoundary: "SSE + DOM + localStorage + static bundle",
+    reload: "returns to welcome without a response request",
+    browserBoundary: "SSE + DOM + static bundle",
   };
   assertCredentialSafe({
     "production server log": production.output.value,

@@ -225,15 +225,6 @@ test("keeps touch controls accessible without pinning them across resume and ful
   await context.close();
 });
 
-test("loads the minimal public example and surfaces route failures", async ({ page }) => {
-  await page.goto("/");
-
-  await expect(page.getByRole("heading", { name: "VanillaSky" })).toBeVisible();
-  await expect(page.locator("pre")).toHaveText("null");
-  await page.getByRole("button", { name: "Generate video" }).click();
-  await expect(page.getByRole("alert")).toHaveText("Video generation failed.");
-});
-
 test("keeps one scene video decoder mounted during iPhone WebKit transitions", async ({ browser, browserName }) => {
   test.skip(browserName !== "webkit", "The decoder ceiling is specific to mobile WebKit.");
   const context = await browser.newContext({

@@ -1,20 +1,25 @@
-import { createVideoHandler } from "@vanillaskyai/video/server";
+import { createVideoChatHandler } from "@vanillaskyai/video/server";
 import { templates } from "../../../../vanillasky/server";
 import { streamVideoPlan } from "./planner";
 
-const handle = createVideoHandler({
+const handle = createVideoChatHandler({
   templates,
   // This deterministic compatibility fixture intentionally produces one body
   // scene. Ordinary AI planners should keep the default closer requirement.
   requireCloser: false,
-  // This local-only bypass makes the copied quickstart runnable in development.
-  // Replace it with your application's session check before deploying.
+  // This local-only bypass makes the fixture runnable in development.
+  // Replace it with the application's session check before deploying.
   authorize: (request) => {
     if (process.env.VANILLASKY_LOCAL_DEMO !== "1") return false;
     const hostname = new URL(request.url).hostname;
     return hostname === "localhost" || hostname === "127.0.0.1";
   },
   streamText: streamVideoPlan,
+  generateText: ({ task }) => task === "suggestions"
+    ? JSON.stringify({ suggestions: [
+        { prompt: "How can activation improve further?", keyword: "product onboarding" },
+      ] })
+    : "Guided onboarding raised activation from forty-one to fifty-eight percent.",
   onWarning: (warning) => console.warn(JSON.stringify({
     event: "video.warning",
     code: warning.code,
@@ -38,5 +43,6 @@ const handle = createVideoHandler({
   })),
 });
 
+export const GET = handle;
 export const POST = handle;
 export const OPTIONS = handle;

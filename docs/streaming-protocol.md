@@ -1,4 +1,4 @@
-[← Documentation home](../README.md) · [Previous: Live channels](live-channels.md) · [Next: Security →](security.md)
+[← Documentation home](../README.md) · [Previous: Persistence and replay](persistence.md) · [Next: Security →](security.md)
 
 # Streaming protocol
 

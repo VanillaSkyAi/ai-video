@@ -1,5 +1,5 @@
 {
-  "name": "vanillasky-nextjs-quickstart",
+  "name": "vanillasky-nextjs-video-chat-fixture",
   "private": true,
   "version": "0.0.0",
   "scripts": {
@@ -10,7 +10,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.41",
     "@ai-sdk/openai": "^4.0.46",
-    "@vanillaskyai/video": "0.3.0",
+    "@vanillaskyai/video": "0.6.0",
     "ai": "^7.0.77",
     "next": "16.3.2",
     "react": "19.2.8",

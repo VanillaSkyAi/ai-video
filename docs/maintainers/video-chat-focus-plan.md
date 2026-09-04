@@ -38,22 +38,24 @@ The first cleanup deleted `examples/rich-media-poc/` (91 tracked files and
 and the unused `sanitizeVideoChatFirstShot` helper. None was shipped or reached
 by the canonical chat, root tests, or CI.
 
+### Completed in the chat-first integration cleanup
+
+1. **Examples.** The duplicate React, Next.js, and server-integration examples
+   are gone. The generated `starters/video-chat/` application is the single
+   public product path.
+2. **Provider coverage.** The internal Next.js fixture now validates
+   `createVideoChatHandler` and `VideoChat` across Anthropic, OpenAI, Google,
+   and OpenRouter without publishing a second quickstart.
+3. **Product documentation.** The use-case, live-channel, standalone Next.js,
+   and first-scene pages are gone. Their useful material now lives in the
+   chat-first provider, prompt, media, testing, and production guides.
+4. **CI duplication.** The documented-example gate and repeated example install
+   are gone. The packed generated-app and internal Next.js chat gates retain the
+   browser, package, and provider coverage.
+
 ### Replace, then remove
 
-1. **One-shot examples.** `examples/react-vite/` and
-   `examples/nextjs-quickstart/` teach `useVideo` + `VideoPlayer`, while the
-   canonical product teaches `VideoChat`. Replace their remaining framework and
-   browser coverage with one generated-chat consumer, then delete both examples.
-2. **One-shot provider examples.** `examples/server-integrations/` and
-   `tests/fixtures/nextjs-provider-app/` validate `createVideoHandler`. Rework
-   the provider matrix around `createVideoChatHandler`, preserving Anthropic,
-   OpenAI, Google, and OpenRouter compatibility, then remove the old adapters.
-3. **Old product documentation.** Delete `docs/use-cases.md` and
-   `docs/live-channels.md`. Absorb any still-useful deployment details from
-   `docs/integrate-nextjs.md` and input details from
-   `docs/input-and-first-scene.md` into the chat-first provider and production
-   guides, then delete those two pages as well.
-4. **Old acceptance harness.** `scripts/acceptance/`, its six dedicated test
+1. **Old acceptance harness.** `scripts/acceptance/`, its six dedicated test
    files, and `docs/maintainers/acceptance.md` contain roughly 1,500 lines built
    around personalized recaps and daily briefings. Replace them with a small
    recorded video-chat journey covering explanation, creative response,
@@ -88,12 +90,11 @@ freezes all six entry-point signatures.
 The rich-media POC, unused dependency, and unused first-shot sanitizer are gone.
 The cleanup is protected by the root suite and package gates.
 
-### 2. Make every integration chat-shaped
+### 2. Make every integration chat-shaped — complete
 
-Replace the provider compatibility fixture with `createVideoChatHandler`, remove
-the duplicate one-shot examples, and reduce the public documentation to one
-getting-started path plus customization, providers, templates, persistence,
-production, security, and reference material.
+The provider compatibility fixture uses `createVideoChatHandler`; the duplicate
+one-shot examples are removed; and public product documentation now leads only
+through the generated general-purpose chat.
 
 ### 3. Narrow the public API
 
@@ -110,9 +111,9 @@ Keep these gates:
 - React 18 compatibility;
 - package boundary, size, and release integrity.
 
-Remove duplicated example builds and browser installs once their coverage moves
-to the generated app. Target a pull-request wall time under 90 seconds; the
-current green baseline is about 2 minutes 20 seconds.
+The duplicated example build is removed and coverage now lives in the generated
+app. Target a pull-request wall time under 90 seconds; record the new baseline
+after this cleanup passes on GitHub-hosted runners.
 
 ### 5. Improve the product after cleanup
 

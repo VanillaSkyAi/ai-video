@@ -95,10 +95,6 @@ first generated shot continues the spoken hook without repeating it.
 The generated local authorization accepts localhost only. Replace it with your
 real session check, rate limits, and usage policy before deploying.
 
-If you prefer a committed Next.js example of the lower-level response APIs,
-use the tested [Next.js one-shot example](../examples/nextjs-quickstart). The default
-chat path above is the shortest way to reproduce the complete experience.
-
 ## Continue
 
 - Change providers or add media capabilities in [Provider integration](provider-integration.md).

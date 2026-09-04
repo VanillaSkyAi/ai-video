@@ -67,6 +67,31 @@ describe("VideoChat", () => {
     expect(screen.queryByRole("tab")).toBeNull();
   });
 
+  it("hydrates when voice input exists only in the browser", async () => {
+    const { renderToString } = await import("react-dom/server");
+    const { hydrateRoot } = await import("react-dom/client");
+    const { VideoChat } = await import("../src/react");
+    const browser = window as unknown as Record<string, unknown>;
+    const originalRecognition = browser.SpeechRecognition;
+    delete browser.SpeechRecognition;
+    const html = renderToString(<VideoChat options={{ fetcher: chatFetcher() }} />);
+    browser.SpeechRecognition = class {};
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    document.body.append(container);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const root = hydrateRoot(container, <VideoChat options={{ fetcher: chatFetcher() }} />);
+    try {
+      await waitFor(() => expect(container.querySelector('[aria-label="Ask by voice"]')).toBeTruthy());
+      expect(consoleError.mock.calls.flat().join(" ")).not.toMatch(/hydration failed/i);
+    } finally {
+      root.unmount();
+      container.remove();
+      if (originalRecognition === undefined) delete browser.SpeechRecognition;
+      else browser.SpeechRecognition = originalRecognition;
+    }
+  });
+
   it("uses unique control ids and keeps appearance on each component root", async () => {
     const { VideoChat } = await import("../src/react");
     const { container } = render(<><VideoChat options={{ fetcher: chatFetcher() }} /><VideoChat options={{ fetcher: chatFetcher() }} /></>);

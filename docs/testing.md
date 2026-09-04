@@ -1,60 +1,63 @@
-# Test integrations without a model
+# Test video chat without a model
 
-`@vanillaskyai/video/test` provides deterministic provider streams and in-process
-protocol events. It has no React or provider-SDK dependency, makes no network
-request, and does not require a model key.
+`@vanillaskyai/video/test` provides deterministic planner streams and
+in-process protocol events. It has no React or provider-SDK dependency, makes
+no network request, and needs no model key.
 
-The examples below cover the lower-level one-shot protocol. A complete chat
-integration should also exercise `createVideoChatHandler` capabilities and
-responses plus the `VideoChat` interface.
+## Test the chat route with Vitest
 
-## Test a route handler with Vitest
-
-Pass `createMockVideoPlanner()` directly to the same `createVideoHandler()`
-used by the application. Call the handler with a standard `Request`; no live
-HTTP server is involved.
+Pass `createMockVideoPlanner()` to the same `createVideoChatHandler` used by the
+application. A standard `Request` exercises parsing, validation, pacing, the
+opening extension, and SSE without starting an HTTP server.
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { createVideoHandler } from "@vanillaskyai/video/server";
-import {
-  createMockVideoPlanner,
-  videoFixtures,
-} from "@vanillaskyai/video/test";
+import { createVideoChatHandler } from "@vanillaskyai/video/server";
+import { createMockVideoPlanner } from "@vanillaskyai/video/test";
 
-describe("POST /api/video", () => {
-  it("returns a completed video stream", async () => {
-    const handle = createVideoHandler({
-      authorize: "none", // Explicit because this in-process test route is never public.
+describe("POST /api/video-chat", () => {
+  it("returns a completed video answer", async () => {
+    const handle = createVideoChatHandler({
+      authorize: "none", // Only acceptable because this handler stays in process.
       heartbeatMs: false,
       streamText: createMockVideoPlanner(),
+      generateText: async ({ task }) => task === "suggestions"
+        ? JSON.stringify({ suggestions: [] })
+        : "A deterministic narration line.",
     });
-    const response = await handle(new Request("https://app.test/api/video", {
-      method: "POST",
-      body: JSON.stringify({
-        protocolVersion: "0.5",
-        requestId: "route-test",
-        input: videoFixtures.portrait.input,
-      }),
-    }));
+
+    const response = await handle(new Request(
+      "https://app.test/api/video-chat?action=response",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Explain why the Moon shows one face",
+          opening: "The Moon turns, perfectly matching its orbit.",
+          mode: "templates",
+          orientation: "landscape",
+        }),
+      },
+    ));
     const body = await response.text();
 
     expect(response.status).toBe(200);
+    expect(body).toContain('"type":"data.video-chat-opening"');
     expect(body).toContain('"type":"response.complete"');
   });
 });
 ```
 
-The mock emits provider-style newline-delimited JSON. The route still parses,
-validates, paces, and converts those plan parts into SSE exactly as it does with
-a live provider.
+Also request `?action=capabilities` and `?action=welcome` in route tests. Assert
+that optional modes and controls appear only when their callbacks are present.
+For browser coverage, render `<VideoChat />`, submit through the visible prompt,
+and wait for a known template rather than reaching into hook internals.
 
 ## Test protocol events in process
 
-`simulateVideoStream(parts, options?)` runs the same composition and validation
-pipeline without an HTTP boundary. It yields structural, discriminated event
-objects. Default IDs are `test-request` and `test-run`; override `requestId` and
-`runId` when a test needs different fixed values.
+`simulateVideoStream(parts, options?)` runs the composition and validation
+pipeline without an HTTP boundary. It yields typed event objects and remains
+useful for focused planner and protocol cases beneath the chat handler.
 
 ```ts
 import { expect, it } from "vitest";
@@ -78,9 +81,8 @@ it("keeps a truncated result playable", async () => {
 });
 ```
 
-The portrait and landscape fixtures each contain `{ input, parts }`. All public
-fixture values are deeply frozen, and each helper clones parts before a run so
-one test cannot mutate another test's input.
+The portrait and landscape fixtures each contain `{ input, parts }`. Public
+fixture values are deeply frozen and every helper clones parts before a run.
 
 ## Delays, aborts, and timeouts
 
@@ -117,11 +119,11 @@ it("times out deterministically", async () => {
 });
 ```
 
-For a host cancellation, pass an `AbortController` signal and abort it after the
-desired partial event. Timeouts are opt-in and local to the simulator; at the
-route boundary the host remains responsible for aborting the request signal.
+For host cancellation, pass an `AbortController` signal and abort after the
+desired partial event. At the route boundary, the host remains responsible for
+aborting the request signal and each provider callback must honour it.
 
-## Fixed scenarios
+## Fixed planner scenarios
 
 `createMockVideoPlanner({ scenario })` accepts:
 
@@ -130,12 +132,14 @@ route boundary the host remains responsible for aborting the request signal.
 | `success` | Completed portrait fixture |
 | `delayed` | Success after a 25 ms fake-timer-safe delay |
 | `truncated` | Partial playable result completed with `length` |
-| `invalidScene` | Invalid scene dropped with a recoverable diagnostic, then completion |
+| `invalidScene` | Invalid scene dropped with a recoverable warning, then completion |
 | `providerFailure` | Redacted terminal generation failure |
 | `contentFilter` | Partial playable result completed with `content-filter` |
 | `abort` | Waits for the supplied request signal to abort |
 | `timeout` | Waits for the host signal or simulator `timeoutMs` |
 
-Use `parts` in `MockVideoPlannerOptions` to supply custom structural plan parts,
-and `delayMs` to delay every emitted provider chunk. Provider selection,
-credentials, retries, and real-provider acceptance remain application-owned.
+Use `parts` for custom structural plan parts and `delayMs` to delay each
+provider chunk. Keep provider selection, credentials, retries, and real-model
+acceptance outside deterministic CI.
+
+[← Documentation home](../README.md)

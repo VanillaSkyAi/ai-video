@@ -71,10 +71,7 @@ function verifySource() {
   // intentionally use npm's current stable release and package-relative links,
   // so a release never rewrites onboarding copy solely to update a version.
   const executableConsumers = [
-    { name: "react-vite", path: join("examples", "react-vite") },
     { name: "video-chat", path: join("starters", "video-chat") },
-    { name: "server-integrations", path: join("examples", "server-integrations") },
-    { name: "nextjs-quickstart", path: join("examples", "nextjs-quickstart") },
   ];
   for (const consumer of executableConsumers) {
     const manifest = readJson(join(root, consumer.path, "package.json"));
