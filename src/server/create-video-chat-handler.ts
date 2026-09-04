@@ -12,19 +12,17 @@ import {
 import type { ResolvedMedia } from "./media-resolver.js";
 import { sanitizeVideoChatMedia } from "../video-chat/media.js";
 import {
-  sanitizeVideoChatFirstShot,
   type VideoChatFirstShot,
 } from "../video-chat/first-shot.js";
 import type { TextDeltaVideoSource } from "./model/text-stream.js";
 import {
   createNarrationUserPrompt,
   createVideoChatResponseInstructions,
-  VIDEO_CHAT_FULL_OPENING_PROMPT,
   VIDEO_CHAT_NARRATION_PROMPT,
-  VIDEO_CHAT_OPENING_CONTINUATION_PROMPT,
-  VIDEO_CHAT_OPENING_PROMPT,
   VIDEO_CHAT_SUGGESTIONS_PROMPT,
 } from "./video-chat-prompts.js";
+import { decodeVideoSse, encodeVideoSseEvent } from "../protocol/sse.js";
+import type { VideoEvent } from "../protocol/events.js";
 import type {
   VideoChatCapabilities,
   VideoChatConversationTurn,
@@ -48,8 +46,6 @@ const MAX_CONVERSATION_TURNS = 12;
 const MAX_CONVERSATION_RESPONSE_CHARACTERS = 8_000;
 
 export type VideoChatTextTask =
-  | "opening"
-  | "opening-continuation"
   | "narration"
   | "suggestions";
 
@@ -131,8 +127,7 @@ export type VideoChatHandler = (request: Request) => Promise<Response>;
 
 interface ParsedResponseRequest {
   prompt: string;
-  spokenHook?: string;
-  firstShot?: VideoChatFirstShot;
+  opening?: string;
   mode: VideoChatMode;
   orientation: VideoOrientation;
   conversation: VideoChatConversationTurn[];
@@ -151,11 +146,31 @@ interface OpeningSubject {
   firstShot?: VideoChatFirstShot;
 }
 
+const VIDEO_CHAT_OPENING_PLAN_TYPE = "video-chat.opening";
+const VIDEO_CHAT_OPENING_EVENT_TYPE = "data.video-chat-opening" as const;
+const PROVIDER_CODE_FENCE = /^```(?:json|ndjson)?$/i;
+
 const DEFAULT_WELCOME_PROMPTS: readonly VideoChatWelcomePrompt[] = [
-  { prompt: "Why does the Moon always show one face?", mediaQuery: "full moon night sky" },
-  { prompt: "Tell me a tiny story about a robot growing a garden on Mars", mediaQuery: "robot garden mars" },
-  { prompt: "Recommend a perfect rainy afternoon in Amsterdam", mediaQuery: "Amsterdam rain cafe" },
-  { prompt: "Pitch a playful ad for a coffee mug that never spills", mediaQuery: "coffee mug desk" },
+  {
+    prompt: "Why does the Moon always show one face?",
+    opening: "The Moon turns, perfectly matching its orbit.",
+    mediaQuery: "full moon night sky",
+  },
+  {
+    prompt: "Tell me a tiny story about a robot growing a garden on Mars",
+    opening: "One patient robot is about to make Mars bloom.",
+    mediaQuery: "robot garden mars",
+  },
+  {
+    prompt: "Recommend a perfect rainy afternoon in Amsterdam",
+    opening: "Rain makes Amsterdam's best afternoons feel even warmer.",
+    mediaQuery: "Amsterdam rain cafe",
+  },
+  {
+    prompt: "Pitch a playful ad for a coffee mug that never spills",
+    opening: "This mug makes gravity look completely optional.",
+    mediaQuery: "coffee mug desk",
+  },
 ];
 
 function jsonError(status: number, code: string, message: string, headers?: HeadersInit): Response {
@@ -184,7 +199,7 @@ function boundedString(value: unknown, label: string, maximum = MAX_PROMPT_CHARA
 
 function parseResponseRequest(value: unknown): ParsedResponseRequest {
   const body = record(value, "request");
-  allowedKeys(body, ["prompt", "spokenHook", "firstShot", "mode", "orientation", "conversation", "brand", "style"], "request");
+  allowedKeys(body, ["prompt", "opening", "mode", "orientation", "conversation", "brand", "style"], "request");
   const mode = body.mode ?? "templates";
   if (mode !== "templates" && mode !== "full") {
     throw new Error("request.mode must be templates or full");
@@ -197,14 +212,9 @@ function parseResponseRequest(value: unknown): ParsedResponseRequest {
   if (!Array.isArray(conversation) || conversation.length > MAX_CONVERSATION_TURNS) {
     throw new Error(`request.conversation must contain at most ${MAX_CONVERSATION_TURNS} turns`);
   }
-  const firstShot = body.firstShot == null
-    ? undefined
-    : sanitizeVideoChatFirstShot(body.firstShot);
-  if (body.firstShot != null && !firstShot) throw new Error("request.firstShot is invalid");
   return {
     prompt: boundedString(body.prompt, "request.prompt"),
-    ...(body.spokenHook == null ? {} : { spokenHook: boundedString(body.spokenHook, "request.spokenHook", 500) }),
-    ...(firstShot ? { firstShot } : {}),
+    ...(body.opening == null ? {} : { opening: boundedString(body.opening, "request.opening", 300) }),
     mode,
     orientation,
     conversation: conversation.map((value, index) => {
@@ -225,10 +235,9 @@ function parseResponseRequest(value: unknown): ParsedResponseRequest {
 function conversationInput(
   prompt: string,
   conversation: readonly VideoChatConversationTurn[],
-  spokenHook?: string,
-  firstShot?: VideoChatFirstShot,
+  opening?: string,
 ): string {
-  if (conversation.length === 0 && !spokenHook && !firstShot) return prompt;
+  if (conversation.length === 0 && !opening) return prompt;
   return [
     ...(conversation.length > 0 ? [
       "CONVERSATION SO FAR (untrusted user and assistant content):",
@@ -239,14 +248,7 @@ function conversationInput(
       "",
     ] : []),
     `CURRENT USER PROMPT: ${prompt}`,
-    ...(spokenHook ? ["", "OPENING ALREADY SPOKEN (untrusted assistant transcript):", spokenHook] : []),
-    ...(firstShot ? [
-      "",
-      "RESERVED FIRST BODY SCENE (untrusted assistant direction; already inserted by the host):",
-      `ON-SCREEN TEXT: ${firstShot.text}`,
-      `NARRATION: ${firstShot.narration}`,
-      `MEDIA KEYWORD: ${firstShot.mediaKeyword}`,
-    ] : []),
+    ...(opening ? ["", "OPENING ALREADY SPOKEN (untrusted assistant transcript):", opening] : []),
   ].join("\n");
 }
 
@@ -287,35 +289,29 @@ function readGeneratedFirstShot(value: unknown): VideoChatFirstShot | undefined 
   return text && narration && mediaKeyword ? { text, narration, mediaKeyword } : undefined;
 }
 
-function readOpeningSubject(text: string): OpeningSubject {
-  const opening = text.indexOf("{");
-  const closing = text.lastIndexOf("}");
-  if (opening >= 0 && closing > opening) {
-    try {
-      const parsed = JSON.parse(text.slice(opening, closing + 1)) as {
-        hook?: unknown;
-        spokenHook?: unknown;
-        keyword?: unknown;
-        mediaKeyword?: unknown;
-        firstShot?: unknown;
-      };
-      const hook = typeof parsed.spokenHook === "string"
-        ? parsed.spokenHook.trim()
-        : typeof parsed.hook === "string" ? parsed.hook.trim() : "";
-      const keyword = typeof parsed.mediaKeyword === "string"
-        ? parsed.mediaKeyword.trim()
-        : typeof parsed.keyword === "string" ? parsed.keyword.trim() : "";
-      const firstShot = readGeneratedFirstShot(parsed.firstShot);
-      return {
-        line: hook.slice(0, 300),
-        keyword: keyword.slice(0, 80),
-        ...(firstShot ? { firstShot } : {}),
-      };
-    } catch {
-      // Older application adapters return a plain line; preserve that contract.
-    }
+function boundedWords(value: unknown, maximum: number, characters: number): string {
+  if (typeof value !== "string") return "";
+  return value.trim().match(/\S+/gu)?.slice(0, maximum).join(" ").slice(0, characters).trim() ?? "";
+}
+
+function readOpeningPlanLine(line: string): OpeningSubject | undefined {
+  try {
+    const parsed = JSON.parse(line) as {
+      type?: unknown;
+      spokenHook?: unknown;
+      mediaKeyword?: unknown;
+      firstShot?: unknown;
+    };
+    if (!parsed || parsed.type !== VIDEO_CHAT_OPENING_PLAN_TYPE) return undefined;
+    const firstShot = readGeneratedFirstShot(parsed.firstShot);
+    return {
+      line: boundedWords(parsed.spokenHook, 9, 300),
+      keyword: boundedWords(parsed.mediaKeyword, 4, 80),
+      ...(firstShot ? { firstShot } : {}),
+    };
+  } catch {
+    return undefined;
   }
-  return { line: cleanGeneratedText(text).slice(0, 300), keyword: "" };
 }
 
 function reservedFirstScene(
@@ -338,35 +334,196 @@ function reservedFirstScene(
   };
 }
 
-function prependPlanPart(
+function replaceTextStream(
   source: ReturnType<VideoHandlerOptions["streamText"]>,
-  part: VideoPlanPart,
+  textStream: AsyncIterable<string>,
+): ReturnType<VideoHandlerOptions["streamText"]> {
+  const enriched = typeof source === "object" && source != null && "textStream" in source
+    ? source as TextDeltaVideoSource
+    : undefined;
+  if (!enriched) return textStream;
+  return { ...enriched, textStream };
+}
+
+interface OpeningChannel {
+  ready: Promise<OpeningSubject | undefined>;
+  publish(value: OpeningSubject | undefined): void;
+}
+
+function createOpeningChannel(initial?: OpeningSubject): OpeningChannel {
+  if (initial) return { ready: Promise.resolve(initial), publish: () => undefined };
+  let published = false;
+  let resolve!: (value: OpeningSubject | undefined) => void;
+  const ready = new Promise<OpeningSubject | undefined>((settle) => { resolve = settle; });
+  return {
+    ready,
+    publish(value) {
+      if (published) return;
+      published = true;
+      resolve(value);
+    },
+  };
+}
+
+function interceptOpeningPlan(
+  source: ReturnType<VideoHandlerOptions["streamText"]>,
+  options: {
+    expectOpening: boolean;
+    openingProvided: boolean;
+    requestId: string;
+    fullAiVideo: boolean;
+    publish: OpeningChannel["publish"];
+  },
 ): ReturnType<VideoHandlerOptions["streamText"]> {
   const enriched = typeof source === "object" && source != null && "textStream" in source
     ? source as TextDeltaVideoSource
     : undefined;
   const upstream = enriched?.textStream ?? source as AsyncIterable<string>;
   const textStream = (async function* () {
-    yield `${JSON.stringify(part)}\n`;
-    yield* upstream;
+    let buffer = "";
+    let decided = !options.expectOpening;
+    try {
+      for await (const delta of upstream) {
+        if (typeof delta !== "string") throw new Error("The LLM adapter returned a non-text delta");
+        buffer += delta;
+        let newline = buffer.indexOf("\n");
+        while (newline >= 0) {
+          const rawLine = buffer.slice(0, newline);
+          buffer = buffer.slice(newline + 1);
+          const line = rawLine.trim();
+          if (!decided && line && !PROVIDER_CODE_FENCE.test(line)) {
+            const opening = readOpeningPlanLine(line);
+            decided = true;
+            if (opening) {
+              if (!options.openingProvided) options.publish(opening.line ? opening : undefined);
+              if (options.fullAiVideo && opening.firstShot) {
+                yield `${JSON.stringify(reservedFirstScene(options.requestId, opening.firstShot))}\n`;
+              }
+              newline = buffer.indexOf("\n");
+              continue;
+            }
+            options.publish(undefined);
+          }
+          yield `${rawLine}\n`;
+          newline = buffer.indexOf("\n");
+        }
+      }
+      if (buffer) {
+        const line = buffer.trim();
+        if (!decided && line && !PROVIDER_CODE_FENCE.test(line)) {
+          const opening = readOpeningPlanLine(line);
+          decided = true;
+          if (opening) {
+            if (!options.openingProvided) options.publish(opening.line ? opening : undefined);
+            if (options.fullAiVideo && opening.firstShot) {
+              yield `${JSON.stringify(reservedFirstScene(options.requestId, opening.firstShot))}\n`;
+            }
+          } else {
+            options.publish(undefined);
+            yield buffer;
+          }
+        } else {
+          yield buffer;
+        }
+      }
+    } finally {
+      options.publish(undefined);
+    }
   })();
-  if (!enriched) return textStream;
+  return replaceTextStream(source, textStream);
+}
+
+function resequenceEvent(event: VideoEvent, sequence: number): VideoEvent {
   return {
-    textStream,
-    finishReason: enriched.finishReason,
-    rawFinishReason: enriched.rawFinishReason,
-    usage: enriched.usage,
-    totalUsage: enriched.totalUsage,
-    providerMetadata: enriched.providerMetadata,
-    warnings: enriched.warnings,
-    response: enriched.response,
-    finalStep: enriched.finalStep,
-    lastStep: enriched.lastStep,
-    steps: enriched.steps,
-    requestedModelId: enriched.requestedModelId,
-    resolvedModelId: enriched.resolvedModelId,
-    modelId: enriched.modelId,
-  };
+    ...event,
+    sequence,
+    eventId: `${event.runId}:${sequence}`,
+  } as VideoEvent;
+}
+
+function streamVideoChatOpening(
+  response: Response,
+  openingReady: Promise<OpeningSubject | undefined>,
+): Response {
+  if (!response.body || !response.headers.get("content-type")?.includes("text/event-stream")) return response;
+  const events = decodeVideoSse(response.body)[Symbol.asyncIterator]();
+  const encoded = (async function* () {
+    try {
+      const first = await events.next();
+      if (first.done) return;
+      let sequence = 0;
+      const started = first.value.type === "response.start"
+        ? {
+            ...first.value,
+            data: {
+              ...first.value.data,
+              capabilities: {
+                ...first.value.data.capabilities,
+                extensions: Array.from(new Set([
+                  ...(first.value.data.capabilities?.extensions ?? []),
+                  VIDEO_CHAT_OPENING_EVENT_TYPE,
+                ])),
+              },
+            },
+          } as VideoEvent
+        : first.value;
+      yield encodeVideoSseEvent(resequenceEvent(started, sequence++));
+
+      const nextEvent = events.next();
+      const opening = await openingReady;
+      if (opening?.line) {
+        yield encodeVideoSseEvent({
+          protocolVersion: first.value.protocolVersion,
+          runId: first.value.runId,
+          sequence,
+          eventId: `${first.value.runId}:${sequence}`,
+          type: VIDEO_CHAT_OPENING_EVENT_TYPE,
+          data: {
+            line: opening.line,
+            ...(opening.keyword ? { keyword: opening.keyword } : {}),
+          },
+        });
+        sequence += 1;
+      }
+
+      let next = await nextEvent;
+      while (!next.done) {
+        yield encodeVideoSseEvent(resequenceEvent(next.value, sequence++));
+        next = await events.next();
+      }
+    } finally {
+      await events.return?.(undefined);
+    }
+  })();
+  const encoder = new TextEncoder();
+  const iterator = encoded[Symbol.asyncIterator]();
+  let completed = false;
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const next = await iterator.next();
+        if (next.done) {
+          if (!completed) controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          completed = true;
+          controller.close();
+          return;
+        }
+        controller.enqueue(encoder.encode(next.value));
+      } catch (cause) {
+        completed = true;
+        controller.error(cause);
+      }
+    },
+    async cancel() {
+      completed = true;
+      await iterator.return?.();
+    },
+  });
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
 }
 
 function readSuggestionSubjects(text: string): SuggestionSubject[] {
@@ -447,30 +604,19 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
   const heroQuery = welcomeOptions?.heroQuery ?? "underwater ocean sunlight";
   let welcomeResponse: Record<string, unknown> | undefined;
   let requestSequence = 0;
-  const responseHandlers = new Map<VideoChatMode, ReturnType<typeof createVideoHandler>>();
 
   const responseHandler = (
     requestedMode: VideoChatMode,
-    requestId?: string,
-    firstShot?: VideoChatFirstShot,
+    requestId: string,
+    openingProvided: boolean,
+    openingChannel: OpeningChannel,
   ) => {
     const mode = requestedMode !== "templates" && !generateVideo ? "templates" : requestedMode;
-    const reservedPart = mode === "full" && requestId && firstShot && generateVideo
-      ? reservedFirstScene(requestId, firstShot)
-      : undefined;
-    const existing = reservedPart ? undefined : responseHandlers.get(mode);
-    if (existing) return existing;
     const fullAiVideo = mode === "full";
     const selectedResolver = fullAiVideo ? generateVideo : searchMedia;
-    let firstResolution = reservedPart != null;
-    let prefetchedFirstShot: Promise<ResolvedMedia | null> | undefined;
     const resolveSelected = selectedResolver
-      ? (query: string, context: Parameters<NonNullable<VideoHandlerOptions["resolveMedia"]>>[1]) => {
-          if (firstResolution) {
-            firstResolution = false;
-            if (prefetchedFirstShot) return prefetchedFirstShot;
-          }
-          return selectedResolver(query, {
+      ? (query: string, context: Parameters<NonNullable<VideoHandlerOptions["resolveMedia"]>>[1]) =>
+          selectedResolver(query, {
             purpose: "response",
             orientation: context.input.orientation ?? "landscape",
             generatedLook: context.generatedLook,
@@ -479,47 +625,36 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
             scene: context.scene,
             templateId: context.templateId,
             preferredType: context.preferredType,
-          });
-        }
+          })
       : undefined;
     const handler = createVideoHandler({
       ...videoOptions,
-      streamText: reservedPart
-        ? (context) => {
-            try {
-              prefetchedFirstShot = Promise.resolve(generateVideo!(firstShot!.mediaKeyword, {
-                purpose: "response",
-                orientation: context.request.input.orientation ?? "landscape",
-                generatedLook: context.request.input.style?.generatedLook,
-                signal: context.signal,
-                requestId: context.request.requestId,
-                scene: reservedPart.scene,
-                templateId: reservedPart.scene.templateId,
-                preferredType: "video",
-              })).catch((cause) => {
-                if (!context.signal.aborted) reportError(cause);
-                return null;
-              });
-            } catch (cause) {
-              if (!context.signal.aborted) reportError(cause);
-              prefetchedFirstShot = Promise.resolve(null);
-            }
-            return prependPlanPart(videoOptions.streamText(context), reservedPart);
-          }
-        : videoOptions.streamText,
+      streamText: (context) => {
+        try {
+          return interceptOpeningPlan(videoOptions.streamText(context), {
+            expectOpening: fullAiVideo || !openingProvided,
+            openingProvided,
+            requestId,
+            fullAiVideo,
+            publish: openingChannel.publish,
+          });
+        } catch (cause) {
+          openingChannel.publish(undefined);
+          throw cause;
+        }
+      },
       authorize: "none",
       allowedOrigins,
       allowCredentials,
       maxBodyBytes,
       mediaConcurrency,
-      basePrompt: [createVideoChatResponseInstructions(fullAiVideo, reservedPart != null), instructions?.trim()]
+      basePrompt: [createVideoChatResponseInstructions(fullAiVideo, openingProvided), instructions?.trim()]
         .filter(Boolean)
         .join("\n\nAPPLICATION GUIDANCE\n"),
       narrate: true,
       ...(fullAiVideo ? { maxResolvedMedia: 5 } : {}),
       resolveMedia: resolveSelected,
     });
-    if (!reservedPart) responseHandlers.set(mode, handler);
     return handler;
   };
 
@@ -602,6 +737,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
             hero,
             cards: welcomePrompts.map((entry, index) => ({
               prompt: entry.prompt,
+              ...(entry.opening ? { opening: entry.opening } : {}),
               media: cards[index] ?? null,
             })),
           },
@@ -654,7 +790,9 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
       const mode = input.mode !== "templates" && !generateVideo ? "templates" : input.mode;
       const fullAiVideo = mode === "full";
       const requestId = `video-chat-${Date.now()}-${requestSequence += 1}`;
-      const firstShot = fullAiVideo ? input.firstShot : undefined;
+      const openingChannel = createOpeningChannel(input.opening
+        ? { line: input.opening, keyword: "" }
+        : undefined);
       const forwardedHeaders = new Headers(request.headers);
       forwardedHeaders.delete("content-length");
       const videoRequest = new Request(request.url, {
@@ -666,7 +804,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
           requestId,
           ...(fullAiVideo ? { capabilities: { templates: ["media"] } } : {}),
           input: {
-            input: conversationInput(input.prompt, input.conversation, input.spokenHook, firstShot),
+            input: conversationInput(input.prompt, input.conversation, input.opening),
             knowledgeMode: "general",
             opening: false,
             orientation: input.orientation,
@@ -681,46 +819,16 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
           },
         }),
       });
-      return responseHandler(
+      const response = await responseHandler(
         mode,
         requestId,
-        firstShot,
+        input.opening != null,
+        openingChannel,
       )(videoRequest);
+      return streamVideoChatOpening(response, openingChannel.ready);
     }
 
     try {
-      if (action === "opening") {
-        const value = record(body, "request");
-        allowedKeys(value, ["prompt", "said", "mode"], "request");
-        const prompt = boundedString(value.prompt, "request.prompt");
-        const said = value.said == null ? "" : boundedString(value.said, "request.said", 2_000);
-        const mode = value.mode ?? "templates";
-        if (mode !== "templates" && mode !== "full") {
-          throw new Error("request.mode must be templates or full");
-        }
-        const generated = said
-          ? await callText(
-              "opening-continuation",
-              VIDEO_CHAT_OPENING_CONTINUATION_PROMPT,
-              `USER PROMPT: ${prompt}\n\nALREADY SAID: ${said}`,
-              128,
-              request.signal,
-            )
-          : await callText(
-              "opening",
-              mode === "full" && generateVideo ? VIDEO_CHAT_FULL_OPENING_PROMPT : VIDEO_CHAT_OPENING_PROMPT,
-              `USER PROMPT: ${prompt}`,
-              mode === "full" && generateVideo ? 256 : 128,
-              request.signal,
-            );
-        if (said) return Response.json({ line: generated }, { headers });
-        const opening = readOpeningSubject(generated);
-        return Response.json({
-          line: opening.line,
-          ...(opening.keyword ? { keyword: opening.keyword } : {}),
-          ...(opening.firstShot ? { firstShot: opening.firstShot } : {}),
-        }, { headers });
-      }
       if (action === "opening-media") {
         const value = record(body, "request");
         allowedKeys(value, ["keyword", "orientation"], "request");

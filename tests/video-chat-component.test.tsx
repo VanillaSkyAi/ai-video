@@ -34,13 +34,11 @@ function chatFetcher(
           { prompt: "Explain why the sky changes colour", media: null },
           {
             prompt: "Invent a surreal bedtime story",
+            opening: "Tonight, the impossible feels close enough to touch.",
             media: storyMedia,
           },
         ],
       });
-    }
-    if (action === "opening") {
-      return Response.json({ line: "Tonight, the impossible feels close enough to touch.", keyword: "surreal night" });
     }
     if (action === "opening-media") return Response.json({ media: null });
     return new Response("Unavailable in this UI test", { status: 503 });
@@ -104,7 +102,7 @@ describe("VideoChat", () => {
       action: "response",
       body: expect.objectContaining({
         prompt: "Invent a surreal bedtime story",
-        spokenHook: "Tonight, the impossible feels close enough to touch.",
+        opening: "Tonight, the impossible feels close enough to touch.",
       }),
     }));
     expect(requests.some(({ action }) => action === "opening-media")).toBe(false);

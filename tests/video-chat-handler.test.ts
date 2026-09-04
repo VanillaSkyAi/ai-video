@@ -21,6 +21,62 @@ function plannedResponse() {
 }
 
 describe("createVideoChatHandler", () => {
+  it("streams the short opening and template plan from one model call", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    const generatedTasks: string[] = [];
+    let streamCalls = 0;
+    let systemPrompt = "";
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      streamText: ({ systemPrompt: prompt }: { systemPrompt: string }) => {
+        streamCalls += 1;
+        systemPrompt = prompt;
+        return (async function* () {
+          yield '{"type":"video-chat.opening","spokenHook":"The Moon turns, perfectly matching its orbit.","mediaKeyword":"moon orbit earth"}\n';
+          yield* plannedResponse()();
+        })();
+      },
+      generateText: async ({ task }: { task: string }) => {
+        generatedTasks.push(task);
+        return "unused";
+      },
+    });
+
+    const response = await handler(new Request("https://app.example/api/video-chat?action=response", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Why does the Moon always show one face?",
+        mode: "templates",
+        orientation: "landscape",
+      }),
+    }));
+    const events = [];
+    for await (const event of decodeVideoSse(response.body!)) events.push(event);
+
+    expect(events.map(({ type }) => type)).toEqual([
+      "response.start",
+      "data.video-chat-opening",
+      "scene.add",
+      "scene.add",
+      "response.complete",
+    ]);
+    expect(events[0]).toMatchObject({
+      data: { capabilities: { extensions: ["data.video-chat-opening"] } },
+    });
+    expect(events[1]).toMatchObject({
+      data: {
+        line: "The Moon turns, perfectly matching its orbit.",
+        keyword: "moon orbit earth",
+      },
+    });
+    expect(streamCalls).toBe(1);
+    expect(generatedTasks).toEqual([]);
+    expect(systemPrompt).toContain("6-9 words");
+    expect(systemPrompt).toContain('"type":"video-chat.opening"');
+  });
+
   it("requires an explicit authorization policy", async () => {
     const createVideoChatHandler = await loadCreateVideoChatHandler();
     expect(() => createVideoChatHandler({
@@ -78,7 +134,7 @@ describe("createVideoChatHandler", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         prompt: "Invent a playful bedtime story about a moonlit bakery",
-        spokenHook: "Tonight, one impossible loaf is about to change this tiny bakery.",
+        opening: "Tonight, one impossible loaf is about to change this tiny bakery.",
         mode: "templates",
         orientation: "landscape",
         conversation: [{ prompt: "Make it whimsical", response: "We chose a tiny fox hero." }],
@@ -101,31 +157,19 @@ describe("createVideoChatHandler", () => {
     expect(userPrompt).toContain("one impossible loaf");
   });
 
-  it("creates a short opening hook and resolves its stock background separately", async () => {
+  it("resolves a streamed opening keyword into stock footage separately", async () => {
     const createVideoChatHandler = await loadCreateVideoChatHandler();
     const mediaCalls: Array<{ query: string; purpose: string }> = [];
     const handler = createVideoChatHandler({
       authorize: "none",
       heartbeatMs: false,
       streamText: plannedResponse(),
-      generateText: async ({ task }: { task: string }) => task === "opening"
-        ? '```json\n{"hook":"The Moon turns too—it simply keeps perfect pace.","keyword":"moon orbit earth"}\n```'
-        : "unused",
+      generateText: async () => "unused",
       searchMedia: async (query: string, { purpose }: { purpose: string }) => {
         mediaCalls.push({ query, purpose });
         return { url: "https://media.example/moon.mp4", type: "video" };
       },
     });
-
-    const opening = await handler(new Request("https://app.example/api/video-chat?action=opening", {
-      method: "POST",
-      body: JSON.stringify({ prompt: "Why does the Moon always show one face?" }),
-    }));
-    expect(await opening.json()).toEqual({
-      line: "The Moon turns too—it simply keeps perfect pace.",
-      keyword: "moon orbit earth",
-    });
-    expect(mediaCalls).toEqual([]);
 
     const media = await handler(new Request("https://app.example/api/video-chat?action=opening-media", {
       method: "POST",
@@ -203,18 +247,18 @@ describe("createVideoChatHandler", () => {
     const handler = createVideoChatHandler({
       authorize: "none",
       heartbeatMs: false,
-      generateText: async ({ task }: { task: string }) => task === "opening"
-        ? JSON.stringify({
-            spokenHook: "Tonight, one impossible loaf is about to change this tiny bakery.",
-            mediaKeyword: "moonlit bakery window",
-            firstShot,
-          })
-        : "unused",
+      generateText: async () => "unused",
       streamText: ({ systemPrompt, userPrompt }: { systemPrompt: string; userPrompt: string }) => {
         plannerSystemPrompt = systemPrompt;
         plannerUserPrompt = userPrompt;
         return {
           textStream: (async function* () {
+            yield `${JSON.stringify({
+              type: "video-chat.opening",
+              spokenHook: "Tonight, one impossible loaf changes this tiny bakery.",
+              mediaKeyword: "moonlit bakery window",
+              firstShot,
+            })}\n`;
             plannerStarted();
             yield '{"type":"scene.add","placement":"closer","scene":{"id":"ending","templateId":"media","variables":{"texts":"Morning tastes different","mediaType":"video","mediaKeyword":"sunrise bakery customers"},"timing":{"fixedDuration":5},"narration":"By sunrise, every customer carries a little piece of impossible courage home."}}\n';
             yield '{"type":"scene.add","scene":{"id":"body-2","templateId":"media","variables":{"texts":"Flour starts floating","mediaType":"video","mediaKeyword":"floating flour bakery"},"timing":{"fixedDuration":5},"narration":"Flour lifts from the counter as the baker watches gravity loosen its grip."}}\n';
@@ -235,20 +279,11 @@ describe("createVideoChatHandler", () => {
       },
     });
 
-    const opening = await handler(new Request("https://app.example/api/video-chat?action=opening", {
-      method: "POST",
-      body: JSON.stringify({ prompt: "Tell a moonlit bakery story", mode: "full" }),
-    }));
-    const openingBody = await opening.json() as { firstShot?: typeof firstShot };
-    expect(openingBody.firstShot).toEqual(firstShot);
-
     const response = await handler(new Request("https://app.example/api/video-chat?action=response", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         prompt: "Tell a moonlit bakery story",
-        spokenHook: "Tonight, one impossible loaf is about to change this tiny bakery.",
-        firstShot: openingBody.firstShot,
         mode: "full",
         orientation: "landscape",
       }),
@@ -276,44 +311,57 @@ describe("createVideoChatHandler", () => {
       },
     });
     expect(generatedQueries).toHaveLength(5);
-    expect(plannerSystemPrompt).toContain("Generate exactly four additional scenes");
-    expect(plannerUserPrompt).toContain("RESERVED FIRST BODY SCENE");
-    expect(plannerUserPrompt).toContain(firstShot.narration);
+    expect(plannerSystemPrompt).toContain("emit exactly four additional scenes");
+    expect(plannerSystemPrompt).toContain('"type":"video-chat.opening"');
+    expect(plannerUserPrompt).toContain("Tell a moonlit bakery story");
   });
 
   it("bounds provider first-shot direction instead of dropping the full-video fast path", async () => {
     const createVideoChatHandler = await loadCreateVideoChatHandler();
+    const queries: string[] = [];
     const handler = createVideoChatHandler({
       authorize: "none",
       heartbeatMs: false,
-      streamText: plannedResponse(),
-      generateText: async () => JSON.stringify({
-        spokenHook: "One patient robot is about to make Mars bloom.",
-        mediaKeyword: "robot garden Mars",
-        firstShot: {
-          text: "The first seed",
-          narration: "Its careful hands press one fragile seed into the red soil.",
-          mediaKeyword: "robot metal hand gently pressing one tiny green seed",
-          camera: "close-up",
-        },
-      }),
-      generateVideo: async () => ({ url: "https://media.example/generated.mp4", type: "video" }),
-    });
-
-    const opening = await handler(new Request("https://app.example/api/video-chat?action=opening", {
-      method: "POST",
-      body: JSON.stringify({ prompt: "Tell a story about a robot garden on Mars", mode: "full" }),
-    }));
-
-    expect(await opening.json()).toEqual({
-      line: "One patient robot is about to make Mars bloom.",
-      keyword: "robot garden Mars",
-      firstShot: {
-        text: "The first seed",
-        narration: "Its careful hands press one fragile seed into the red soil.",
-        mediaKeyword: "robot metal hand gently pressing one tiny green",
+      streamText: async function* () {
+        yield `${JSON.stringify({
+          type: "video-chat.opening",
+          spokenHook: "One patient robot is about to make Mars bloom.",
+          mediaKeyword: "robot garden Mars",
+          firstShot: {
+            text: "The first seed",
+            narration: "Its careful hands press one fragile seed into the red soil.",
+            mediaKeyword: "robot metal hand gently pressing one tiny green seed",
+            camera: "close-up",
+          },
+        })}\n`;
+        yield* plannedResponse()();
+      },
+      generateText: async () => "unused",
+      generateVideo: async (query: string) => {
+        queries.push(query);
+        return { url: "https://media.example/generated.mp4", type: "video" };
       },
     });
+
+    const response = await handler(new Request("https://app.example/api/video-chat?action=response", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: "Tell a story about a robot garden on Mars", mode: "full" }),
+    }));
+    const events = [];
+    for await (const event of decodeVideoSse(response.body!)) events.push(event);
+    const opening = events.find(({ type }) => type === "data.video-chat-opening");
+    const first = events.find(({ type }) => type === "scene.add");
+
+    expect(opening?.data).toEqual({
+      line: "One patient robot is about to make Mars bloom.",
+      keyword: "robot garden Mars",
+    });
+    expect(first?.type === "scene.add" && first.data.scene).toMatchObject({
+      narration: "Its careful hands press one fragile seed into the red soil.",
+      variables: { texts: "The first seed" },
+    });
+    expect(queries[0]).toBe("robot metal hand gently pressing one tiny green");
   });
 
   it("does not start a paid first shot before the composed video input is validated", async () => {
@@ -336,11 +384,6 @@ describe("createVideoChatHandler", () => {
         prompt: "Tell a story",
         mode: "full",
         style: "not-a-style-object",
-        firstShot: {
-          text: "A first beat",
-          narration: "This first generated beat should never be billed for invalid input.",
-          mediaKeyword: "bakery oven glowing",
-        },
       }),
     }));
     await response.text();
@@ -385,12 +428,6 @@ describe("createVideoChatHandler", () => {
       modes: ["templates", "full"],
     });
 
-    const opening = await handler(new Request("https://app.example/api/video-chat?action=opening", {
-      method: "POST",
-      body: JSON.stringify({ prompt: "Tell me something" }),
-    }));
-    expect(await opening.json()).toEqual({ line: "A clean line" });
-
     const suggestions = await handler(new Request("https://app.example/api/video-chat?action=suggestions", {
       method: "POST",
       body: JSON.stringify({ prompt: "Tell me something", lines: ["One line"] }),
@@ -417,10 +454,11 @@ describe("createVideoChatHandler", () => {
     expect(await transcription.json()).toEqual({ text: "heard 2 bytes" });
 
     const welcome = await handler(new Request("https://app.example/api/video-chat?action=welcome"));
-    const welcomeBody = await welcome.json() as { hero: unknown; cards: unknown[] };
+    const welcomeBody = await welcome.json() as { hero: unknown; cards: Array<{ opening?: string }> };
     expect(welcomeBody.cards).toHaveLength(4);
+    expect(welcomeBody.cards.every(({ opening }) => Boolean(opening))).toBe(true);
     expect(JSON.stringify(welcomeBody)).not.toContain("providerSecret");
-    expect(tasks).toEqual(["opening", "suggestions"]);
+    expect(tasks).toEqual(["suggestions"]);
     expect(mediaPurposes).toEqual(["suggestion", "welcome", "welcome", "welcome", "welcome", "welcome"]);
   });
 

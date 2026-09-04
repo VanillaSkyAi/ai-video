@@ -11,7 +11,6 @@ import { findStockFootage } from "./stock";
 
 const PLANNER_MODEL = process.env.ANTHROPIC_PLANNER_MODEL ?? "claude-sonnet-5";
 const NARRATION_MODEL = process.env.ANTHROPIC_NARRATION_MODEL ?? "claude-haiku-4-5";
-const OPENING_MODEL = process.env.ANTHROPIC_OPENING_MODEL ?? "claude-haiku-4-5";
 const VIDEO_MODEL = process.env.FAL_VIDEO_MODEL ?? "minimax/h3-max/text-to-video";
 const SHOT_DEADLINE_MS = 180_000;
 
@@ -78,9 +77,9 @@ export const handleVideoChat = createVideoChatHandler({
       console.log(`[planner] ${(text.match(/"scene\.add"/g) ?? []).length} scenes, ${keyed} asked for footage`);
     },
   }),
-  generateText: async ({ task, systemPrompt, userPrompt, maxOutputTokens, signal }) => {
+  generateText: async ({ systemPrompt, userPrompt, maxOutputTokens, signal }) => {
     const { text } = await generateText({
-      model: anthropic(task === "opening" || task === "opening-continuation" ? OPENING_MODEL : NARRATION_MODEL),
+      model: anthropic(NARRATION_MODEL),
       system: systemPrompt,
       prompt: userPrompt,
       maxOutputTokens,
@@ -125,10 +124,26 @@ export const handleVideoChat = createVideoChatHandler({
   welcome: {
     heroQuery: process.env.VIDEO_CHAT_WELCOME_KEYWORD ?? "underwater ocean sunlight",
     prompts: [
-      { prompt: "Why does the Moon always show one face?", mediaQuery: "full moon night sky" },
-      { prompt: "Tell me a tiny story about a robot growing a garden on Mars", mediaQuery: "robot garden mars" },
-      { prompt: "Recommend a perfect rainy afternoon in Amsterdam", mediaQuery: "Amsterdam rain cafe" },
-      { prompt: "Pitch a playful ad for a coffee mug that never spills", mediaQuery: "coffee mug desk" },
+      {
+        prompt: "Why does the Moon always show one face?",
+        opening: "The Moon turns, perfectly matching its orbit.",
+        mediaQuery: "full moon night sky",
+      },
+      {
+        prompt: "Tell me a tiny story about a robot growing a garden on Mars",
+        opening: "One patient robot is about to make Mars bloom.",
+        mediaQuery: "robot garden mars",
+      },
+      {
+        prompt: "Recommend a perfect rainy afternoon in Amsterdam",
+        opening: "Rain makes Amsterdam's best afternoons feel even warmer.",
+        mediaQuery: "Amsterdam rain cafe",
+      },
+      {
+        prompt: "Pitch a playful ad for a coffee mug that never spills",
+        opening: "This mug makes gravity look completely optional.",
+        mediaQuery: "coffee mug desk",
+      },
     ],
   },
   onError: (error) => console.error("[video-chat] planning failed:", error.message),

@@ -22,12 +22,16 @@ export interface VideoChatMedia {
 
 export interface VideoChatSuggestion {
   prompt: string;
+  /** Optional short hook that can start speaking the moment this suggestion is selected. */
+  opening?: string;
   media: VideoChatMedia | null;
 }
 
 export interface VideoChatAskOptions {
   /** Reuse already-loaded suggestion footage while the answer is prepared. */
   openingMedia?: VideoChatMedia | null;
+  /** A prewritten 6-9 word hook that can start immediately while the response streams. */
+  opening?: string;
 }
 
 export interface VideoChatWelcome {
@@ -37,6 +41,8 @@ export interface VideoChatWelcome {
 
 export interface VideoChatWelcomePrompt {
   prompt: string;
+  /** A prewritten 6-9 word hook for an instant suggested-prompt response. */
+  opening?: string;
   mediaQuery?: string;
 }
 

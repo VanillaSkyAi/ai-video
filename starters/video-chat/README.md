@@ -31,12 +31,14 @@ Restart the development server after changing keys. Open
 
 ## How a response is made
 
-1. A fast text model writes one short spoken hook and a stock-footage keyword.
-2. A clicked welcome or follow-up card reuses its loaded footage immediately;
-   a typed prompt resolves the hook keyword through the optional stock provider.
-3. The SDK speaks that hook while the main model plans the visual response. In
-   full AI mode, the opening director also reserves the exact first generated
-   shot so it can render while the main model plans scenes two through five.
+1. The planner streams one 6-9 word spoken hook, then continues into the scenes
+   without starting a second model call.
+2. A clicked welcome card starts its prewritten hook and loaded footage
+   immediately; a typed prompt resolves the streamed keyword through the
+   optional stock provider.
+3. The SDK speaks that hook while the same model continues planning the visual
+   response. In full AI mode, the first streamed object also reserves the exact
+   first generated shot so it can render while scenes two through five arrive.
 4. The opening footage loops or holds until the first planned scene and its
    voice are ready, then the response timeline takes over without a blank gap.
 5. The SDK holds every planned scene for its measured or estimated speech time
@@ -57,6 +59,5 @@ video provider is configured.
 | Full AI video | 5 | Every beat generated |
 
 The provider names its own model. Override the tested defaults with
-`ANTHROPIC_PLANNER_MODEL`, `ANTHROPIC_NARRATION_MODEL`, `ANTHROPIC_OPENING_MODEL`,
-or `FAL_VIDEO_MODEL` when needed. The opening defaults to Haiku so this first
-hook stays off the critical path as much as possible.
+`ANTHROPIC_PLANNER_MODEL`, `ANTHROPIC_NARRATION_MODEL`, or `FAL_VIDEO_MODEL`
+when needed.
