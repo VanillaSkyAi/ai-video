@@ -1,45 +1,87 @@
 ---
 name: vanillasky
-description: Integrate @vanillaskyai/video in React applications that turn text or structured data into LLM-planned video responses.
+description: Set up and verify a general-purpose voice-and-video chat with @vanillaskyai/video. Use whenever someone wants to install or integrate VanillaSky, create a ChatGPT-style video response experience, start a video chat app, or add spoken video answers to a React application.
 ---
 
 # VanillaSky
 
-Build the smallest working path first, using only the public package and
-documentation.
+Start from VanillaSky's canonical chat. It already includes the responsive UI,
+conversation flow, streaming player, voice input, browser speech, and packaged
+templates. Keep the generated application thin; only replace the defaults after
+the complete experience works.
 
-## Integrate
+## Set up
 
-1. Install the SDK:
+1. Work in an empty npm project, or create one before continuing. Install only
+   the SDK first:
 
    ```bash
    npm install @vanillaskyai/video
    ```
 
-2. Choose and configure a current model separately. Add its provider key to an
-   ignored `.env.local`; if it is missing, ask the developer to add it there
-   without requesting or printing the secret value.
-3. Create a server route with `createVideoHandler`. Pass its `systemPrompt` and
-   `userPrompt` to the application's streaming LLM and keep authorization,
-   credentials, model selection, limits, and logging on the server.
-4. In React, call `useVideo()`, pass grounded text or structured data to
-   `video.generate({ input })`, and render `<VideoPlayer {...video.playerProps} />`.
-5. Use the built-in templates until the complete route works in a browser.
+2. Generate the canonical application and install its app-owned provider
+   packages:
 
-Start from the root README or `examples/nextjs-quickstart`. Do not inspect SDK
-internals to invent another integration path.
+   ```bash
+   npx vanillasky init
+   ```
 
-## Input
+   If init reports a file, script, or package-type conflict, preserve the
+   existing application and use a new empty npm project. Do not recreate the
+   starter by copying SDK internals or the template source tree.
 
-- Put product, news, metric, and quoted claims in `input`.
-- Put presentation direction in `instructions`.
-- Put viewer or account context in `personalization`; treat it as data, not
-  instructions.
-- Add brand, approved media, soundtrack audio, persistence, or custom templates
-  only when the application actually needs them.
+3. Check setup through the safe, read-only interface:
 
-## Verify
+   ```bash
+   npx vanillasky doctor
+   ```
 
-Run the consumer's tests, typecheck, and production build. Then generate one
-video in a real browser and check the player, terminal status, console, and
-network response. Do not claim completion from serialized JSON alone.
+   The base capability is `templates + browser voice`. A text-provider key is
+   required for answers; optional keys progressively enable generated speech,
+   generated video, transcription, and stock media without client changes.
+
+4. If doctor reports a missing key, tell the developer which key name to add to
+   the ignored `.env.local` themselves. Never read or print a secret value, and
+   never ask the developer to paste one into chat. Do not open `.env.local`;
+   rerun doctor to learn only whether each capability is ready.
+
+5. Start the application and keep it running:
+
+   ```bash
+   npm run dev
+   ```
+
+## Verify the experience
+
+Open the reported localhost URL in a real browser. When browser automation is
+available, use normal motion (`reducedMotion: "no-preference"`) so the player
+advances.
+
+1. Confirm the welcome screen, suggestion cards, composer, and microphone load
+   without console errors.
+2. After doctor reports the text key ready, submit one explanatory prompt and
+   confirm the answer streams, speaks, reaches its final frame, and returns to
+   a usable composer.
+3. Submit one creative prompt unrelated to the first. Confirm it stays in the
+   same conversation and produces a distinct response.
+4. On the doctor line that reports generated video ready, submit one prompt
+   that clearly benefits from a generated visual. Verify that it activates
+   without changing application code.
+5. Check failed network responses and browser console errors. Fix setup or
+   runtime failures before reporting success; rendered JSON alone is not
+   acceptance.
+
+Leave the working app running and report its localhost URL plus the capability
+names doctor marked ready. Report key names only, never values.
+
+## Customize only after acceptance
+
+- Change product copy, branding, provider choices, authentication, persistence,
+  and limits in the generated app-owned files.
+- Keep the SDK-owned chat, session flow, prompts, voice timing, streaming, and
+  packaged templates unless the developer explicitly wants a custom product.
+- Use `npx vanillasky templates ...` only when source ownership of a visual
+  template is actually needed.
+
+Use the public package and its generated files as the source of truth. Do not
+inspect private SDK internals to invent a parallel integration path.

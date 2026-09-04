@@ -20,7 +20,7 @@ describe("human and agent onboarding", () => {
     expect(readme.split("\n").length).toBeLessThan(200);
   });
 
-  it("ships a generic VanillaSky integration skill", () => {
+  it("ships a generic VanillaSky video-chat setup skill", () => {
     const skillRoot = resolve(root, "skills", "vanillasky");
     expect(existsSync(resolve(skillRoot, "SKILL.md"))).toBe(true);
     expect(existsSync(resolve(skillRoot, "agents/openai.yaml"))).toBe(true);
@@ -32,11 +32,28 @@ describe("human and agent onboarding", () => {
     expect(metadata).not.toMatch(/POC|101|cold-start|evaluation|HyperFrames|Remotion/i);
     expect(source).toContain("npm install @vanillaskyai/video");
     expect(source).not.toMatch(/npm install @vanillaskyai\/video[^\n]*(?:\bai\b|@ai-sdk)/);
-    expect(source).toContain("createVideoHandler");
-    expect(source).toContain("useVideo");
-    expect(source).toContain("VideoPlayer");
-    expect(source).toContain("built-in templates");
+    expect(source).toContain("npx vanillasky init");
+    expect(source).toContain("npx vanillasky doctor");
+    expect(source).toContain("npm run dev");
+    expect(source).toContain("templates + browser voice");
+    expect(source).toContain("generated video");
     expect(source).toContain("ignored `.env.local`");
+    expect(source).not.toMatch(/\btutor|\blearner|\blesson|\beducation/i);
+    expect(source).not.toMatch(/createVideoHandler|useVideo\(|<VideoPlayer/);
+  });
+
+  it("makes the agent verify the canonical chat in a real browser without handling secrets", () => {
+    const source = read("skills/vanillasky/SKILL.md");
+    const agent = read("skills/vanillasky/agents/openai.yaml");
+
+    expect(source).toMatch(/real browser/i);
+    expect(source).toMatch(/explain|explanatory/i);
+    expect(source).toMatch(/creative prompt/i);
+    expect(source).toMatch(/console errors/i);
+    expect(source).toMatch(/never (?:ask for|request|read|print|echo|display)[^\n]*secret/i);
+    expect(source).toMatch(/doctor[^\n]*generated video/i);
+    expect(agent).toContain("video chat");
+    expect(agent).not.toMatch(/personalized video response|tutor|learning/i);
   });
 
   it("keeps the public agent guide task-focused and evaluation rules maintainer-only", () => {
