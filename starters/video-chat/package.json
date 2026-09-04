@@ -10,11 +10,8 @@
   },
   "dependencies": {
     "@vanillaskyai/video": "0.6.0",
-    "@vitejs/plugin-react": "^6.1.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "typescript": "^5.9.3",
-    "vite": "^8.2.2",
     "@ai-sdk/anthropic": "^3.0.0",
     "ai": "^7.0.77",
     "@ai-sdk/xai": "^4.0.52",
@@ -23,6 +20,9 @@
   "devDependencies": {
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@types/node": "^24.10.1"
+    "@types/node": "^24.10.1",
+    "@vitejs/plugin-react": "^6.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2"
   }
 }

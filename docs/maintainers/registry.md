@@ -1,7 +1,7 @@
 # Registry items
 
 The `registry/items` folder contains the files installed by
-`npx vanillasky add <name>`.
+`npx vanillasky templates add <name>`.
 
 The JSON files are generated distribution manifests, not the best place to
 learn or edit the visual system. Canonical source lives in

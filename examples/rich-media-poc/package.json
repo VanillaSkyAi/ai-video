@@ -9,8 +9,8 @@
     "test": "vitest run",
     "browser:test": "playwright test",
     "typecheck": "tsc --noEmit",
-    "templates:sync": "vanillasky sync",
-    "templates:check": "vanillasky check"
+    "templates:sync": "vanillasky templates sync",
+    "templates:check": "vanillasky templates check"
   },
   "dependencies": {
     "@ai-sdk/fal": "3.0.35",

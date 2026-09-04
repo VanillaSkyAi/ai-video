@@ -2,7 +2,7 @@
 
 These files are deliberately complete, one-file examples. Copy the closest
 shape into `vanillasky/templates/`, rename its ID, then run `npx vanillasky
-sync` and `npx vanillasky check`.
+templates sync` and `npx vanillasky templates check`.
 
 | Reference | Use it when |
 | --- | --- |

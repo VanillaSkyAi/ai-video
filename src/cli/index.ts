@@ -16,24 +16,50 @@ import {
   hasProjectTemplateSources,
   type TemplateCatalogItem,
 } from "./catalog.js";
+import { initVideoChatApp } from "./init.js";
+import { doctorVideoChatApp } from "./doctor.js";
 
 export interface VanillaSkyCliEnvironment {
   cwd?: string;
   write?: (line: string) => void;
+  /** Test/host override for the packaged canonical starter. */
+  starterRoot?: string;
+  /** Test/host override for the package-manager operation performed by init. */
+  installDependencies?: (cwd: string) => void | Promise<void>;
 }
 
 function help(): string {
   return [
+    "VanillaSky video chat",
+    "",
+    "Usage:",
+    "  vanillasky init",
+    "  vanillasky doctor",
+    "  vanillasky templates <command>",
+    "",
+    "Template commands:",
+    "  vanillasky templates list [--builtin] [--json]",
+    "  vanillasky templates describe <template> [--builtin] [--json]",
+    "  vanillasky templates add <template...> [--dry-run|--diff] [--overwrite]",
+    "  vanillasky templates add --all [--dry-run|--diff] [--overwrite]",
+    "  vanillasky templates sync [--check]",
+    "  vanillasky templates check",
+    "  vanillasky templates create <id>",
+  ].join("\n");
+}
+
+function templateHelp(): string {
+  return [
     "VanillaSky source-owned templates",
     "",
     "Usage:",
-    "  vanillasky list [--builtin] [--json]",
-    "  vanillasky describe <template> [--builtin] [--json]",
-    "  vanillasky add <template...> [--dry-run|--diff] [--overwrite]",
-    "  vanillasky add --all [--dry-run|--diff] [--overwrite]",
-    "  vanillasky sync [--check]",
-    "  vanillasky check",
-    "  vanillasky create <id>",
+    "  vanillasky templates list [--builtin] [--json]",
+    "  vanillasky templates describe <template> [--builtin] [--json]",
+    "  vanillasky templates add <template...> [--dry-run|--diff] [--overwrite]",
+    "  vanillasky templates add --all [--dry-run|--diff] [--overwrite]",
+    "  vanillasky templates sync [--check]",
+    "  vanillasky templates check",
+    "  vanillasky templates create <id>",
   ].join("\n");
 }
 
@@ -79,21 +105,79 @@ export function runVanillaSkyCli(
   const output = environment.write ?? console.log;
   const write = (line: string): void => output(sanitizeTerminalOutput(line));
   const cwd = resolve(environment.cwd ?? process.cwd());
-  const [command, ...args] = argv;
+  const [rootCommand, ...rootArgs] = argv;
+
+  if (rootCommand === "init") {
+    return (async () => {
+      try {
+        const unknown = unknownOption("init", rootArgs, []);
+        if (unknown) throw new Error(unknown);
+        if (rootArgs.length > 0) throw new Error(`Unexpected init argument: ${rootArgs[0]}`);
+        const result = await initVideoChatApp({
+          cwd,
+          starterRoot: environment.starterRoot,
+          installDependencies: environment.installDependencies,
+        });
+        if (!result.initialized) {
+          write("Video chat is already initialized.");
+          return 0;
+        }
+        write("Video chat initialized with packaged templates and browser voice.");
+        write("Add ANTHROPIC_API_KEY to .env.local.");
+        write("Then run: npm run dev");
+        write("Check setup: npx vanillasky doctor");
+        return 0;
+      } catch (error) {
+        write(error instanceof Error ? error.message : String(error));
+        return 1;
+      }
+    })();
+  }
+
+  if (rootCommand === "doctor") {
+    const unknown = unknownOption("doctor", rootArgs, []);
+    if (unknown) {
+      write(unknown);
+      return 1;
+    }
+    if (rootArgs.length > 0) {
+      write(`Unexpected doctor argument: ${rootArgs[0]}`);
+      return 1;
+    }
+    const result = doctorVideoChatApp(cwd);
+    for (const line of result.lines) write(line);
+    return result.ok ? 0 : 1;
+  }
+
+  if (rootCommand !== "templates") {
+    const removed = new Set(["list", "describe", "add", "sync", "check", "create"]);
+    if (rootCommand && removed.has(rootCommand)) {
+      write(`Template commands moved. Use: vanillasky templates ${argv.join(" ")}`);
+      return 1;
+    }
+    write(help());
+    return rootCommand == null || rootCommand === "help" || rootCommand === "--help" || rootCommand === "-h" ? 0 : 1;
+  }
+
+  const [command, ...args] = rootArgs;
+  if (command == null || command === "help" || command === "--help" || command === "-h") {
+    write(templateHelp());
+    return 0;
+  }
 
   if (command === "create") {
     return (async () => {
       try {
         const unknown = unknownOption("create", args, []);
         if (unknown) throw new Error(unknown);
-        if (args.length === 0) throw new Error("Choose one template id. Usage: vanillasky create <id>.");
+        if (args.length === 0) throw new Error("Choose one template id. Usage: vanillasky templates create <id>.");
         if (args.length > 1) throw new Error(`Unexpected create argument: ${args[1]}`);
         const id = args[0];
         const result = await createTemplate({ cwd, id });
         write(`Created template: ${result.path}`);
         write(`Synced ${result.templates} template${result.templates === 1 ? "" : "s"} to vanillasky/index.ts and vanillasky/server.ts.`);
         write(`Source: ${result.path}`);
-        write("Validate templates: vanillasky check");
+        write("Validate templates: vanillasky templates check");
         for (const warning of result.warnings ?? []) write(`Warning: ${warning}`);
         return 0;
       } catch (error) {
@@ -195,7 +279,7 @@ export function runVanillaSkyCli(
     }
     const names = addAll ? listRegistryTemplates().map(({ id }) => id) : positional;
     if (names.length === 0) {
-      write("Choose at least one template. Run `vanillasky list` to see the catalog.");
+      write("Choose at least one template. Run `vanillasky templates list` to see the catalog.");
       return 1;
     }
     return (async () => {
@@ -255,7 +339,7 @@ export function runVanillaSkyCli(
     const name = names[0];
     const render = (item: TemplateCatalogItem | undefined): number => {
       if (!item) {
-        write(`Unknown template: ${name ?? ""}. Run \`vanillasky list\` to see the catalog.`);
+        write(`Unknown template: ${name ?? ""}. Run \`vanillasky templates list\` to see the catalog.`);
         return 1;
       }
       if (args.includes("--json")) {
@@ -295,6 +379,6 @@ export function runVanillaSkyCli(
     });
   }
 
-  write(help());
-  return command == null || command === "help" || command === "--help" || command === "-h" ? 0 : 1;
+  write(templateHelp());
+  return 1;
 }

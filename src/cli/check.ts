@@ -396,7 +396,7 @@ export async function checkTemplates(options: CheckTemplatesOptions = {}): Promi
   }));
   const generated = await inspectGeneratedTemplateStatus(cwd, templates);
   if (!generated.current) {
-    throw new Error(`Generated template files are out of date: ${generated.stale.join(", ")}. Run \`vanillasky sync\`.`);
+    throw new Error(`Generated template files are out of date: ${generated.stale.join(", ")}. Run \`vanillasky templates sync\`.`);
   }
   let renders = 0;
   for (const item of examples) {

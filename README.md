@@ -24,7 +24,13 @@ For humans:
 
 ```bash
 npm install @vanillaskyai/video
+npx vanillasky init
 ```
+
+Add `ANTHROPIC_API_KEY` to the generated `.env.local`, then run `npm run dev`.
+That one key gives you the complete interface with packaged templates and
+browser voice. Run `npx vanillasky doctor` to see which optional upgrades are
+enabled.
 
 For coding agents:
 

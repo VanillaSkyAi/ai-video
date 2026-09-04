@@ -24,7 +24,7 @@ the built-in registry. Canonical template changes live in `src/visual-system`;
 generated installable copies live in `registry/items`. Templates need valid
 default variables and must continue to pass the all-template install and render
 test. Reusable authoring primitives use the `primitive` registry layer and remain
-directly installable with `vanillasky add`. The CLI may refresh files marked as
+directly installable with `vanillasky templates add`. The CLI may refresh files marked as
 generated, but must not silently overwrite customer-owned template or primitive
 source.
 Provider credentials and customer secrets must never enter browser bundles,

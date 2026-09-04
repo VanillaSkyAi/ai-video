@@ -24,28 +24,28 @@ List the effective catalog, including project-owned templates, before choosing
 what to build or copy:
 
 ```bash
-npx vanillasky list
+npx vanillasky templates list
 ```
 
 Create an original template:
 
 ```bash
-npx vanillasky create customer-health
-npx vanillasky describe customer-health
+npx vanillasky templates create customer-health
+npx vanillasky templates describe customer-health
 ```
 
 Or copy a built-in when its behavior is already close:
 
 ```bash
-npx vanillasky add bigNumber
+npx vanillasky templates add bigNumber
 ```
 
 Then edit the owned `.tsx` file, regenerate the two small registries, and check
 the complete contract:
 
 ```bash
-npx vanillasky sync
-npx vanillasky check
+npx vanillasky templates sync
+npx vanillasky templates check
 ```
 
 For an original template, the source is
@@ -62,8 +62,8 @@ registry parity.
 Preview either operation without applying the proposed file writes:
 
 ```bash
-npx vanillasky add bigNumber --dry-run
-npx vanillasky add bigNumber --diff
+npx vanillasky templates add bigNumber --dry-run
+npx vanillasky templates add bigNumber --diff
 ```
 
 `--dry-run` lists every proposed file and `--diff` shows its content changes,
@@ -79,7 +79,7 @@ An edited file is never replaced unless you explicitly pass `--overwrite`.
 
 ## One file is the contract
 
-The file created by `vanillasky create` is a complete working template. Keep
+The file created by `vanillasky templates create` is a complete working template. Keep
 these concerns together:
 
 - `useWhen` and `avoidWhen` tell the AI when the visual is appropriate;

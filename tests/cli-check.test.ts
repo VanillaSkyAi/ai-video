@@ -74,9 +74,9 @@ describe("vanillasky check", () => {
     const errors: string[] = [];
 
     expect(runVanillaSkyCli(["help"], { cwd, write: (line) => help.push(line) })).toBe(0);
-    await expect(Promise.resolve(runVanillaSkyCli(["check"], { cwd, write: (line) => errors.push(line) }))).resolves.toBe(1);
+    await expect(Promise.resolve(runVanillaSkyCli(["templates", "check"], { cwd, write: (line) => errors.push(line) }))).resolves.toBe(1);
 
-    expect(help.join("\n")).toContain("vanillasky check");
+    expect(help.join("\n")).toContain("vanillasky templates check");
     expect(errors).toEqual(["No templates found in vanillasky/templates."]);
   });
 
@@ -91,7 +91,7 @@ describe("vanillasky check", () => {
     writeFileSync(counter, "");
     const output: string[] = [];
 
-    const exit = await Promise.resolve(runVanillaSkyCli(["check"], { cwd, write: (line) => output.push(line) }));
+    const exit = await Promise.resolve(runVanillaSkyCli(["templates", "check"], { cwd, write: (line) => output.push(line) }));
 
     expect(output).toEqual([
       "Checked 1 template, 1 example, and 12 deterministic renders.",
@@ -105,7 +105,7 @@ describe("vanillasky check", () => {
     const cwd = project(template());
     const output: string[] = [];
 
-    await expect(Promise.resolve(runVanillaSkyCli(["check"], { cwd, write: (line) => output.push(line) }))).resolves.toBe(1);
+    await expect(Promise.resolve(runVanillaSkyCli(["templates", "check"], { cwd, write: (line) => output.push(line) }))).resolves.toBe(1);
 
     expect(output.join("\n")).toContain("Generated template files are out of date");
     expect(existsSync(join(cwd, "vanillasky/index.ts"))).toBe(false);
@@ -122,7 +122,7 @@ describe("vanillasky check", () => {
     ));
     const output: string[] = [];
 
-    await expect(Promise.resolve(runVanillaSkyCli(["check"], { cwd, write: (line) => output.push(line) }))).resolves.toBe(1);
+    await expect(Promise.resolve(runVanillaSkyCli(["templates", "check"], { cwd, write: (line) => output.push(line) }))).resolves.toBe(1);
 
     expect(output.join("\n")).toContain("browser registry metadata/IDs/order fingerprint differs from template sources");
   });
@@ -135,7 +135,7 @@ describe("vanillasky check", () => {
     await syncTemplates({ cwd });
     const output: string[] = [];
 
-    await expect(Promise.resolve(runVanillaSkyCli(["check"], { cwd, write: (line) => output.push(line) }))).resolves.toBe(1);
+    await expect(Promise.resolve(runVanillaSkyCli(["templates", "check"], { cwd, write: (line) => output.push(line) }))).resolves.toBe(1);
 
     expect(output.join("\n")).toContain('card example "Launch" landscape at progress 0');
     expect(output.join("\n")).toContain("wide failed");
@@ -149,7 +149,7 @@ describe("vanillasky check", () => {
     await syncTemplates({ cwd });
     const output: string[] = [];
 
-    await expect(Promise.resolve(runVanillaSkyCli(["check"], { cwd, write: (line) => output.push(line) }))).resolves.toBe(1);
+    await expect(Promise.resolve(runVanillaSkyCli(["templates", "check"], { cwd, write: (line) => output.push(line) }))).resolves.toBe(1);
 
     expect(output.join("\n")).toContain('card example "Launch" portrait at progress 0 is nondeterministic');
   });
@@ -161,7 +161,7 @@ describe("vanillasky check", () => {
     ).replace("});", "});\nexport { card, card as cardAlias };"));
     const output: string[] = [];
 
-    await expect(Promise.resolve(runVanillaSkyCli(["check"], { cwd, write: (line) => output.push(line) }))).resolves.toBe(1);
+    await expect(Promise.resolve(runVanillaSkyCli(["templates", "check"], { cwd, write: (line) => output.push(line) }))).resolves.toBe(1);
 
     expect(output.join("\n")).toContain("must export exactly one template created with defineTemplate (found 2)");
   });

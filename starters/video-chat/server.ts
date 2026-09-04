@@ -7,7 +7,6 @@ import {
   streamText,
 } from "ai";
 import { createVideoChatHandler } from "@vanillaskyai/video/server";
-import { templates } from "./vanillasky/server";
 import { findStockFootage } from "./stock";
 
 const PLANNER_MODEL = process.env.ANTHROPIC_PLANNER_MODEL ?? "claude-sonnet-5";
@@ -61,7 +60,6 @@ async function filmScene(
  */
 export const handleVideoChat = createVideoChatHandler({
   authorize: (request) => new URL(request.url).hostname === "localhost",
-  templates,
   streamText: ({ systemPrompt, userPrompt, signal }) => streamText({
     model: anthropic(PLANNER_MODEL),
     system: systemPrompt,
@@ -106,7 +104,8 @@ export const handleVideoChat = createVideoChatHandler({
   transcribe: process.env.FAL_KEY
     ? async ({ audio, mediaType, signal }) => {
         fal.config({ credentials: process.env.FAL_KEY });
-        const url = await fal.storage.upload(new Blob([audio], { type: mediaType }));
+        const bytes = Uint8Array.from(audio);
+        const url = await fal.storage.upload(new Blob([bytes.buffer], { type: mediaType }));
         const result = await fal.subscribe(process.env.FAL_TRANSCRIBE_MODEL ?? "fal-ai/whisper", {
           input: { audio_url: url, task: "transcribe" },
           abortSignal: AbortSignal.any([signal, AbortSignal.timeout(60_000)]),

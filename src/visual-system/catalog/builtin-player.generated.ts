@@ -216,7 +216,7 @@ export const GENERATED_BUILTIN_PLAYER_TEMPLATES = [
     "id": "terminal",
     "defaults": {
       "texts": "Ship it.",
-      "command": "npx vanillasky check",
+      "command": "npx vanillasky templates check",
       "output": [],
       "promptPrefix": "$",
       "mediaUrl": "",

@@ -132,9 +132,9 @@ the final scene. Narration, TTS, and speech synchronization are not part of the
 
 The built-in catalog needs no setup. Only source-owned templates need the
 optional local TSX compiler; install it once with `npm install --save-dev tsx`.
-Then use `npx vanillasky create <id>` for an original one-file template or
-`npx vanillasky add <builtin>` to copy a close built-in. Edit the owned file,
-run `npx vanillasky sync`, then run `npx vanillasky check` before committing.
+Then use `npx vanillasky templates create <id>` for an original one-file template or
+`npx vanillasky templates add <builtin>` to copy a close built-in. Edit the owned file,
+run `npx vanillasky templates sync`, then run `npx vanillasky templates check` before committing.
 Pass the generated registry to the server and browser; project-owned IDs
 replace matching built-ins and new IDs extend the catalog.
 

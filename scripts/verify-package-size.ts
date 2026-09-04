@@ -13,7 +13,7 @@ import { selectPackedArtifact } from "./lib/release-integrity.mjs";
 export const PACKED_SIZE_BUDGET = 1_250_000;
 export const UNPACKED_SIZE_BUDGET = 5_000_000;
 // The provider-neutral video-chat session and default interface intentionally
-// raised the measured graph from 37,983 to 71,088 bytes: the React entry now
+// raised the measured graph from 37,983 to 71,097 bytes: the React entry now
 // owns streamed planning, conversation state, voice preparation, replay,
 // cancellation, and the complete accessible UI instead of making every
 // application copy them. 81,000 keeps just over 10 KB over that measurement

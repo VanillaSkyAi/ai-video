@@ -1295,7 +1295,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
           "description": "Command typed character by character. Keep the meaningful invocation within 80 characters; the terminal deliberately ellipsizes longer display lines.",
           "minLength": 1,
           "maxLength": 80,
-          "default": "npx vanillasky check"
+          "default": "npx vanillasky templates check"
         },
         "output": {
           "type": "array",

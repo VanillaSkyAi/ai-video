@@ -44,7 +44,7 @@ describe("final candidate feedback regressions", () => {
   it("uses a supported CLI command in the terminal default", () => {
     const command = BUILTIN_TEMPLATE_SCHEMAS.terminal.properties.command.default;
 
-    expect(command).toBe("npx vanillasky check");
+    expect(command).toBe("npx vanillasky templates check");
     expect(command).not.toContain("create --");
   });
 

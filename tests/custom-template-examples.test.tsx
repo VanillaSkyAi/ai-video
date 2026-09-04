@@ -36,22 +36,22 @@ describe("custom template reference journey", () => {
     const guide = readFileSync(join(root, "docs/custom-templates.md"), "utf8");
     const readme = readFileSync(join(root, "README.md"), "utf8");
 
-    expect(guide).toContain("npx vanillasky create customer-health");
-    expect(guide).toContain("npx vanillasky add bigNumber");
-    expect(guide).toContain("npx vanillasky add bigNumber --dry-run");
-    expect(guide).toContain("npx vanillasky add bigNumber --diff");
-    expect(guide).toContain("npx vanillasky list");
-    expect(guide).toContain("npx vanillasky describe customer-health");
+    expect(guide).toContain("npx vanillasky templates create customer-health");
+    expect(guide).toContain("npx vanillasky templates add bigNumber");
+    expect(guide).toContain("npx vanillasky templates add bigNumber --dry-run");
+    expect(guide).toContain("npx vanillasky templates add bigNumber --diff");
+    expect(guide).toContain("npx vanillasky templates list");
+    expect(guide).toContain("npx vanillasky templates describe customer-health");
     expect(guide).toContain("vanillasky/templates/customer-health.tsx");
-    expect(guide).toContain("npx vanillasky sync");
-    expect(guide).toContain("npx vanillasky check");
+    expect(guide).toContain("npx vanillasky templates sync");
+    expect(guide).toContain("npx vanillasky templates check");
     expect(guide).toContain('import { templates } from "../vanillasky/server"');
     expect(guide).toContain('import { templates } from "../vanillasky"');
     expect(guide).toContain("<VideoPlayer video={savedVideo} templates={templates}");
     expect(guide).not.toContain("vanillasky dev");
     expect(guide).not.toMatch(/canonical workbench/i);
     expect(readme).toContain("[Custom templates](docs/custom-templates.md)");
-    expect(readme).not.toContain("npx vanillasky create customer-health");
+    expect(readme).not.toContain("npx vanillasky templates create customer-health");
   });
 
   it("documents local authorization as fail-closed outside development", () => {
