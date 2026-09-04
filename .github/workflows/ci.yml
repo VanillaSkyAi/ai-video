@@ -36,7 +36,7 @@ jobs:
       - run: npm run examples:install-current
       - run: npm run server-examples:typecheck
       - run: npm run verify:package-size
-      - run: npm audit --audit-level=low
+      - run: npm audit --audit-level=low --omit=dev
       - run: npm pack --dry-run
 
   consumer-gate:

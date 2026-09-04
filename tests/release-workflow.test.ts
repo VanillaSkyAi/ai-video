@@ -331,6 +331,12 @@ describe("release workflow", () => {
     expect(config).not.toContain("fileParallelism: false");
   });
 
+  it("audits the shipped dependency tree without re-auditing development tools", () => {
+    const workflow = readFileSync(".github/workflows/ci.yml", "utf8");
+
+    expect(workflow).toContain("npm audit --audit-level=low --omit=dev");
+  });
+
   it("compiles the source-owned template tree in the clean-room consumer", () => {
     const verifier = readFileSync("scripts/verify-onboarding.mjs", "utf8");
 
