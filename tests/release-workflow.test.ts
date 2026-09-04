@@ -347,7 +347,11 @@ describe("release workflow", () => {
   it("compiles the source-owned template tree in the clean-room consumer", () => {
     const verifier = readFileSync("scripts/verify-onboarding.mjs", "utf8");
 
-    expect(verifier).toContain('installSpec, "tsx@4.23.12"');
+    expect(verifier).toContain('run("npm", ["install", "--no-audit", "--no-fund", installSpec], app);');
+    expect(verifier).not.toContain('writeFileSync(join(app, "package.json")');
+    expect(verifier).toContain('run("npm", ["install", "--no-audit", "--no-fund", "--save-dev", "tsx@4.23.12"], app);');
+    expect(verifier.indexOf('const init = runCli(["init"]);'))
+      .toBeLessThan(verifier.indexOf('"--save-dev", "tsx@4.23.12"'));
     expect(verifier).toContain('join(app, "src", "template-ownership.ts")');
     expect(verifier).toContain('export { templates as browserTemplates } from "../vanillasky/index";');
     expect(verifier).toContain('export { templates as serverTemplates } from "../vanillasky/server";');

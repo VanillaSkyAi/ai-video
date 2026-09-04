@@ -127,10 +127,6 @@ let welcomeBrowser;
 
 try {
   mkdirSync(app);
-  writeFileSync(join(app, "package.json"), `${JSON.stringify({
-    name: "video-demo",
-    private: true,
-  }, null, 2)}\n`);
   let installSpec = process.env.VANILLASKY_INSTALL_SPEC;
   let candidateArtifact;
   if (!installSpec) {
@@ -150,7 +146,7 @@ try {
     });
     installSpec = candidateArtifact.path;
   }
-  run("npm", ["install", "--no-audit", "--no-fund", installSpec, "tsx@4.23.12"], app);
+  run("npm", ["install", "--no-audit", "--no-fund", installSpec], app);
   cli = join(app, "node_modules", "@vanillaskyai", "video", "bin", "vanillasky.js");
   const init = runCli(["init"]);
   if (!init.output.includes("Video chat initialized")) throw new Error(`Packed init failed:\n${init.output}`);
@@ -234,6 +230,7 @@ try {
     if (!strictSettings.includes(setting)) throw new Error(`Current Vite React TypeScript scaffold is missing ${setting}`);
   }
 
+  run("npm", ["install", "--no-audit", "--no-fund", "--save-dev", "tsx@4.23.12"], app);
   const builtinList = runCli(["templates", "list", "--builtin", "--json"]).output;
   if (!JSON.parse(builtinList).some(({ id }) => id === "bigNumber")) throw new Error("Packed list did not include bigNumber");
   const builtinDescription = JSON.parse(runCli(["templates", "describe", "bigNumber", "--builtin", "--json"]).output);
