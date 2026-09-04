@@ -105,7 +105,7 @@ describe("packed provider package compatibility", () => {
     expect(verifier).toContain("verifyCompatibilityBrowserBoundary");
   });
 
-  it("guards the unchanged canonical route, planner, client, and TypeScript settings", () => {
+  it("guards the unchanged provider fixture route, planner, client, and TypeScript settings", () => {
     expect(verifier).toContain("routeHash");
     expect(verifier).toContain("plannerHash");
     expect(verifier).toContain("clientHash");

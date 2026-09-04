@@ -1,7 +1,7 @@
 # Contributing
 
-VanillaSky is an open-source video response layer. Changes should preserve the
-versioned event protocol and keep external services behind explicit adapters.
+VanillaSky is an open-source voice-and-video chat SDK. Changes should preserve
+the versioned event protocol and keep external services behind explicit adapters.
 
 ## Local checks
 

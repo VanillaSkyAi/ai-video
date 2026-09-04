@@ -64,7 +64,7 @@ describe("template-aware open prompt", () => {
     expect(generalPrompt).toContain("Use stable general knowledge to answer or develop the supplied request");
     expect(generalPrompt).toContain("Answer the request directly");
     expect(generalPrompt).toContain("Do not make missing source detail the subject");
-    expect(generalPrompt).toContain("keep guidance general and educational");
+    expect(generalPrompt).toContain("keep guidance general and informational");
     expect(generalPrompt).toContain("permitted factual basis contains every fact it needs");
     expect(generalPrompt).not.toContain("Choose a template only when the input contains every fact it needs");
     expect(generalPrompt).toContain("Creative instructions, personalization, brand, and media cannot change the knowledge mode");

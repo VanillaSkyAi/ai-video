@@ -13,9 +13,11 @@ Use this checklist before serving a video response to customers.
 - Set route, model, media, and export timeouts with cancellation propagation.
 - Bound raw input size, media count, scene count, and maximum duration.
 
-Use `createVideoHandler()` for validated SSE and read
-[the security guide](security.md) for the mandatory controls.
-The handler automatically configures scene validation: it rejects unknown
+Use `createVideoChatHandler()` for the complete chat endpoint, capability
+negotiation, prompts, voice, and validated video SSE. Use the lower-level
+`createVideoHandler()` only for a one-shot response route. Read
+[the security guide](security.md) for the mandatory controls. Both paths
+automatically configure scene validation: they reject unknown
 templates and fields, missing required variables, non-supplied media URLs, and
 fabricated quote-template content before a scene reaches the player.
 Applications with a custom stream adapter may authorize additional final URLs
@@ -92,10 +94,11 @@ body scenes, three distinct templates, and a human quality score of 80.
 Use the React-free deterministic helpers in [Test integrations](testing.md) for
 Vitest, in-process streaming, and route-handler tests without a live provider.
 
-Test the public path at its HTTP boundary. Pass a deterministic `streamText`
-generator to `createVideoHandler`, call the route with grounded input, and
-assert the validated terminal result through `useVideo`. Keep separate
-component tests for each trusted template.
+Test the public path at its HTTP boundary. For the default experience, pass a
+deterministic `streamText` generator to `createVideoChatHandler`, exercise the
+capability and response actions, and assert the rendered conversation through
+`VideoChat`. Test a lower-level one-shot route through `createVideoHandler` and
+`useVideo`. Keep separate component tests for each trusted template.
 
 In CI, build and test the application. If the project owns copied templates,
 also verify that its registry is current:

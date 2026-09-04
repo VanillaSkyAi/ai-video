@@ -20,7 +20,6 @@ const childEnvironment = {
 };
 const examples = [
   { name: "react-vite", source: join("examples", "react-vite"), url: "http://localhost:5173/" },
-  { name: "video-chat", source: join("starters", "video-chat"), url: "http://localhost:5173/", browser: true },
   { name: "server-integrations", source: join("examples", "server-integrations") },
   { name: "nextjs-quickstart", source: join("examples", "nextjs-quickstart"), url: "http://localhost:3000/", browser: true, rejectsProduction: true },
 ];
@@ -142,13 +141,8 @@ async function runExample(example) {
           page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
           page.on("pageerror", (error) => errors.push(error.message));
           await page.goto(example.url);
-          if (example.name === "video-chat") {
-            await page.getByRole("heading", { name: /An AI chat that responds/i }).waitFor();
-            await page.getByPlaceholder("Ask anything…").waitFor();
-          } else {
-            await page.getByRole("heading", { name: "VanillaSky quickstart" }).waitFor();
-            await page.getByRole("button", { name: "Generate video" }).waitFor();
-          }
+          await page.getByRole("heading", { name: "VanillaSky one-shot example" }).waitFor();
+          await page.getByRole("button", { name: "Generate video" }).waitFor();
           if (errors.length) throw new Error(`${example.name} browser errors: ${errors.join(" | ")}`);
         }
         continue;

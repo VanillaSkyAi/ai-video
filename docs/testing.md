@@ -4,6 +4,10 @@
 protocol events. It has no React or provider-SDK dependency, makes no network
 request, and does not require a model key.
 
+The examples below cover the lower-level one-shot protocol. A complete chat
+integration should also exercise `createVideoChatHandler` capabilities and
+responses plus the `VideoChat` interface.
+
 ## Test a route handler with Vitest
 
 Pass `createMockVideoPlanner()` directly to the same `createVideoHandler()`

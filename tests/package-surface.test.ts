@@ -5,12 +5,14 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 
 describe("public package surface", () => {
-  it("labels the package as a 0.1 beta video response SDK", () => {
+  it("labels the package as a beta voice-and-video chat SDK", () => {
     const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
     const readme = readFileSync(join(root, "README.md"), "utf8");
 
     expect(manifest.version).toMatch(/^0\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
-    expect(manifest.description).toMatch(/video response SDK/i);
+    expect(manifest.description).toMatch(/voice-and-video chat SDK/i);
+    expect(manifest.keywords).toEqual(expect.arrayContaining(["video-chat", "voice-chat"]));
+    expect(manifest.keywords).not.toEqual(expect.arrayContaining(["personalized-video", "contextual-ai"]));
     expect(readme).toMatch(/Status: Beta/);
   });
 

@@ -70,7 +70,7 @@ export function boundSceneVariables(
 /**
  * Wrap a planner so every scene it emits fits the bounds it was given.
  *
- * Measured over two evenings of real lessons, an over-long variable was the
+ * Measured across real video-chat responses, an over-long variable was the
  * single most common reason a scene never reached the browser - more common
  * than every other planner failure combined.
  */

@@ -6,9 +6,10 @@ Applications own media and soundtrack audio. VanillaSky accepts ordinary
 authorized URLs in the deterministic video model; it does not bundle tracks or
 couple your app to a stock-media provider.
 
-The 0.1 SDK does not provide narration, TTS, or speech synchronization.
-If a product needs spoken audio, the application must create and synchronize
-that experience outside this contract.
+This page covers the lower-level one-shot video contract. The primary
+`VideoChat` interface owns narration, optional TTS, browser-voice fallback, and
+speech synchronization. For a standalone `VideoPlayer`, the application owns
+any spoken-audio track and its timing.
 
 Only send source URLs you trust. Pass known approved assets through
 `suppliedMedia`, or configure the server-only `resolveMedia` callback for

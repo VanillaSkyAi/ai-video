@@ -25,7 +25,7 @@ function knowledgeRules(mode: VideoKnowledgeMode): string {
     ? `- This request uses general knowledge mode.
 - Use stable general knowledge to answer or develop the supplied request. Prefer broadly established, non-current information.
 - Answer the request directly. Do not make missing source detail the subject when stable general knowledge can provide a useful answer; for broad questions, provide a practical, broadly applicable framework.
-- For financial, medical, or legal topics, keep guidance general and educational. Never present it as personalized professional advice.
+- For financial, medical, or legal topics, keep guidance general and informational. Never present it as personalized professional advice.
 - Treat claims in the supplied input as authoritative. Never invent citations, quotations, URLs, personal details, live facts, guarantees, or precise claims that require a source.`
     : `- This request uses input-only knowledge mode.
 - The supplied input is the complete factual basis. Do not add outside claims.`;

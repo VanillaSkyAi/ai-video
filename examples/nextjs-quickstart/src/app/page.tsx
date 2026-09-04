@@ -10,7 +10,7 @@ export default function Page() {
   const video = useVideo();
 
   return <main>
-    <h1>VanillaSky quickstart</h1>
+    <h1>VanillaSky one-shot example</h1>
     <label>
       Grounded input
       <textarea value={input} onChange={(event) => setInput(event.target.value)} />

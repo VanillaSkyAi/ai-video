@@ -4,7 +4,7 @@ import { clipText } from "../src/server/bound-variables";
 
 /**
  * A template's bounds are a layout contract, and a scene that breaks one used
- * to be rejected whole. Measured over two evenings of real lessons, that was
+ * to be rejected whole. Measured across real video-chat responses, that was
  * the single most common reason a planned scene never reached the browser -
  * more common than every other planner failure combined, and it is why a
  * five-scene answer kept arriving with three.

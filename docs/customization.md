@@ -2,6 +2,42 @@
 
 # Customization
 
+## Video chat interface
+
+The default `VideoChat` interface is already responsive and accessible. Pass a
+custom welcome heading and a root class when the application needs its own copy
+or chrome colors:
+
+```tsx
+<VideoChat
+  className="acme-chat"
+  welcomeTitle={<>Ask Acme<br />See the answer</>}
+  options={{ brand: acmeBrand }}
+/>
+```
+
+Override the scoped custom properties after importing
+`@vanillaskyai/video/video-chat.css`; the selectors and values stay local to
+that instance:
+
+```css
+.acme-chat {
+  --vs-accent: #0057ff;
+  --vs-accent-deep: #003fb8;
+  --vs-voice: #e11d74;
+  --vs-font: "Inter", sans-serif;
+  --vs-radius-lg: 1rem;
+}
+```
+
+Use `options` for the endpoint, templates, orientation, visual brand, request
+headers, and an optional custom voice. Provider capabilities are discovered
+from the server. Use `useVideoChat()` only when the application needs to own the
+entire interface.
+
+The sections below customize lower-level, one-shot video composition. They are
+not required for the default chat.
+
 ## Background and semantic brand
 
 Omit brand configuration to use the standard `cosmic` background. Prefer a
@@ -125,8 +161,8 @@ Pass `audio: { src }` for a specific track, omit `audio` to let the server choos
 synchronously from a preloaded catalog, or pass `audio: false` for silence.
 VanillaSky infers deterministic duration, volume, beat, and fade-out metadata.
 The soundtrack should continue across visual generation gaps and finish with
-the final scene. Narration, TTS, and speech synchronization are not part of the
-0.1 SDK contract.
+the final scene. `VideoChat` separately owns narration, TTS integration, browser
+voice fallback, and speech synchronization for conversational responses.
 
 ## Custom templates
 
