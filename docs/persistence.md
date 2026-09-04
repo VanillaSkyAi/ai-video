@@ -1,4 +1,4 @@
-[← Documentation home](../README.md) · [Previous: Core concepts](concepts.md) · [Next: Live channels →](live-channels.md)
+[← Documentation home](../README.md) · [Previous: Core concepts](concepts.md) · [Next: Streaming protocol →](streaming-protocol.md)
 
 # Persistence and replay
 

@@ -92,6 +92,35 @@ describe("fresh 0.1 candidate cleanup", () => {
     expect(firstShotSource).not.toContain("sanitizeVideoChatFirstShot");
   });
 
+  it("keeps one chat-first example path and no one-shot product guides", () => {
+    const obsoletePaths = [
+      "examples/react-vite",
+      "examples/nextjs-quickstart",
+      "examples/server-integrations",
+      "docs/use-cases.md",
+      "docs/live-channels.md",
+      "docs/integrate-nextjs.md",
+      "docs/input-and-first-scene.md",
+    ];
+
+    for (const path of obsoletePaths) {
+      expect(existsSync(join(root, path)), path).toBe(false);
+    }
+
+    const providerRoute = readFileSync(
+      join(root, "tests/fixtures/nextjs-provider-app/src/app/api/video-chat/route.ts"),
+      "utf8",
+    );
+    const providerClient = readFileSync(
+      join(root, "tests/fixtures/nextjs-provider-app/src/app/page.tsx"),
+      "utf8",
+    );
+    expect(providerRoute).toContain("createVideoChatHandler");
+    expect(providerRoute).not.toContain("createVideoHandler");
+    expect(providerClient).toContain("<VideoChat");
+    expect(providerClient).not.toMatch(/useVideo\(|<VideoPlayer/);
+  });
+
   it("ships the reviewed docs and examples with only intentional runtime dependencies", () => {
     const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
@@ -100,12 +129,11 @@ describe("fresh 0.1 candidate cleanup", () => {
       "SUPPORT.md",
       "registry/items",
       "examples/custom-template",
-      "examples/nextjs-quickstart/.env.example",
-      "examples/nextjs-quickstart/README.md",
-      "examples/nextjs-quickstart/next-env.d.ts",
-      "examples/nextjs-quickstart/package.json",
-      "examples/nextjs-quickstart/src",
-      "examples/nextjs-quickstart/tsconfig.json",
+      "starters/video-chat/.env.example",
+      "starters/video-chat/README.md",
+      "starters/video-chat/package.json",
+      "starters/video-chat/server.ts",
+      "starters/video-chat/src/main.tsx",
     ]));
     expect(manifest.files).not.toContain("registry");
     expect(manifest.files).not.toContain("examples/nextjs-quickstart");

@@ -1,176 +1,41 @@
 [← Documentation home](../README.md) · [Previous: Branding and personalization](branding-and-personalization.md) · [Next: Custom templates →](custom-templates.md)
 
-# Media and soundtrack audio
+# Media, voice, and audio
 
-Applications own media and soundtrack audio. VanillaSky accepts ordinary
-authorized URLs in the deterministic video model; it does not bundle tracks or
-couple your app to a stock-media provider.
+VanillaSky keeps provider choice in the application. The SDK defines small
+server callbacks, advertises only the capabilities you configure, and keeps
+all credentials out of React and the browser bundle.
 
-This page covers the lower-level one-shot video contract. The primary
-`VideoChat` interface owns narration, optional TTS, browser-voice fallback, and
-speech synchronization. For a standalone `VideoPlayer`, the application owns
-any spoken-audio track and its timing.
+## Two visual modes
 
-Only send source URLs you trust. Pass known approved assets through
-`suppliedMedia`, or configure the server-only `resolveMedia` callback for
-planner-selected backgrounds. Preload the next scene's asset before it becomes
-active. Keep provider credentials on the server.
+The chat exposes only two clear choices:
 
-Supplied URLs and data URIs are not copied into the LLM prompt. The model sees
-an optional pool of opaque HTTPS-shaped references plus safe descriptive
-metadata, selects only relevant assets, and the SDK restores their original
-addresses on the server before scene validation. Supplying an asset does not
-require the completed video to use it.
+| Mode | Visual source | Required callback |
+| --- | --- | --- |
+| `templates` | Trusted rendered templates, optionally with stock footage | none; `searchMedia` is optional |
+| `full` | A generated clip for every visual beat | `generateVideo` |
 
-Audio timing, volume, beat markers, and fade-out remain part of the serialized
-output video, so replay and export stay deterministic. The input stays at the
-intent level: provide only the source URL and the SDK infers those playback
-defaults. Hosting and licensing are the application's responsibility.
+Templates are always available and are the fast, inexpensive fallback. The
+`full` mode is advertised only when `generateVideo` exists. VanillaSky does not
+offer a mixed mode that generates only some scenes.
 
-Host tracks in your application's public assets, object storage, or CDN, then
-pass their URL through the normal video input. For example, a file at
-`public/audio/calm.mp3` can be used without an SDK audio package:
+## Stock media for templates
+
+Add `searchMedia` when template answers, the welcome screen, and follow-up
+cards should use approved photography or footage:
 
 ```ts
-const input = {
-  input: "Grounded source material",
-  audio: { src: "/audio/calm.mp3" },
-  maxDurationSec: 24,
-};
-```
-
-The normalized output uses `trackId: "soundtrack"`, the video duration,
-default beat detection, an empty beat-marker list, full volume, and a
-three-second fade-out. Omit `audio` to let the server's synchronous
-`selectAudio` callback choose from an app-owned catalog. Pass `audio: false`
-to guarantee a silent video.
-
-Keep the catalog and files in your application so you control caching,
-licensing, and deployment. The SDK continues to handle playback, timing,
-serialization, replay, and export from the supplied URL.
-
-## Start with sound
-
-Browsers block audible autoplay unless the viewer has already interacted with
-the page. For a sound-first experience, keep the branded generation intro
-visible and let the player's start control provide that interaction:
-
-```tsx
-<VideoPlayer
-  {...video.playerProps}
-  playbackMode="autoplay-after-interaction"
-/>
-```
-
-The generation cover immediately includes a centered **Play with sound**
-button. A click starts the soundtrack and holds that branded cover as a
-three-second generation intro while planning continues. Once both the intro
-and the first validated scene are ready, the generated timeline begins from
-time zero. The generation intro remains visible indefinitely if the viewer has
-not clicked yet, even when the complete generated video is already ready. The
-server keeps the generated first scene on screen for at least three more
-seconds when the duration budget permits. After that first successful sound start,
-replacement streams on the same mounted player autoplay the same generation
-intro with sound and fall back to a start control if the browser blocks them.
-
-When `VideoInput.opening` is supplied, its asset-free gradient `media` scene
-replaces the generic generation cover as soon as it is available. It remains
-as the static start poster until the viewer clicks, then begins the actual
-timeline with sound; there is no additional generic pre-roll before it.
-
-Use `playbackMode="manual"` to require the button on every run,
-`playbackMode="muted-autoplay"` for browser-safe muted autoplay, or
-`playbackMode="autoplay-with-sound"` to try audible autoplay immediately. The
-lower-level `autoPlay` and `startMuted` props remain available when no playback
-mode is set. For a chat response that should try audible autoplay without the
-SDK generation intro, pass `opening: false`, wait to mount the player until a
-generated scene exists, and render it with `autoPlay` and `startMuted={false}`.
-If the browser blocks the audible start, the player returns to the first frame
-and exposes its sound-start control.
-
-For a saved video rendered with `<VideoPlayer video={video} loop />`, the
-soundtrack loops too. A track shorter than the visual timeline repeats without
-a silent gap, and the player restarts it from the beginning when the visual
-timeline wraps. This does not bypass browser autoplay policy: use muted autoplay
-for unattended playback and let a viewer unmute, or start audible playback from
-a user interaction.
-
-## Mix native clip audio with a soundtrack
-
-Some generated or supplied scene videos contain their own synchronized
-dialogue, effects, or ambience. Opt into that embedded track at the player:
-
-```tsx
-<VideoPlayer
-  video={video}
-  nativeMediaAudio={{ volume: 0.85 }}
-  playbackMode="muted-autoplay"
-/>
-```
-
-This produces two independent layers: the active scene video's native audio
-at `nativeMediaAudio.volume`, and the continuous soundtrack at the serialized
-`video.audio.volume`. The existing sound button is their shared master mute.
-Incoming videos may preroll visually, but remain muted until their scene is
-active. Native media audio is off by default so existing players keep their
-current soundtrack-only behavior.
-
-## Generate media instead of searching for it
-
-`resolveMedia` does not have to search a catalog. The same callback can
-generate the asset, because it receives the `requestId` and the `scene` being
-resolved alongside the query:
-
-```ts
-resolveMedia: async (query, { requestId, scene, preferredType, signal }) => {
-  const asset = await generateAndStore({ prompt: query, requestId, scene, preferredType, signal });
-  return asset ? { url: asset.url, type: asset.type } : null;
-}
-```
-
-Generation stays outside the SDK install. VanillaSky depends on no image or
-video model, and never selects a provider: the application supplies the model
-and owns the key, the spend, and where bytes are stored.
-
-[`examples/server-integrations/src/ai-sdk-media.ts`](../examples/server-integrations/src/ai-sdk-media.ts)
-is a provider-neutral adapter built on the AI SDK. It takes `ImageModel` and
-`VideoModel` instances rather than naming a vendor, so it runs against any
-model the AI SDK supports. Install the AI SDK and whichever provider you
-chose — for example:
-
-```bash
-npm install ai @ai-sdk/fal
-```
-
-Two rules that example encodes, both about money:
-
-- **`maxRetries: 0`.** A generated asset is billable, so a silent retry can
-  charge twice for one scene. Retrying stays an explicit, budget-aware
-  decision in the application.
-- **A per-scene idempotency key** built from `requestId` and `scene.id`, so a
-  retried request reuses the stored object instead of generating a second one.
-
-Generation is slower than a catalog lookup. Honour `signal`, keep a deadline,
-and return `null` when it passes: a scene that falls back to the brand
-gradient is better than one that never arrives.
-
-## Media providers
-
-VanillaSky is provider-independent. When `resolveMedia` is configured, the
-built-in planner may emit a bounded semantic query for later media-capable
-scenes. The SDK calls the application-owned resolver on the server, replaces
-the query with the approved URL, type, and optional poster, then validates the
-scene before emitting it. Without the callback, media intent stays hidden from
-the planner. The first accepted generated scene remains asset-free.
-
-```ts
-import { createVideoHandler } from "@vanillaskyai/video/server";
-
-createVideoHandler({
-  authorize: checkSession,
+createVideoChatHandler({
+  authorize: verifySession,
   streamText: planWithYourModel,
-  resolveMedia: async (query, { preferredType, signal }) => {
-    const asset = await searchYourApprovedCatalog({ query, preferredType, signal });
+  generateText: runSmallTextTask,
+  searchMedia: async (query, { purpose, orientation, signal }) => {
+    const asset = await searchApprovedCatalog({
+      query,
+      purpose,
+      orientation,
+      signal,
+    });
     return asset
       ? { url: asset.url, type: asset.type, posterUrl: asset.posterUrl }
       : null;
@@ -178,22 +43,93 @@ createVideoHandler({
 });
 ```
 
-The resolver query is 2–80 characters and at most eight words. Return `null`
-when no licensed, safe, relevant asset exists; media-capable templates fall
-back to the brand gradient when their schema permits it. The browser never
-receives `mediaKeyword`, provider keys, or raw provider metadata.
+The planner emits a short semantic keyword, not a URL. The callback returns an
+application-approved image or video URL, and the SDK validates it before it
+reaches a scene. Return `null` when no licensed, safe, relevant asset exists;
+the template falls back to its built-in treatment.
 
-`allowMediaUrl` is an authorization hook for applications with their own custom
-stream adapter. It validates a final URL; it does not search for, fetch, or
-resolve media. The default 0.1 path needs no callback because every planner URL
-must already be present in `suppliedMedia`.
+For Pexels, keep `PEXELS_API_KEY` on the server, enforce a deadline, filter for
+orientation, and return only validated Pexels asset domains. Licensing,
+attribution, caching, MIME checks, and byte limits remain application-owned.
 
-Do not expose provider keys to React or allow arbitrary planner URLs. Templates
-describe visual building blocks; the application owns media retrieval,
-caching, licensing, and delivery.
+## Full generated video
 
-For Pexels, keep `PEXELS_API_KEY` on the server and implement `resolveMedia`
-with the Pexels API. Return only validated `images.pexels.com` or
-`videos.pexels.com` results. The application remains responsible for
-attribution, search, orientation filtering, MIME checks, timeouts, caching,
-and fallback behavior.
+Add `generateVideo` to enable full AI video. It receives the planned visual
+subject plus the generated look so every clip can follow the same direction:
+
+```ts
+createVideoChatHandler({
+  authorize: verifySession,
+  streamText: planWithYourModel,
+  generateText: runSmallTextTask,
+  generateVideo: async (subject, {
+    generatedLook,
+    orientation,
+    requestId,
+    scene,
+    signal,
+  }) => {
+    const asset = await generateAndStore({
+      subject,
+      generatedLook,
+      orientation,
+      requestId,
+      sceneId: scene?.id,
+      signal,
+      maxRetries: 0,
+    });
+    return asset ? { url: asset.url, type: "video" } : null;
+  },
+});
+```
+
+The first streamed object reserves the first generated shot while the same
+model call continues planning later scenes. Use `requestId` and `scene.id` as
+an idempotency key, because generated clips are billable. Keep `maxRetries: 0`
+inside provider calls, honour `signal`, and make retries an explicit product
+decision with a known budget.
+
+VanillaSky does not depend on a video model or storage service. The application
+owns the provider key, model, spend, generated bytes, retention, and delivery.
+
+## Voice and transcription
+
+Without `generateSpeech`, `VideoChat` uses the browser voice. Add a speech
+callback for a consistent generated voice:
+
+```ts
+generateSpeech: async ({ text, signal }) => {
+  const speech = await synthesize(text, { signal });
+  return { audio: speech.bytes, mediaType: speech.mediaType };
+},
+```
+
+The SDK measures or estimates each line, keeps narration synchronized with the
+picture, and prevents a new scene from replacing speech that is still playing.
+If generated speech fails, the interface can fall back to browser speech.
+
+Add `transcribe` for server-side microphone transcription when browser speech
+recognition is unavailable. Set `maxAudioBytes`, validate the media type, and
+apply a provider deadline.
+
+## Native clip audio and soundtrack
+
+Generated clips can contain diegetic audio. The chat player keeps that audio
+separate from narration and uses one master mute control. Avoid generated
+voiceover or music inside clips so it does not compete with the answer voice.
+
+A serialized `Video` can also contain an application-owned soundtrack for
+replay or custom playback. Soundtrack files, licenses, beat markers, volume,
+and fade-out remain host-owned; narration and speech synchronization remain
+the chat layer's responsibility. Browser autoplay rules still require a viewer
+interaction before audible playback on many devices.
+
+## Safety rules
+
+- Keep every provider key in server-only environment variables.
+- Never let a planner return arbitrary final media URLs.
+- Bound query length, response size, duration, concurrency, and generated spend.
+- Preload the next asset and keep the current visual when media is late.
+- Return a safe fallback instead of leaving the response waiting forever.
+
+[← Documentation home](../README.md) · [Previous: Branding and personalization](branding-and-personalization.md) · [Next: Custom templates →](custom-templates.md)

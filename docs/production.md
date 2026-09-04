@@ -2,106 +2,93 @@
 
 # Production guide
 
-Use this checklist before serving a video response to customers.
+Use one `createVideoChatHandler` endpoint for capabilities, welcome content,
+video responses, speech, transcription, stock search, and follow-up prompts.
+Mount `<VideoChat />` or `useVideoChat` against that boundary.
 
 ## Server boundary
 
-- Keep provider keys, the system prompt, and tools on the server.
-- Authenticate the user and tenant before reading the request body.
-- Set an explicit origin allowlist. CORS is not authentication.
-- Apply per-user and per-tenant request, token, and concurrency limits.
-- Set route, model, media, and export timeouts with cancellation propagation.
-- Bound raw input size, media count, scene count, and maximum duration.
+- Keep provider keys, planner prompts, media tools, and raw errors on the server.
+- Replace the generated localhost authorization with a real user and tenant check.
+- Authenticate before reading the request body.
+- Set an explicit origin allowlist; CORS is not authentication.
+- Apply per-user and per-tenant request, token, concurrency, and spend limits.
+- Bound prompt size, conversation turns, audio bytes, scene count, and duration.
+- Forward cancellation to every text, speech, media, transcription, and video provider.
 
-Use `createVideoChatHandler()` for the complete chat endpoint, capability
-negotiation, prompts, voice, and validated video SSE. Use the lower-level
-`createVideoHandler()` only for a one-shot response route. Read
-[the security guide](security.md) for the mandatory controls. Both paths
-automatically configure scene validation: they reject unknown
-templates and fields, missing required variables, non-supplied media URLs, and
-fabricated quote-template content before a scene reaches the player.
-Applications with a custom stream adapter may authorize additional final URLs
-with `allowMediaUrl`; the callback validates URLs and does not resolve them.
-Invalid generated parts are dropped by default, after `onError` receives their
-private reason. Accepted scenes continue streaming with a safe recoverable
-diagnostic. Use `invalidPartBehavior: "fail"` only for deliberate fail-fast behavior.
+The handler rejects unknown templates and fields, invalid variables, unsafe
+media, and fabricated quote-template content before a scene reaches the
+player. Read the [security guide](security.md) for the complete controls.
+
+## Visual modes and providers
+
+Keep templates available on every deployment. They are the reliable fallback
+when stock, speech, or generated-video providers are missing or late. Add
+`searchMedia` for approved stock footage and `generateVideo` for the separate
+full AI video mode. Do not expose a partial generated-video mode.
+
+Use explicit provider deadlines. Generated video should use idempotency keys
+and `maxRetries: 0` so one visible action cannot silently create several
+billable clips. Validate returned URLs, media types, byte sizes, duration, and
+licensing before use.
+
+## Fast first response
+
+The planner's first streamed object supplies the spoken hook and media keyword.
+Start speech immediately, resolve stock in parallel, and keep the opening
+playing until the first narrated scene and its media are ready. Welcome cards
+should carry a prepared hook and preloaded footage so they can start without a
+model round trip.
+
+Do not wait for the complete plan before showing the first validated scene.
+Preload upcoming assets and keep the current visual if the next one is late.
+For full AI video, reserve the first shot in the opening object so generation
+can begin while the planner streams later scenes.
 
 ## Data and privacy
 
-- Send the provider only the source and personalization required for the story.
-- Do not log raw prompts, personalization, authorization headers, signed URLs,
-  or provider deltas.
-- Record request IDs, model ID, duration, event counts, safe error codes, token
-  usage, and acceptance metrics.
-- Review your provider's retention settings and data-processing terms.
-- Keep signed asset URLs valid for the expected viewing and replay window.
-
-## Reliability
-
-- Emit the supplied opening and selected audio before starting model work.
-- Abort provider work when the client disconnects.
-- Persist terminal snapshots for replay and export, then validate loaded values
-  with `parseVideo` before use.
-- Persist event logs when resume is required; validate them with
-  validate stored event logs before replay.
-- Treat the [persistence contract](persistence.md) as the storage boundary;
-  database, tenant policy, object storage, deletion, and URL expiry remain
-  host-owned.
-- Use idempotency keys around durable generation requests.
-- Retry only before visible output or from a validated resume point. Do not
-  silently restart a response after the viewer has begun watching.
+- Send only the prompt, bounded conversation, and context needed for the answer.
+- Do not log authorization headers, secret values, raw prompts, signed URLs, or provider deltas.
+- Review provider retention and data-processing terms.
+- Keep stored media URLs valid for the expected replay window.
+- Validate persisted `Video` values with `parseVideo` before replay.
 
 ## Failure experience
 
-- Keep private provider details in `onError`; send only safe typed errors.
-- Do not display stack traces or protocol diagnostics inside the video.
-- Hold the current scene and continue audio through a recoverable generation
-  gap.
-- End cleanly on a terminal error; never append blank media after completion.
-- Provide a normal application retry control outside the player.
+- Keep private diagnostics in `onError`; expose only safe typed errors.
+- Treat late media as a fallback case, not a reason to freeze playback.
+- Keep the current scene and its narration during recoverable generation gaps.
+- End cleanly on a terminal error and show an application retry control.
+- Retry only before visible output or from an explicit validated resume point.
 
-## Media and audio
+## Measure the stages
 
-- Start generated playback with an asset-free scene.
-- Preload media for the next scene and commit it only when ready.
-- Resolve media before generation and pass approved results through
-  `suppliedMedia`. Stock-keyword resolution is not part of the 0.1 handler.
-- Use customer-approved media domains and enforce type/byte limits.
-- Select soundtrack audio from an already-loaded catalog; declare a positive
-  fade-out. Narration and speech synchronization are application-owned.
-- Respect browser autoplay rules and provide an explicit unmute control.
+Record safe server timing and quality fields rather than one opaque total:
 
-## Observability
+- hook received;
+- speech ready;
+- first scene planned;
+- first scene media ready;
+- first frame painted;
+- plan complete;
+- accepted and rejected scene counts;
+- provider model, finish reason, token usage, and media failures.
 
-Track at minimum:
+Use `onComplete` for server-side cost and quality reporting and `onWarning` for
+bounded recoverable issues. Never send provider-native metadata to the browser
+unless the application has deliberately enabled and secured it.
 
-- time to supplied opening;
-- time to first generated scene;
-- time to complete plan;
-- seconds of future content buffered;
-- planner and protocol error codes;
-- media readiness failures;
-- completion and abandonment rate;
-- provider model and token usage.
+## Test the shipped path
 
-Use the repository acceptance harness in smoke tests. The defaults
-require an opening within 250 ms, a generated scene within 15 seconds,
-completion within 30 seconds, resolved media, audio before the opening, three
-body scenes, three distinct templates, and a human quality score of 80.
+Test the route with deterministic `streamText` and `generateText` callbacks.
+Exercise `capabilities`, `welcome`, and `response`, then assert the rendered
+conversation through `VideoChat`. Keep provider-adapter tests keyless and run a
+small, explicitly gated real-provider smoke test before a release.
 
-## Testing
-
-Use the React-free deterministic helpers in [Test integrations](testing.md) for
-Vitest, in-process streaming, and route-handler tests without a live provider.
-
-Test the public path at its HTTP boundary. For the default experience, pass a
-deterministic `streamText` generator to `createVideoChatHandler`, exercise the
-capability and response actions, and assert the rendered conversation through
-`VideoChat`. Test a lower-level one-shot route through `createVideoHandler` and
-`useVideo`. Keep separate component tests for each trusted template.
-
-In CI, build and test the application. If the project owns copied templates,
-also verify that its registry is current:
+In CI, build one clean consumer from the packed SDK artifact. This catches
+missing exports, server/browser boundary leaks, code-generation drift, and
+dependency-resolution problems that workspace tests miss. If the application
+owns copied templates, also run:
 
 ```bash
 npx vanillasky templates sync --check
@@ -109,17 +96,16 @@ npm run build
 npm test
 ```
 
-Before release, build one clean consumer from the packed SDK tarball. This
-catches missing exports, React/server boundary leaks, code-generation drift,
-and dependency-resolution problems that workspace tests cannot detect.
-
 ## Deployment checklist
 
-- [ ] Provider keys exist only in the server secret store.
+- [ ] Keys exist only in the server secret store.
 - [ ] Authentication, tenant policy, rate limits, and origin allowlist are live.
-- [ ] Cancellation, timeouts, and safe errors are tested.
-- [ ] Every installed template renders in both orientations.
-- [ ] Chromium, Firefox, WebKit, React, and Node compatibility checks pass.
-- [ ] A real provider run passes latency and human quality review.
-- [ ] Final snapshots replay exactly and export through the configured adapter.
-- [ ] Package and application dependency audits meet your severity policy.
+- [ ] Cancellation, timeouts, fallbacks, and safe errors are tested.
+- [ ] Template mode completes when every optional provider is unavailable.
+- [ ] Full mode appears only when generated video is configured.
+- [ ] Both orientations render and narration stays synchronized.
+- [ ] A packed-artifact consumer and deterministic browser chat pass.
+- [ ] One bounded real-provider run meets the product's latency and quality target.
+- [ ] Stored responses replay exactly and application-owned export is verified.
+
+[← Documentation home](../README.md) · [Previous: Errors and recovery](errors.md)

@@ -146,7 +146,7 @@ describe("release workflow", () => {
     const publicGuides = [
       "README.md",
       "docs/getting-started.md",
-      "docs/integrate-nextjs.md",
+      "docs/provider-integration.md",
       "skills/vanillasky/SKILL.md",
     ];
 
@@ -158,12 +158,7 @@ describe("release workflow", () => {
     expect(releaseBuild).not.toContain("must pin the install command");
     expect(releaseBuild).not.toContain("must link examples at");
     expect(releaseBuild).toContain('path: join("starters", "video-chat")');
-    const executableConsumers = [
-      ["react-vite", "examples/react-vite"],
-      ["video-chat", "starters/video-chat"],
-      ["server-integrations", "examples/server-integrations"],
-      ["nextjs-quickstart", "examples/nextjs-quickstart"],
-    ];
+    const executableConsumers = [["video-chat", "starters/video-chat"]];
     for (const [name, path] of executableConsumers) {
       const exampleManifest = JSON.parse(readFileSync(`${path}/package.json`, "utf8"));
       expect(exampleManifest.dependencies["@vanillaskyai/video"], name).toBe(manifest.version);
@@ -250,7 +245,7 @@ describe("release workflow", () => {
   it("uses React 19 by default and verifies React 18 source compatibility", () => {
     const workflow = readFileSync(".github/workflows/ci.yml", "utf8");
     const manifest = JSON.parse(readFileSync("package.json", "utf8"));
-    const example = JSON.parse(readFileSync("examples/react-vite/package.json", "utf8"));
+    const example = JSON.parse(readFileSync("starters/video-chat/package.json", "utf8"));
     const reactCompatibility = workflow
       .split("  react-compatibility:")[1]
       .split("  browser-compatibility:")[0];
@@ -284,11 +279,9 @@ describe("release workflow", () => {
     const providerAggregate = workflow.split("  provider-compatibility:")[1].split("  node-compatibility:")[0];
     const browserJob = workflow.split("  browser-compatibility:")[1];
 
-    expect(consumerGate).toContain("gate: [documented-examples, public-api, packed-package, onboarding]");
-    expect(consumerGate).toContain("npm run examples:verify-documented");
-    expect(consumerGate).toMatch(
-      /- run: npm run examples:verify-documented\n\s+if: matrix\.gate == 'documented-examples'\n\s+env:\n\s+npm_config_audit: "false"/,
-    );
+    expect(consumerGate).toContain("gate: [public-api, packed-package, onboarding]");
+    expect(consumerGate).not.toContain("documented-examples");
+    expect(consumerGate).not.toContain("npm run examples:verify-documented");
     expect(consumerGate).toContain("npm run verify:api");
     expect(consumerGate).toContain("npm run verify:package");
     expect(consumerGate).toContain("npm run verify:onboarding");

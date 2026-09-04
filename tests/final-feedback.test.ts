@@ -7,25 +7,25 @@ const root = resolve(import.meta.dirname, "..");
 const read = (path: string) => readFileSync(resolve(root, path), "utf8");
 
 describe("final candidate feedback regressions", () => {
-  it("ships one explicit Anthropic quickstart configuration owned by the package", () => {
+  it("ships one chat-first starter configuration owned by the package", () => {
     const manifest = JSON.parse(read("package.json")) as { files: string[] };
-    const environment = read("examples/nextjs-quickstart/.env.example");
+    const environment = read("starters/video-chat/.env.example");
 
-    expect(manifest.files).toContain("examples/nextjs-quickstart/.env.example");
-    expect(manifest.files).not.toContain("examples/nextjs-quickstart/config");
-    expect(environment).toBe(
-      "ANTHROPIC_API_KEY=replace-me\nANTHROPIC_MODEL=replace-with-current-sonnet-model\n",
-    );
-    expect(environment).not.toMatch(/OPENAI|VIDEO_PROVIDER/);
+    expect(manifest.files).toContain("starters/video-chat/.env.example");
+    expect(manifest.files).toContain("starters/video-chat/server.ts");
+    expect(manifest.files).toContain("starters/video-chat/src/main.tsx");
+    expect(manifest.files).not.toContain("examples/nextjs-quickstart");
+    expect(environment).toContain("ANTHROPIC_API_KEY=");
+    expect(environment).toContain("XAI_API_KEY=");
+    expect(environment).toContain("FAL_KEY=");
+    expect(environment).toContain("PEXELS_API_KEY=");
   });
 
-  it("links quickstart documentation without embedding a release version", () => {
-    expect(read("README.md")).toContain("[Next.js one-shot example](examples/nextjs-quickstart)");
-    for (const path of ["docs/getting-started.md", "docs/integrate-nextjs.md"]) {
-      expect(read(path), path).toContain("(../examples/nextjs-quickstart)");
-    }
-    for (const path of ["README.md", "docs/getting-started.md", "docs/integrate-nextjs.md"]) {
+  it("links one generated chat path without embedding a release version", () => {
+    for (const path of ["README.md", "docs/getting-started.md", "docs/provider-integration.md"]) {
+      expect(read(path), path).toContain("npx vanillasky init");
       expect(read(path), path).not.toMatch(/\/tree\/v\d/);
+      expect(read(path), path).not.toMatch(/examples\/(?:react-vite|nextjs-quickstart|server-integrations)/);
     }
   });
 

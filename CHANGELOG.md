@@ -4,6 +4,15 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Keeps `VideoChat` hydration stable when voice input exists only in the
+  browser, and preserves provider warnings, usage, finish reasons, and model
+  IDs while the chat opening is intercepted from the planner stream.
+
+- Removes the duplicate one-shot React, Next.js, and provider examples plus
+  their obsolete product guides. The generated video-chat app is now the one
+  public setup path, while the internal Next.js provider matrix exercises the
+  same chat handler and interface.
+
 - Streams each video-chat opening and scene plan from one model call. The first
   NDJSON object carries a bounded 6-9 word hook and stock keyword; Full AI also
   carries its exact first shot so generation starts while the remaining scenes

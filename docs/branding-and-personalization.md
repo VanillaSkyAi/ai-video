@@ -1,4 +1,4 @@
-[← Documentation home](../README.md) · [Previous: Input and first scene](input-and-first-scene.md) · [Next: Media and audio →](media-and-audio.md)
+[← Documentation home](../README.md) · [Previous: Prompt and conversation input](prompt-and-input.md) · [Next: Media and audio →](media-and-audio.md)
 
 # Branding and personalization
 

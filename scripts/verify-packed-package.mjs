@@ -285,33 +285,6 @@ if (!failureBody.includes('"type":"response.error"') || failureBody.includes("fi
     "-p",
     "persistence-example-tsconfig.json",
   ], { cwd: consumer, stdio: "inherit" });
-  const liveChannelGuide = readFileSync(join(packageRoot, "docs", "live-channels.md"), "utf8");
-  const liveChannelExample = liveChannelGuide.match(
-    /<!-- verify:live-channel-example:start -->\s*```tsx\r?\n([\s\S]*?)\r?\n```\s*<!-- verify:live-channel-example:end -->/,
-  )?.[1];
-  if (!liveChannelExample) {
-    throw new Error("Packed live-channel guide omitted its compilable example");
-  }
-  writeFileSync(join(consumer, "live-channel-example.tsx"), liveChannelExample);
-  writeFileSync(join(consumer, "live-channel-example-tsconfig.json"), JSON.stringify({
-    compilerOptions: {
-      strict: true,
-      noEmit: true,
-      target: "ES2022",
-      lib: ["ES2022", "DOM", "DOM.Iterable"],
-      module: "ESNext",
-      moduleResolution: "Bundler",
-      jsx: "react-jsx",
-      skipLibCheck: false,
-      isolatedModules: true,
-    },
-    include: ["live-channel-example.tsx"],
-  }));
-  execFileSync(process.execPath, [
-    join(consumer, "node_modules", "typescript", "bin", "tsc"),
-    "-p",
-    "live-channel-example-tsconfig.json",
-  ], { cwd: consumer, stdio: "inherit" });
   const customTemplateGuide = readFileSync(join(packageRoot, "docs", "custom-templates.md"), "utf8");
   const customTemplatePreview = customTemplateGuide.match(
     /<!-- verify:custom-template-preview:start -->\s*```tsx\r?\n([\s\S]*?)\r?\n```\s*<!-- verify:custom-template-preview:end -->/,

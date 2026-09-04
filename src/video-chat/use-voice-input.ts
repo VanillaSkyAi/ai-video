@@ -165,7 +165,7 @@ export function useVoiceInput(
   transcriptionAvailable = false,
   options: VoiceInputRequestOptions = {},
 ): VoiceInput {
-  const supported = supportsVoiceInput(transcriptionAvailable);
+  const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string>();
   const [thinking, setThinking] = useState(false);
@@ -179,6 +179,10 @@ export function useVoiceInput(
   // created them.
   const handlerRef = useRef(onTranscript);
   handlerRef.current = onTranscript;
+
+  useEffect(() => {
+    setSupported(supportsVoiceInput(transcriptionAvailable));
+  }, [transcriptionAvailable]);
 
   const stop = useCallback(() => {
     recognitionRef.current?.abort();

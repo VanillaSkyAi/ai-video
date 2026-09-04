@@ -34,7 +34,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["src/visual-system/**/*.{ts,tsx}", "examples/react-vite/vanillasky/**/*.{ts,tsx}"],
+    files: ["src/visual-system/**/*.{ts,tsx}"],
     rules: {
       "@typescript-eslint/no-unused-vars": "off",
     },

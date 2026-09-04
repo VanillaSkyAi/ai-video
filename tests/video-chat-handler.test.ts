@@ -21,6 +21,48 @@ function plannedResponse() {
 }
 
 describe("createVideoChatHandler", () => {
+  it("preserves non-enumerable provider lifecycle fields while intercepting the opening", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    const warningCodes: string[] = [];
+    let completed: Record<string, unknown> | undefined;
+    const source = {
+      textStream: (async function* () {
+        yield '{"type":"video-chat.opening","spokenHook":"One stream keeps every provider signal intact.","mediaKeyword":"video stream"}\n';
+        yield* plannedResponse()();
+      })(),
+    };
+    Object.defineProperties(source, {
+      finishReason: { get: () => Promise.resolve("stop") },
+      warnings: { get: () => Promise.resolve([{ type: "other", message: "test warning" }]) },
+      usage: { get: () => Promise.resolve({ inputTokens: 10, outputTokens: 5, totalTokens: 15 }) },
+      requestedModelId: { get: () => Promise.resolve("requested-model") },
+      resolvedModelId: { get: () => Promise.resolve("resolved-model") },
+    });
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      streamText: () => source as never,
+      generateText: async () => "unused",
+      onWarning: (warning: { code: string }) => warningCodes.push(warning.code),
+      onComplete: (summary: Record<string, unknown>) => { completed = summary; },
+    });
+
+    const response = await handler(new Request("https://app.example/api/video-chat?action=response", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: "Test the lifecycle", mode: "templates", orientation: "landscape" }),
+    }));
+    await response.text();
+
+    expect(warningCodes).toContain("provider_warning");
+    expect(completed).toMatchObject({
+      finishReason: "stop",
+      usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+      requestedModelId: "requested-model",
+      resolvedModelId: "resolved-model",
+    });
+  });
+
   it("streams the short opening and template plan from one model call", async () => {
     const createVideoChatHandler = await loadCreateVideoChatHandler();
     const generatedTasks: string[] = [];

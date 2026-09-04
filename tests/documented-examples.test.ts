@@ -13,23 +13,16 @@ const rootPackage = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8
   peerDependencies?: Record<string, string>;
 };
 
-function examplePackage(name: string): {
-  dependencies: Record<string, string>;
-  scripts: Record<string, string>;
-} {
-  return JSON.parse(readFileSync(resolve(root, "examples", name, "package.json"), "utf8"));
-}
-
 describe("documented examples", () => {
   it("keeps first install provider-neutral and public guides free of stale release or model defaults", () => {
     const publicFiles = [
       "README.md",
       "docs/getting-started.md",
-      "docs/integrate-nextjs.md",
+      "docs/provider-integration.md",
       "docs/custom-templates.md",
-      "examples/nextjs-quickstart/README.md",
-      "examples/nextjs-quickstart/.env.example",
-      "examples/nextjs-quickstart/src/app/api/video/route.ts",
+      "starters/video-chat/README.md",
+      "starters/video-chat/.env.example",
+      "starters/video-chat/server.ts",
     ].map((path) => [path, readFileSync(resolve(root, path), "utf8")] as const);
     const readme = publicFiles[0][1];
 
@@ -85,14 +78,10 @@ describe("documented examples", () => {
     const providerGuide = readFileSync(resolve(root, "docs/provider-integration.md"), "utf8");
     expect(providerGuide.indexOf("npx vanillasky init")).toBeLessThan(providerGuide.indexOf("createVideoChatHandler"));
 
-    const useCases = readFileSync(resolve(root, "docs/use-cases.md"), "utf8");
-    const nextjsGuide = readFileSync(resolve(root, "docs/integrate-nextjs.md"), "utf8");
-    const nextjsExample = readFileSync(resolve(root, "examples/nextjs-quickstart/README.md"), "utf8");
-    expect(useCases).toMatch(/lower-level.*one-shot/is);
-    expect(useCases).not.toContain("primary product shape");
-    expect(nextjsGuide).toMatch(/lower-level.*one-shot/is);
-    expect(nextjsExample).toMatch(/lower-level.*one-shot/is);
-    expect(nextjsExample).not.toContain("smallest complete VanillaSky app");
+    for (const path of ["README.md", "docs/getting-started.md", "docs/provider-integration.md"]) {
+      const guide = readFileSync(resolve(root, path), "utf8");
+      expect(guide, path).not.toMatch(/createVideoHandler|useVideo\(|<VideoPlayer/);
+    }
   });
 
   it("separates low-level soundtrack audio from VideoChat narration", () => {
@@ -104,20 +93,13 @@ describe("documented examples", () => {
     expect(guide).not.toContain("SDK does not provide narration");
   });
 
-  it("documents app-owned AI SDK media generation without adding it to the core install", () => {
+  it("documents app-owned stock and generated-video callbacks without adding providers to the core install", () => {
     const guide = readFileSync(resolve(root, "docs/media-and-audio.md"), "utf8");
-    const example = readFileSync(
-      resolve(root, "examples/server-integrations/src/ai-sdk-media.ts"),
-      "utf8",
-    );
 
-    expect(guide).toContain("npm install ai @ai-sdk/fal");
-    expect(guide).toContain("requestId");
-    expect(guide).toContain("scene");
-    expect(example).toContain("generateImage");
-    expect(example).toContain("experimental_generateVideo");
-    expect(example).toContain("maxRetries: 0");
-    expect(example).toContain("store");
+    expect(guide).toContain("searchMedia");
+    expect(guide).toContain("generateVideo");
+    expect(guide).toMatch(/templates.*full/is);
+    expect(guide).toMatch(/maxRetries:\s*0/);
     // Generation must stay app-owned: neither a runtime nor a peer requirement.
     const coreInstall = { ...rootPackage.dependencies, ...rootPackage.peerDependencies };
     expect(coreInstall).not.toHaveProperty("ai");
@@ -132,7 +114,7 @@ describe("documented examples", () => {
     expect(guide).toContain("createMockVideoPlanner");
     expect(guide).toContain("simulateVideoStream");
     expect(guide).toContain("vi.useFakeTimers()");
-    expect(guide).toContain("createVideoHandler");
+    expect(guide).toContain("createVideoChatHandler");
     expect(guide).toContain("new Request");
     expect(guide).toContain("AbortController");
     expect(guide).toContain("timeoutMs");
@@ -192,43 +174,27 @@ describe("documented examples", () => {
       rmSync(workspace, { recursive: true, force: true });
     }
   }, 15_000);
-  it.each(["react-vite", "server-integrations", "nextjs-quickstart"])(
-    "%s pins the repository's current public protocol version",
-    (name) => {
-      expect(examplePackage(name).dependencies["@vanillaskyai/video"]).toBe(rootPackage.version);
-    },
-  );
-
-  it("includes a committed copy-and-run full-stack Next.js quickstart", () => {
-    const exampleRoot = resolve(root, "examples", "nextjs-quickstart");
-    expect(existsSync(resolve(exampleRoot, "package.json"))).toBe(true);
-    expect(existsSync(resolve(exampleRoot, "src/app/api/video/route.ts"))).toBe(true);
-    expect(existsSync(resolve(exampleRoot, "src/app/page.tsx"))).toBe(true);
+  it("pins the generated video-chat starter to the repository's current protocol version", () => {
+    const starter = JSON.parse(readFileSync(resolve(root, "starters/video-chat/package.json"), "utf8"));
+    expect(starter.dependencies["@vanillaskyai/video"]).toBe(rootPackage.version);
   });
 
-  it("exposes separate verification for documented examples and the packed candidate", () => {
-    expect(rootPackage.scripts["examples:verify-documented"]).toBe(
-      "node scripts/verify-documented-examples.mjs",
-    );
-    expect(rootPackage.scripts["examples:install-current"]).toBe(
-      "npm run build && node scripts/install-current-examples.mjs",
-    );
+  it("keeps one generated public starter and an internal Next.js chat fixture", () => {
+    expect(existsSync(resolve(root, "starters/video-chat/server.ts"))).toBe(true);
+    expect(existsSync(resolve(root, "tests/fixtures/nextjs-provider-app/src/app/api/video-chat/route.ts"))).toBe(true);
+    expect(existsSync(resolve(root, "tests/fixtures/nextjs-provider-app/src/app/page.tsx"))).toBe(true);
+    expect(rootPackage.scripts["examples:verify-documented"]).toBeUndefined();
+    expect(rootPackage.scripts["examples:install-current"]).toBeUndefined();
+    expect(rootPackage.scripts["server-examples:typecheck"]).toBeUndefined();
     expect(rootPackage.scripts["verify:nextjs"]).toBe(
       "node scripts/verify-nextjs-onboarding.mjs",
     );
   });
 
-  it("runs documented commands against the unpublished packed candidate", () => {
-    const verifier = readFileSync(resolve(root, "scripts/verify-documented-examples.mjs"), "utf8");
-    const installer = readFileSync(resolve(root, "scripts/install-current-examples.mjs"), "utf8");
+  it("runs the canonical onboarding against the unpublished packed candidate", () => {
     const onboarding = readFileSync(resolve(root, "scripts/verify-onboarding.mjs"), "utf8");
-    expect(verifier).toContain('"pack", "--silent", "--json", "--pack-destination", workspace');
-    expect(verifier).toContain('manifest.dependencies["@vanillaskyai/video"] = `file:${candidateTarball}`');
-    expect(verifier).toContain("installedVersion !== candidateVersion");
-    expect(verifier).toContain('npm_config_audit: "false"');
-    expect(verifier).toContain('npm_config_fund: "false"');
-    expect(verifier).not.toContain('{ name: "video-chat"');
-    expect(installer).not.toContain('{ name: "video-chat"');
+    expect(onboarding).toContain('"pack", "--silent", "--json"');
+    expect(onboarding).toContain("installSpec = candidateArtifact.path");
     expect(onboarding).toContain('runCli(["init"])');
     expect(onboarding).toContain('responds in video, not text');
   });

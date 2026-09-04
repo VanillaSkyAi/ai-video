@@ -1,4 +1,4 @@
-[← Documentation home](../README.md) · [Previous: Next.js](integrate-nextjs.md) · [Next: Input and first scene →](input-and-first-scene.md)
+[← Documentation home](../README.md) · [Previous: Getting started](getting-started.md) · [Next: Branding and personalization →](branding-and-personalization.md)
 
 # Provider integration
 
@@ -84,51 +84,14 @@ lifecycle. Pass a selected card through
 start its hook and reuse its footage immediately. For typed prompts, the hook
 and media keyword arrive through the response stream automatically.
 
-Use `createVideoHandler` below when the application wants the lower-level video
-composition route without the video-chat actions or default prompts.
-
-The model connection enters the SDK through `streamText` in
-`src/server/create-video-handler.ts`. The SDK does not instantiate or choose a
-model; the application passes the generated `systemPrompt` and `userPrompt` to
-its provider here.
-
-Use the AI SDK as the normal app-owned provider adapter. Any AI SDK
-`LanguageModel` works. Keep selection in one server-only module so OpenAI and
-Anthropic use the same route and React component:
-
-```ts
-import "server-only";
-import { anthropic } from "@ai-sdk/anthropic";
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/video/server";
-
-const provider = process.env.VIDEO_PROVIDER;
-const modelId = process.env.VIDEO_MODEL;
-if (!modelId) throw new Error("Set VIDEO_MODEL in the server environment");
-const model = provider === "openai" ? openai(modelId)
-  : provider === "anthropic" ? anthropic(modelId)
-    : (() => { throw new Error("Set VIDEO_PROVIDER to openai or anthropic"); })();
-
-export const POST = createVideoHandler({
-  authorize: verifySession,
-  streamText: ({ systemPrompt, userPrompt, signal }) => streamText({
-    model,
-    system: systemPrompt,
-    prompt: userPrompt,
-    abortSignal: signal,
-  }),
-});
-```
-
-The AI SDK result can be returned directly: its `textStream`, `finishReason`,
-`rawFinishReason`, usage, provider metadata, warnings, and response metadata
-match VanillaSky's structural callback contract. Keep the
-provider, model, and credentials on the server. The callback runs per request,
-so an application can route cheap/fast and high-capability models through the
-same handler without adding a VanillaSky abstraction. See
-[provider adapter reference](reference/provider-adapters.md) for model alternatives and advanced native
-provider loops.
+Any AI SDK `LanguageModel` works in both `streamText` and `generateText`. Keep
+selection in one server-only module when an application supports several text
+providers. The chat route and React component stay unchanged; only the model
+passed to those callbacks changes. The AI SDK result can be returned directly:
+its text stream, finish reason, usage, warnings, and response metadata match the
+structural callback contract. See the
+[provider adapter reference](reference/provider-adapters.md) for native provider
+alternatives.
 
 ## Planning effort and reasoning modes
 
@@ -170,7 +133,7 @@ and credentials stay with the application.
 Use `onComplete` for server-side cost and completion measurement:
 
 ```ts
-createVideoHandler({
+createVideoChatHandler({
   authorize: verifySession,
   streamText: ({ systemPrompt, userPrompt, signal }) => streamText({
     model,
@@ -178,6 +141,7 @@ createVideoHandler({
     prompt: userPrompt,
     abortSignal: signal,
   }),
+  generateText: runSmallTextTask,
   onWarning: (warning) => logSafeWarning(warning.code, warning.category),
   onComplete: (summary) => recordGeneration({
     finishReason: summary.finishReason,
@@ -198,23 +162,18 @@ true` only when the host deliberately needs bounded provider-native usage and
 metadata and has an appropriate retention policy.
 
 `acceptedSceneCount`, `rejectedSceneCount`, and `timeToFirstSceneMs` describe
-model-generated scene additions; a deterministic supplied opening is not
-counted. Their sum is the proposed scene count. `videoDurationSec` is the
-duration actually committed; compare it with the `maxDurationSec` supplied by
-your application when applying a retry policy. These fields provide a
-server-side quality signal without exposing model metadata in the browser.
+model-generated scene additions; the streamed opening hook is not counted.
+Their sum is the proposed scene count. `videoDurationSec` is the duration
+actually committed. These fields provide a server-side quality signal without
+exposing model metadata in the browser.
 Warnings include the same bounded typed warnings emitted to the client.
 `plan_incomplete` identifies a playable partial response whose planner reported
 a length limit; applications should show that result as incomplete and may
 offer a bounded retry with a larger output or duration budget.
-`plan_missing_closer` identifies a playable plan that ended without the
-explicit final scene required by the standard handler. `createVideoHandler`
-sets `requireCloser: true` by default. Specialized deterministic integrations
-may set `requireCloser: false`; ordinary AI planners should keep the default.
-For non-interactive backfills, define an application threshold (for example,
-no rejected scenes and a useful committed-duration ratio) and retry a bounded
-number of times. Keep the best accepted result rather than treating
-`finishReason: "stop"` alone as a quality score.
+`plan_missing_closer` identifies a playable answer that ended without its
+explicit final scene. For non-interactive evaluation, define an application
+threshold and retry a bounded number of times. Keep the best accepted result
+rather than treating `finishReason: "stop"` alone as a quality score.
 
 The generated system prompt includes the selected trusted-template catalog and
 is intentionally substantial. It is stable for the same SDK version, template
@@ -235,9 +194,8 @@ same explicit request budget.
 
 ## Product-level planner guidance
 
-`createVideoHandler` constructs the planner prompt from the generated server
-template registry. Normal integrations do not build prompts or capabilities.
-Use the handler's `basePrompt` option only for durable product-level direction.
-`VideoInput.knowledgeMode` owns the knowledge boundary: `input-only` is strict
-and remains the default, while `general` permits stable model knowledge.
-Presentation guidance in `basePrompt` or `instructions` never changes it.
+`createVideoChatHandler` constructs the planner prompt from the trusted template
+registry. Normal integrations do not build prompts or capabilities. Use the
+handler's `instructions` option for durable product-level direction such as a
+character, audience, domain, or answer style. The current user prompt and
+bounded prior turns are supplied separately by the SDK.

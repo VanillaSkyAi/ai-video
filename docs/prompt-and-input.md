@@ -1,113 +1,63 @@
 [← Documentation home](../README.md) · [Next: Generate your first video →](getting-started.md)
 
-# Prompt and input
+# Prompt and conversation input
 
-VanillaSky separates application truth from visual direction. You provide the
-facts and your server-side model. VanillaSky supplies the planner contract that
-turns those facts into a finite sequence of trusted scenes.
+VanillaSky turns the same things people ask an AI chat into spoken video
+answers. The SDK owns the video-planning prompt and conversation formatting;
+the application owns the model, product guidance, authentication, and data.
 
-## The four layers
+## What the viewer sends
 
-### 1. VanillaSky system prompt
+`<VideoChat />` and `useVideoChat` send the current prompt plus a bounded set of
+earlier turns to one `/api/video-chat` endpoint. Prompts can ask for an
+explanation, story, recommendation, ad, recap, or any other general-purpose AI
+response. Do not put provider keys, private policy, or unrelated personal data
+in the conversation.
 
-`createVideoHandler` generates `systemPrompt` from the trusted template
-registry. It tells the model:
-
-- which templates and variables exist;
-- how to emit the typed plan;
-- how to order and time complete scenes;
-- how to stay inside the factual and media boundaries;
-- how to finish a finite response.
-
-Normal applications should not build, copy, or expose this prompt in browser
-code. Pass it unchanged to the provider adapter.
-
-For maintainers, the base system rules live in
-`src/server/prompts/system-prompt.ts`, request-context formatting lives in
-`src/server/prompts/user-prompt.ts`, and template-specific catalog guidance
-lives in `src/visual-system/catalog/prompt.ts`. See the
-[architecture map](architecture.md) for the complete request flow.
-
-### 2. Application instructions
-
-Use `instructions` for optional presentation direction:
+When using the custom hook, ask in plain language:
 
 ```ts
-video.generate({
-  input: "Account alerts launched today. They refresh every 15 minutes.",
-  instructions: "Make the launch feel direct and energetic. End with adoption.",
+await chat.ask("Pitch a playful ad for a coffee mug that never spills");
+```
+
+A selected welcome or follow-up card can also include a prepared opening line
+and already-loaded media:
+
+```ts
+await chat.ask(card.prompt, {
+  opening: card.opening,
+  openingMedia: card.media,
 });
 ```
 
-Instructions can influence selection, emphasis, ordering, tone, and pacing.
-They never change `knowledgeMode`, authorize a new media URL, or weaken the
-event and validation contract.
+That path starts immediately. A typed prompt instead receives its short spoken
+hook and media keyword from the beginning of the planner stream.
 
-For durable product-wide direction, use the server handler's `basePrompt`.
-Keep per-request creative direction in `instructions`.
+## Application guidance
 
-### 3. Input and knowledge mode
-
-`input` is required. With the default `knowledgeMode: "input-only"`, it is the
-complete factual source for the video. It may be plain text or a serialized
-structured object:
+Use the server handler's `instructions` option for durable product direction:
 
 ```ts
-video.generate({
-  input: "Activation increased from 41% to 58% after guided onboarding.",
+createVideoChatHandler({
+  authorize: verifySession,
+  streamText: planWithYourModel,
+  generateText: runSmallTextTask,
+  instructions: [
+    "Speak like a warm, concise creative partner.",
+    "Prefer concrete examples over abstract explanations.",
+  ].join(" "),
 });
 ```
 
-```ts
-video.generate({
-  input: JSON.stringify({
-    period: "Q2",
-    activation: { previous: 41, current: 58 },
-    cause: "guided onboarding",
-  }),
-});
-```
+This can define a character, audience, subject area, tone, or answer style. It
+does not change the protocol, authorize media, or weaken validation. Keep the
+viewer prompt separate from these trusted server-side instructions.
 
-Include exact numbers, quote wording, attribution, names, dates, and product
-facts that may appear on screen. Do not place secrets, provider keys, or hidden
-policy in input.
+## What reaches the model
 
-For a chat question or a request to develop content, opt in explicitly:
-
-```ts
-video.generate({
-  input: "How can a small team improve customer onboarding?",
-  knowledgeMode: "general",
-});
-```
-
-General mode permits stable model knowledge. The generated system prompt still
-forbids invented citations, quotations, URLs, personal details, live facts,
-guarantees, and precise claims that require a source. Claims already present in
-`input` remain authoritative.
-
-`personalization`, `brand`, and `suppliedMedia` are separate structured context.
-They do not replace the source material.
-
-### 4. Streamed plan
-
-Your provider streams text deltas. VanillaSky decodes them into typed planner
-parts, validates each complete scene, and emits deterministic protocol events.
-The model never returns React, HTML, CSS, or executable JavaScript.
-
-Every generated `scene.add` is complete and passes validation before the player
-sees it. Emitted scenes are immutable.
-
-The standard planner contract requires one `scene.add` with
-`placement: "closer"` immediately after the first playable body scene. The
-model writes short grounded conclusion copy: a supplied action when one
-exists, otherwise a declarative payoff that answers the story's “so what.” The
-runtime holds the closer and emits it last, so a long body plan cannot displace
-an ending that was already generated.
-
-## What reaches the LLM
-
-The provider adapter receives:
+`createVideoChatHandler` builds the trusted template catalog, video rules,
+conversation context, and application guidance. Your provider adapter receives
+two complete strings:
 
 ```ts
 streamText: ({ systemPrompt, userPrompt, signal }) => streamText({
@@ -115,94 +65,54 @@ streamText: ({ systemPrompt, userPrompt, signal }) => streamText({
   system: systemPrompt,
   prompt: userPrompt,
   abortSignal: signal,
-})
-```
-
-`userPrompt` is assembled by VanillaSky from:
-
-- orientation and maximum duration;
-- whether a deterministic opening scene already exists or the host is waiting
-  for the first generated scene;
-- raw `input`;
-- creative `instructions`;
-- personalization;
-- descriptions and opaque references for approved supplied media;
-- brand context.
-
-Provider credentials and application authentication never belong in either
-prompt. Original supplied-media URLs and data URIs also remain outside the
-model prompt; the server restores an exact SDK-issued opaque reference only
-after provider output has been parsed.
-
-Generated template values are validated exactly. VanillaSky does not silently
-truncate factual labels to satisfy a layout schema because truncation can drop
-qualifiers or change meaning. A rejected generated scene contributes to
-`rejectedSceneCount`; hosts can use the completion quality fields to retry with
-a stronger model or revised source.
-
-## Input examples
-
-### Product update
-
-```ts
-video.generate({
-  input: "Account alerts launched on August 16. They refresh every 15 minutes, filter by segment, and are available to all plans.",
 });
 ```
 
-### Metrics recap
+Pass both strings unchanged. The system prompt describes the installed
+templates, schema limits, pacing, narration, opening contract, and safe media
+fields. The user prompt contains the current request, bounded prior turns,
+orientation, visual mode, and whether an opening was already spoken.
 
-```ts
-video.generate({
-  input: JSON.stringify({
-    period: "Q2",
-    customerConversations: 142,
-    escalationsResolved: "96%",
-    improvementsLaunched: 4,
-  }),
-  personalization: { role: "Product leader", focus: "activation" },
-});
-```
+Provider credentials and raw media URLs never belong in either prompt. Media
+callbacks restore approved URLs on the server only after the model's structured
+output has been parsed.
 
-### Grounded review
+## One stream, one answer
 
-```ts
-video.generate({
-  input: 'Review by Maya Chen, VP Product: "Setup took minutes, not weeks." Rating: 5/5.',
-});
-```
+The planner first emits a 6–9 word spoken hook and a media keyword, then keeps
+streaming complete scenes. It is not a separate hook call followed by a second
+planning call. This keeps the opening consistent with the scenes that follow
+and lets the first playable scene arrive without waiting for the complete plan.
 
-Every visible quote must occur in the input exactly. Attribution and ratings
-should be explicit.
+Every `scene.add` is validated before the browser receives it. The model never
+returns React, HTML, CSS, or executable JavaScript. Accepted scenes are
+immutable; invalid scenes are reported through safe warnings and omitted.
 
-### Article or long source
+In template mode, the planner can choose any trusted template and request stock
+media through `searchMedia`. In full mode, it plans a complete generated-video
+answer and `generateVideo` resolves every visual beat. There is no mixed
+"generate a few clips" mode.
 
-Pass the source text and let the planner select the most decision-relevant
-takeaways that fit the duration. The planner summarizes; it should not attempt
-to place every paragraph on screen.
+## Grounding
 
-## Grounding and media safety
+General chat permits stable model knowledge, but it still forbids invented
+citations, quotations, URLs, personal details, live facts, and guarantees. If
+exact numbers, names, dates, or wording matter, include them in the prompt or
+conversation. Use retrieval in the application before calling VanillaSky when
+the answer depends on private or current data.
 
-- Numeric templates require real numbers present in the source.
-- Every grounded quote value must occur in the source, not merely one quote in a scene.
-- Screenshot fields require an exact supplied image.
-- Media URLs must be supplied or approved by the server's `allowMediaUrl` policy.
-- Patches are validated after merging with the existing scene.
+## Debugging weak answers
 
-These checks happen at runtime. Prompt instructions improve model behavior but
-are not treated as a security boundary.
+Check these boundaries in order:
 
-## Debugging
+1. Does the prompt contain the exact facts the answer needs?
+2. Is `instructions` concise product guidance rather than extra source data?
+3. Does the provider pass `systemPrompt` and `userPrompt` unchanged?
+4. Is extended reasoning delaying the first streamed object?
+5. Do `onWarning` and `onComplete` show rejected scenes or a length limit?
+6. Does the trusted registry contain a suitable template for the requested answer?
 
-If the plan is rejected or the result is weak, inspect the boundary in this order:
-
-1. **Input:** Does it contain the exact facts, numbers, quotes, and attribution?
-2. **Instructions:** Are they presentation guidance rather than new claims?
-3. **Provider adapter:** Does it pass both prompts unchanged and stream only text deltas?
-4. **Finish reason:** Did the provider report `length`, a content filter, or an execution error?
-5. **Template fit:** Does the trusted registry contain a suitable visual for the requested story?
-
-Log request IDs, provider finish reasons, and terminal SDK status. Do not log
-secrets or expose raw provider diagnostics inside the video.
+Log request IDs, safe warning codes, provider finish reasons, model IDs, and
+token usage. Never log credentials or expose raw provider errors in the video.
 
 [← Documentation home](../README.md) · [Next: Generate your first video →](getting-started.md)

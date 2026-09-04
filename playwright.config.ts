@@ -8,17 +8,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "line",
   use: {
-    baseURL: "http://127.0.0.1:4187",
     trace: "retain-on-failure",
   },
   webServer: [
-    {
-      command: "npm run examples:install-current && npm run example:build && npm run example:preview",
-      url: "http://127.0.0.1:4187",
-      reuseExistingServer: false,
-      // CI browser matrices can spend most of 30s rebuilding the packed example.
-      timeout: 90_000,
-    },
     {
       command: "vite --host 127.0.0.1 --port 4274 --strictPort",
       url: "http://127.0.0.1:4274/tests/browser/fixtures/frame-parity.html",

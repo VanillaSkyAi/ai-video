@@ -93,13 +93,7 @@ That compiler is needed only for source-owned templates. See
 
 ## Go deeper
 
-The default chat is the primary product path. The lower-level
-`createVideoHandler`, `useVideo`, and `VideoPlayer` APIs remain available for
-applications that need individual video responses without the chat lifecycle.
-See the [Next.js one-shot example](examples/nextjs-quickstart) and
-[advanced integration guide](docs/integrate-nextjs.md).
-
-Completed responses are deterministic JSON and can be stored and replayed.
+Completed chat responses are deterministic JSON and can be stored and replayed.
 MP4/WebM export remains application-owned.
 
 ## Documentation
@@ -114,8 +108,6 @@ MP4/WebM export remains application-owned.
 | Add brand or viewer context | [Branding and personalization](docs/branding-and-personalization.md) |
 | Add media or soundtrack audio | [Media and soundtrack audio](docs/media-and-audio.md) |
 | Persist and replay results | [Persistence and replay](docs/persistence.md) |
-| Build continuous playback | [Live channels](docs/live-channels.md) |
-| Build individual video responses | [Next.js integration](docs/integrate-nextjs.md) |
 | Test routes and streams | [Test integrations](docs/testing.md) |
 | Deploy securely | [Production](docs/production.md) · [Security](docs/security.md) |
 | Inspect the API contract | [Public API](PUBLIC-API.md) · [Protocol](docs/reference/protocol.md) |

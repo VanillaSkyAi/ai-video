@@ -78,7 +78,7 @@ describe("packed provider package compatibility", () => {
     expect(verifier).toContain(":streamGenerateContent?alt=sse");
     expect(verifier).toContain("/chat/completions");
     expect(verifier).toContain("providerMetadataSentinel");
-    expect(verifier).toContain('rmSync(join(app, "src/app/api/video/providers")');
+    expect(verifier).toContain('rmSync(join(app, "src/app/api/video-chat/providers")');
   });
 
   it("proves one native request, private metadata, lifecycle normalization, and replay isolation", () => {
@@ -99,7 +99,6 @@ describe("packed provider package compatibility", () => {
     expect(verifier).toContain("compatibilityCredentialForbiddenValues");
     expect(verifier).toContain('"successful SSE"');
     expect(verifier).toContain("DOM:");
-    expect(verifier).toContain("localStorage:");
     expect(verifier).toContain('"static bundle"');
     expect(verifier).toContain('"public lifecycle evidence"');
     expect(verifier).toContain("verifyCompatibilityBrowserBoundary");

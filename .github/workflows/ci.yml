@@ -31,10 +31,6 @@ jobs:
       - run: npm test
       - run: npm run acceptance:replay
       - run: npm run build
-      # The documented server examples are only grepped as text by the test
-      # suite. Compile them against this build so a broken example cannot ship.
-      - run: npm run examples:install-current
-      - run: npm run server-examples:typecheck
       - run: npm run verify:package-size
       - run: npm audit --audit-level=low --omit=dev
       - run: npm pack --dry-run
@@ -44,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [documented-examples, public-api, packed-package, onboarding]
+        gate: [public-api, packed-package, onboarding]
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -61,11 +57,6 @@ jobs:
       # The API surface check is React-free; the other clean-room gates exercise a browser.
       - run: npx playwright install chromium
         if: matrix.gate != 'public-api'
-      # Exercise clean copies with the literal commands and dependency specs in their READMEs.
-      - run: npm run examples:verify-documented
-        if: matrix.gate == 'documented-examples'
-        env:
-          npm_config_audit: "false"
       - run: npm run verify:api
         if: matrix.gate == 'public-api'
       - run: npm run verify:package
@@ -185,5 +176,4 @@ jobs:
       - name: Install the locked npm CLI
         run: npm install --global npm@11.17.0
       - run: npm ci --no-audit
-      - run: npm run examples:install-current
       - run: npx playwright test
