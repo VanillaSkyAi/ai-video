@@ -88,6 +88,7 @@
       "UseVideoResult",
       "UseVideoChatOptions",
       "UseVideoChatResult",
+      "VideoChatAskOptions",
       "VideoChatCapabilities",
       "VideoChatProps",
       "VideoChatMedia",

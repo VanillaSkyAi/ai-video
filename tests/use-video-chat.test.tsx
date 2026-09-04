@@ -69,7 +69,13 @@ function videoChatFetcher(options: { requests?: Array<{ action: string | null; b
     if (action === "welcome") {
       return Response.json({ hero: null, cards: [{ prompt: "Tell me a tiny story", media: null }] });
     }
-    if (action === "opening") return Response.json({ line: "Let us begin somewhere unexpected." });
+    if (action === "opening") return Response.json({
+      line: "Let us begin somewhere unexpected.",
+      keyword: "unexpected story opening",
+    });
+    if (action === "opening-media") {
+      return Response.json({ media: { url: "https://media.example/opening.mp4", type: "video" } });
+    }
     if (action === "narration") return Response.json({ line: `Spoken ${String((body as { scene?: { id?: string } })?.scene?.id)}` });
     if (action === "suggestions") {
       return Response.json({ suggestions: [{ prompt: "Take it somewhere stranger", media: null }] });
@@ -165,6 +171,78 @@ describe("useVideoChat", () => {
         response: expect.stringContaining("Spoken one-1"),
       }],
     });
+  });
+
+  it("reuses suggestion footage for an elastic opening and hands its hook to the planner", async () => {
+    const { useVideoChat } = await import("../src/react");
+    const requests: Array<{ action: string | null; body?: unknown }> = [];
+    let finishOpening!: () => void;
+    const openingFinished = new Promise<void>((resolve) => { finishOpening = resolve; });
+    const voice = {
+      ...fakeVoice(),
+      speak: vi.fn(() => openingFinished),
+    };
+    const { result } = renderHook(() => useVideoChat({
+      templates: kit,
+      fetcher: videoChatFetcher({ requests }),
+      voice,
+    }));
+    const suggestion = {
+      prompt: "Explain the Moon's locked face",
+      media: { url: "https://media.example/suggested-moon.mp4", type: "video" as const },
+    };
+
+    let pending!: Promise<Video | undefined>;
+    act(() => { pending = result.current.ask(suggestion.prompt, { openingMedia: suggestion.media }); });
+
+    await waitFor(() => expect(result.current.currentTurn?.openingMedia).toEqual(suggestion.media));
+    await waitFor(() => expect(voice.speak).toHaveBeenCalledWith(
+      "Let us begin somewhere unexpected.",
+      expect.any(Object),
+    ));
+    await waitFor(() => expect(requests.find(({ action }) => action === "response")?.body).toMatchObject({
+      prompt: suggestion.prompt,
+      spokenHook: "Let us begin somewhere unexpected.",
+    }));
+    expect(requests.some(({ action }) => action === "opening-media")).toBe(false);
+    expect(result.current.playerProps).toBeUndefined();
+
+    finishOpening();
+    await act(async () => { await openingFinished; await pending; });
+    await waitFor(() => expect(result.current.playerProps?.stream).toBeDefined());
+  });
+
+  it("resolves a typed prompt's hook keyword into its elastic opening footage", async () => {
+    const { useVideoChat } = await import("../src/react");
+    const requests: Array<{ action: string | null; body?: unknown }> = [];
+    let finishOpening!: () => void;
+    const openingFinished = new Promise<void>((resolve) => { finishOpening = resolve; });
+    const voice = {
+      ...fakeVoice(),
+      speak: vi.fn(() => openingFinished),
+    };
+    const { result } = renderHook(() => useVideoChat({
+      templates: kit,
+      fetcher: videoChatFetcher({ requests }),
+      voice,
+    }));
+
+    let pending!: Promise<Video | undefined>;
+    act(() => { pending = result.current.ask("Take me somewhere unexpected"); });
+
+    await waitFor(() => expect(result.current.currentTurn?.openingMedia).toEqual({
+      url: "https://media.example/opening.mp4",
+      type: "video",
+    }));
+    expect(requests).toContainEqual({
+      action: "opening-media",
+      body: { keyword: "unexpected story opening", orientation: "landscape" },
+    });
+    expect(result.current.playerProps).toBeUndefined();
+
+    finishOpening();
+    await act(async () => { await openingFinished; await pending; });
+    await waitFor(() => expect(result.current.playerProps?.stream).toBeDefined());
   });
 
   it("does not send an interrupted partial response as conversation context", async () => {
@@ -351,35 +429,40 @@ describe("useVideoChat", () => {
     expect(result.current.currentTurn?.video?.scenes[0]?.id).not.toBe("late");
   });
 
-  it("prevents a late opening from overwriting a terminal response error", async () => {
+  it("waits for the opening hook before starting the response planner", async () => {
     const { useVideoChat } = await import("../src/react");
     let releaseOpening!: () => void;
     const openingReady = new Promise<void>((resolve) => { releaseOpening = resolve; });
     const voice = fakeVoice();
     const base = videoChatFetcher();
+    let responseCalls = 0;
     const fetcher: typeof fetch = vi.fn(async (input, init) => {
       const action = new URL(String(input), "https://app.example").searchParams.get("action");
       if (action === "opening") {
         await openingReady;
-        return Response.json({ line: "This line arrived too late." });
+        return Response.json({ line: "This line leads into the answer." });
       }
       if (action === "response") {
+        responseCalls += 1;
         return Response.json({ error: { code: "provider_failed", message: "Planning failed" } }, { status: 502 });
       }
       return base(input, init);
     });
     const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice }));
 
-    await act(async () => { await result.current.ask("Fail both attempts"); });
-    expect(result.current.status).toBe("error");
+    let pending!: Promise<Video | undefined>;
+    act(() => { pending = result.current.ask("Wait for the hook"); });
+    await waitFor(() => expect(fetcher).toHaveBeenCalled());
+    expect(responseCalls).toBe(0);
+    expect(result.current.status).toBe("composing");
     releaseOpening();
-    await act(async () => { await openingReady; await Promise.resolve(); });
+    await act(async () => { await pending; });
 
     expect(result.current.status).toBe("error");
-    expect(voice.speak).not.toHaveBeenCalled();
+    expect(responseCalls).toBe(2);
   });
 
-  it("aborts a settled response's pending opening when a new prompt starts", async () => {
+  it("aborts a pending opening hook when a new prompt starts", async () => {
     const { useVideoChat } = await import("../src/react");
     let firstOpeningSignal: AbortSignal | undefined;
     let openingCount = 0;
@@ -400,11 +483,14 @@ describe("useVideoChat", () => {
     });
     const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice() }));
 
-    await act(async () => { await result.current.ask("Fast first response"); });
-    expect(firstOpeningSignal?.aborted).toBe(false);
+    let first!: Promise<Video | undefined>;
+    act(() => { first = result.current.ask("Slow first hook"); });
+    await waitFor(() => expect(firstOpeningSignal).toBeDefined());
     await act(async () => { await result.current.ask("Replace it"); });
+    await act(async () => { await first; });
 
     expect(firstOpeningSignal?.aborted).toBe(true);
+    expect(result.current.currentTurn?.prompt).toBe("Replace it");
   });
 
   it("retries once before playback starts", async () => {

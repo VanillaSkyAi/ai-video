@@ -22,6 +22,7 @@ export type {
   VideoChatVoice,
 } from "./video-chat/voice.js";
 export type {
+  VideoChatAskOptions,
   VideoChatCapabilities,
   VideoChatMedia,
   VideoChatMode,

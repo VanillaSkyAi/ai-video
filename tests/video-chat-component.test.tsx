@@ -6,7 +6,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import type { UseVideoChatOptions } from "../src/react";
 
-function chatFetcher(requests: Array<{ action: string | null; body?: unknown }> = []): typeof fetch {
+function chatFetcher(
+  requests: Array<{ action: string | null; body?: unknown }> = [],
+  storyMedia: { url: string; type: "video" } | null = null,
+): typeof fetch {
   return vi.fn(async (input, init) => {
     const url = new URL(String(input), "https://app.example");
     const action = url.searchParams.get("action");
@@ -29,10 +32,17 @@ function chatFetcher(requests: Array<{ action: string | null; body?: unknown }> 
         hero: null,
         cards: [
           { prompt: "Explain why the sky changes colour", media: null },
-          { prompt: "Invent a surreal bedtime story", media: null },
+          {
+            prompt: "Invent a surreal bedtime story",
+            media: storyMedia,
+          },
         ],
       });
     }
+    if (action === "opening") {
+      return Response.json({ line: "Tonight, the impossible feels close enough to touch.", keyword: "surreal night" });
+    }
+    if (action === "opening-media") return Response.json({ media: null });
     return new Response("Unavailable in this UI test", { status: 503 });
   });
 }
@@ -80,12 +90,23 @@ describe("VideoChat", () => {
   it("submits welcome cards through the configured endpoint", async () => {
     const { VideoChat } = await import("../src/react");
     const requests: Array<{ action: string | null; body?: unknown }> = [];
-    render(<VideoChat options={{ endpoint: "/my/video", fetcher: chatFetcher(requests) }} />);
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    const { container } = render(<VideoChat options={{
+      endpoint: "/my/video",
+      fetcher: chatFetcher(requests, { url: "https://media.example/surreal-story.mp4", type: "video" }),
+    }} />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Invent a surreal bedtime story" }));
+    await waitFor(() => expect(container.querySelector(".stage video")?.getAttribute("src"))
+      .toBe("https://media.example/surreal-story.mp4"));
     await waitFor(() => expect(requests).toContainEqual({
       action: "response",
-      body: expect.objectContaining({ prompt: "Invent a surreal bedtime story" }),
+      body: expect.objectContaining({
+        prompt: "Invent a surreal bedtime story",
+        spokenHook: "Tonight, the impossible feels close enough to touch.",
+      }),
     }));
+    expect(requests.some(({ action }) => action === "opening-media")).toBe(false);
   });
 });

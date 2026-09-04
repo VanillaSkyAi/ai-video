@@ -2,13 +2,13 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import type { VideoOrientation } from "../protocol/types.js";
 import { VideoPlayer } from "../player/video-player.js";
 import { useVideoChat, type UseVideoChatOptions } from "./use-video-chat.js";
-import type { VideoChatMode } from "./types.js";
+import type { VideoChatMode, VideoChatSuggestion } from "./types.js";
 import { defaultMode, modeById, visualModes } from "./modes";
 import { defaultTheme, themeBackground, themeById, themes } from "./themes";
 import { ChevronUp, Close, Gear, Mic, Replay, Send, Sound, Stop, Muted, Play, Plus, Warning } from "./icons";
 import { useDismiss, useFocusTrap } from "./use-dismiss";
 import { Welcome } from "./welcome";
-import { SuggestionCards } from "./suggestion-cards";
+import { Frame, SuggestionCards } from "./suggestion-cards";
 import { useVoiceInput } from "./use-voice-input";
 const DESKTOP_WIDTH = 900;
 
@@ -118,15 +118,15 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
   useDismiss(sheetOpen, closeSheet, noSurfaces);
   useFocusTrap(sheetOpen, sheetRef);
 
-  const ask = useCallback((value: string) => {
-    const prompt = value.trim();
+  const ask = useCallback((value: string | VideoChatSuggestion) => {
+    const prompt = (typeof value === "string" ? value : value.prompt).trim();
     if (!prompt) return;
     setDraft("");
     listen.stop();
     setHistoryOpen(false);
     setSettingsOpen(false);
     setSheetOpen(false);
-    void chat.ask(prompt);
+    void chat.ask(prompt, typeof value === "string" ? undefined : { openingMedia: value.media });
   }, [chat, listen]);
 
   const newSession = useCallback(() => {
@@ -214,6 +214,10 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
       <div className="stage" style={{ background: themeBackground(presentationBrand) }}>
         {!showing && <>
           <div className="ground" aria-hidden="true" />
+          {shown?.openingMedia && <>
+            <Frame media={shown.openingMedia} poster />
+            <div className="opening-wash" aria-hidden="true" />
+          </>}
           {chat.turns.length === 0 && <Welcome data={chat.welcome} onAsk={ask} title={welcomeTitle} />}
           {shown?.prompt && <div className="asked">
             <p className="asked-prompt">{shown.prompt}</p>

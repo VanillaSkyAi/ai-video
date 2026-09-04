@@ -21,14 +21,18 @@ import { warmSceneMedia } from "../player/warm-scene-media.js";
 import { safePublicDiagnostic } from "../protocol/warnings.js";
 import type {
   VideoChatCapabilities,
+  VideoChatAskOptions,
   VideoChatConversationTurn,
+  VideoChatMedia,
   VideoChatMode,
   VideoChatSuggestion,
   VideoChatWelcome,
 } from "./types.js";
+import { sanitizeVideoChatMedia } from "./media.js";
 import { createVideoChatVoice, type VideoChatVoice } from "./voice.js";
 
 const DEFAULT_TIMEOUT_MS = 180_000;
+const OPENING_TIMEOUT_MS = 4_000;
 
 export type VideoChatStatus = "idle" | "composing" | "playing" | "paused" | "ended" | "cancelled" | "error";
 
@@ -38,6 +42,8 @@ export interface VideoChatTurn {
   /** True only after the complete response has been received. */
   completed: boolean;
   opening?: string;
+  /** Optional stock footage held behind the opening hook until playback starts. */
+  openingMedia?: VideoChatMedia;
   orientation: VideoOrientation;
   /** Generated footage keeps the orientation it was created in. */
   fixedOrientation: boolean;
@@ -65,7 +71,7 @@ export interface UseVideoChatOptions {
 }
 
 export interface UseVideoChatResult {
-  ask(prompt: string): Promise<Video | undefined>;
+  ask(prompt: string, options?: VideoChatAskOptions): Promise<Video | undefined>;
   cancel(reason?: string): void;
   pause(): void;
   resume(): void;
@@ -122,6 +128,7 @@ type SessionAction =
   | { type: "welcome"; value: VideoChatWelcome }
   | { type: "start"; turn: VideoChatTurn }
   | { type: "opening-start"; id: string; line: string }
+  | { type: "opening-media"; id: string; media: VideoChatMedia }
   | { type: "opening-end"; id: string }
   | { type: "player"; id: string; stream: AsyncIterable<VideoEvent> }
   | { type: "partial"; id: string; video: Video }
@@ -187,6 +194,12 @@ function reducer(state: SessionState, action: SessionAction): SessionState {
         resumeStatus: "playing",
         caption: action.line,
         openingSpeaking: true,
+      };
+    case "opening-media":
+      if (state.turns.at(-1)?.id !== action.id || state.playback) return state;
+      return {
+        ...state,
+        turns: replaceTurn(state.turns, action.id, (turn) => ({ ...turn, openingMedia: action.media })),
       };
     case "opening-end":
       if (state.turns.at(-1)?.id !== action.id) return state;
@@ -473,7 +486,10 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     dispatch({ type: "cancelled" });
   }, []);
 
-  const ask = useCallback(async (value: string): Promise<Video | undefined> => {
+  const ask = useCallback(async (
+    value: string,
+    askOptions: VideoChatAskOptions = {},
+  ): Promise<Video | undefined> => {
     const prompt = value.trim();
     if (!prompt) return undefined;
 
@@ -506,6 +522,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     const orientation = currentOptions.orientation ?? "landscape";
     const id = (currentOptions.createTurnId ?? defaultTurnId)();
     const conversation = conversationFor(stateRef.current.turns);
+    const openingMedia = sanitizeVideoChatMedia(askOptions.openingMedia);
     const turn: VideoChatTurn = {
       id,
       prompt,
@@ -513,12 +530,14 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       orientation,
       fixedOrientation: filmedScenes(mode) > 0,
       suggestions: [],
+      ...(openingMedia ? { openingMedia } : {}),
     };
     dispatch({ type: "start", turn });
 
     let timeline: ReturnType<typeof createSceneTimeline> | undefined;
     let style: VideoStyle | undefined;
-    let openingSpeaking = false;
+    let openingActive = false;
+    let spokenHook = "";
     let planDone = false;
     let timelineCompleted = false;
     let terminal = false;
@@ -546,9 +565,11 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
         return;
       }
       if (!timeline) {
-        if (!style || openingSpeaking || heldRef.current || available === appended) return;
+        if (!style || openingActive || heldRef.current || available === appended) return;
         timeline = createSceneTimeline({ style, orientation });
         timelineRef.current = timeline;
+        openingController.abort(new DOMException("Opening replaced by response", "AbortError"));
+        if (openingRef.current === openingController) openingRef.current = undefined;
         dispatch({ type: "player", id, stream: timeline.stream });
       }
       while (ready[appended]) timeline.add(ready[appended++]!);
@@ -565,41 +586,58 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     };
     flushRef.current = flush;
 
-    const opening = async () => {
-      let said = "";
-      for (let lineNumber = 0; lineNumber < 2; lineNumber += 1) {
-        try {
-          const response = await request("opening", {
-            method: "POST",
-            body: JSON.stringify({ prompt, ...(said ? { said } : {}) }),
-          }, openingController.signal);
-          if (!response.ok) return;
-          const line = ((await response.json()) as { line?: unknown }).line;
-          const text = typeof line === "string" ? line.trim() : "";
-          if (!text || timeline || !isOpeningCurrent()) return;
-          await voiceRef.current.prepare(text, { signal: openingController.signal });
-          if (timeline || !isOpeningCurrent()) return;
-          openingSpeaking = true;
-          dispatch({ type: "opening-start", id, line: text });
-          said = said ? `${said} ${text}` : text;
-          await voiceRef.current.speak(text, { signal: openingController.signal });
-          openingSpeaking = false;
-          dispatch({ type: "opening-end", id });
-          flush();
-          if (timeline || !isOpeningCurrent()) return;
-        } catch {
-          return;
-        }
+    const resolveOpeningMedia = async (keyword: string) => {
+      try {
+        const response = await request("opening-media", {
+          method: "POST",
+          body: JSON.stringify({ keyword, orientation }),
+        }, openingController.signal);
+        if (!response.ok || !isOpeningCurrent() || timeline) return;
+        const payload = await response.json() as { media?: unknown };
+        const media = sanitizeVideoChatMedia(payload.media);
+        if (media && isOpeningCurrent() && !timeline) dispatch({ type: "opening-media", id, media });
+      } catch {
+        // Stock footage is an enhancement; the branded ground remains usable.
       }
     };
-    void opening().finally(() => {
-      openingSpeaking = false;
-      if (isOpeningCurrent()) {
-        dispatch({ type: "opening-end", id });
+
+    const speakOpening = async (text: string) => {
+      try {
+        await voiceRef.current.prepare(text, { signal: openingController.signal });
+        if (!isOpeningCurrent()) return;
+        dispatch({ type: "opening-start", id, line: text });
+        await voiceRef.current.speak(text, { signal: openingController.signal });
+      } catch {
+        // A missing voice falls back inside the voice adapter; cancellation is silent.
+      } finally {
+        openingActive = false;
+        if (isOpeningCurrent()) dispatch({ type: "opening-end", id });
         flush();
       }
-      if (openingRef.current === openingController) openingRef.current = undefined;
-    });
+    };
+
+    try {
+      const openingSignal = AbortSignal.any([
+        openingController.signal,
+        AbortSignal.timeout(OPENING_TIMEOUT_MS),
+      ]);
+      const response = await request("opening", {
+        method: "POST",
+        body: JSON.stringify({ prompt }),
+      }, openingSignal);
+      if (response.ok && isOpeningCurrent()) {
+        const payload = await response.json() as { line?: unknown; keyword?: unknown };
+        spokenHook = typeof payload.line === "string" ? payload.line.trim() : "";
+        const keyword = typeof payload.keyword === "string" ? payload.keyword.trim() : "";
+        if (!openingMedia && keyword) void resolveOpeningMedia(keyword);
+        if (spokenHook) {
+          openingActive = true;
+          void speakOpening(spokenHook);
+        }
+      }
+    } catch {
+      // The response still proceeds if the small opening hook misses its deadline.
+    }
 
     const runAttempt = async (currentAttempt: number): Promise<{ video: Video; suggestions: VideoChatSuggestion[] }> => {
       const response = await request("response", {
@@ -607,6 +645,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
         headers: { accept: "text/event-stream" },
         body: JSON.stringify({
           prompt,
+          ...(spokenHook ? { spokenHook } : {}),
           mode,
           orientation,
           conversation,
@@ -620,7 +659,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       }
 
       const planned: VideoScene[] = [];
-      const lines: string[] = [];
+      const lines: string[] = spokenHook ? [spokenHook] : [];
       const pending: Promise<void>[] = [];
       let narrating: Promise<unknown> = Promise.resolve();
       let terminalError: VideoError | undefined;

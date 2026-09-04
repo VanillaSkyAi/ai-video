@@ -53,6 +53,12 @@ browser speech. Supplying `generateSpeech`, `transcribe`, `searchMedia`, or
 structural and provider-neutral; their SDKs and credentials remain application
 dependencies and never enter the browser bundle.
 
+`generateText` receives a `task`. Route `opening` to a small fast model when
+available: it returns the short spoken hook and stock-search keyword before the
+main planner starts. The stock lookup is a separate cancellable request, so it
+cannot delay speech or planning. The generated starter uses Haiku for this task
+and reuses clicked welcome or follow-up media without searching again.
+
 The matching complete React interface is one component and one scoped style
 import:
 
@@ -69,7 +75,10 @@ export function App() {
 
 For a custom interface, use `useVideoChat` and render its `turns`, `welcome`,
 `suggestions`, `caption`, and `status`; the hook owns their network and playback
-lifecycle.
+lifecycle. Pass a selected card through
+`chat.ask(card.prompt, { openingMedia: card.media })` to reuse its footage for
+the opening. For typed prompts, the hook resolves the generated keyword through
+the handler automatically.
 
 Use `createVideoHandler` below when the application wants the lower-level video
 composition route without the video-chat actions or default prompts.

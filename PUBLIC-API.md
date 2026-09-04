@@ -120,17 +120,23 @@ provider-neutral text-delta escape hatch.
 
 `createVideoChatHandler` is the opinionated general-purpose video-chat route.
 Mount it once and use its bounded `action` query parameter for capabilities,
-responses, openings, narration, suggestions, speech, transcription, and the
-welcome screen. It owns the general response prompts, fixed visual-mode spend
-limits, capability fallbacks, and auxiliary response shapes. The application
-supplies provider-neutral `streamText`, `generateText`, `generateSpeech`,
-`transcribe`, `searchMedia`, and `generateVideo` callbacks. Only the two text
-callbacks are required. Missing optional callbacks remove their capability;
-templates and browser speech remain available.
+responses, opening hooks and media, narration, suggestions, speech,
+transcription, and the welcome screen. It owns the general response prompts,
+fixed visual-mode spend limits, capability fallbacks, and auxiliary response
+shapes. The application supplies provider-neutral `streamText`, `generateText`,
+`generateSpeech`, `transcribe`, `searchMedia`, and `generateVideo` callbacks.
+Only the two text callbacks are required. Missing optional callbacks remove
+their capability; templates and browser speech remain available.
 
 - A response accepts `prompt`, `mode`, `orientation`, optional bounded
-  `conversation`, `brand`, and `style`. It returns the existing protocol `0.5`
-  SSE stream; video-chat-only SSE events are not introduced.
+  `conversation`, `spokenHook`, `brand`, and `style`. `spokenHook` is the exact
+  opening already heard by the viewer and makes the planner continue without
+  repeating it. The response returns the existing protocol `0.5` SSE stream;
+  video-chat-only SSE events are not introduced.
+- The opening action returns a bounded spoken `line` and optional stock-search
+  `keyword`. The separate opening-media action resolves that keyword through
+  the application-owned `searchMedia` callback, so media lookup never delays
+  the hook, speech, or planner.
 - `templates`, `some`, and `full` map to server-owned generated-media budgets
   of zero, one, and five. Without `generateVideo`, only `templates` is exposed
   and forged generated-mode requests degrade to it.
@@ -185,6 +191,7 @@ templates and browser speech remain available.
 - `VideoChatProps`
 - `UseVideoChatOptions`
 - `UseVideoChatResult`
+- `VideoChatAskOptions`
 - `VideoChatTurn`
 - `VideoChatStatus`
 - `VideoChatMode`
@@ -238,8 +245,13 @@ paces each scene to its prepared speech, and keeps pause, mute, replay, history,
 captions, and actual playback completion synchronized. The default voice tries
 the handler's generated-speech action and falls back to browser speech. Pass a
 `VideoChatVoice` to replace it without rebuilding session orchestration.
-Each `VideoChatTurn` exposes `completed`, so partial or cancelled responses can
-remain visible without being mistaken for conversation context.
+`ask(prompt, { openingMedia })` lets a custom interface reuse a clicked
+suggestion's image or video without another media lookup. The hook otherwise
+resolves the opening hook's media keyword, holds that media while the hook is
+spoken, and starts the planned timeline only when both speech and the first
+scene are ready. Each `VideoChatTurn` exposes `openingMedia` and `completed`, so
+custom interfaces can render the same handoff while partial or cancelled
+responses remain visible without being mistaken for conversation context.
 
 `UseVideoResult` has this conceptual shape:
 

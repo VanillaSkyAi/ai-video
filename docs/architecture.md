@@ -53,22 +53,27 @@ prompt/validation registry in `vanillasky/server.ts`.
 
 ## Request flow
 
-1. `VideoChat` uses `useVideoChat` to send the user's message, conversation
-   context, and selected mode to one authenticated application endpoint.
-2. `createVideoChatHandler(...)` owns chat actions, suggestions, narration,
+1. `VideoChat` uses `useVideoChat` to send the user's message and request a
+   short opening hook. A clicked suggestion carries its existing media with it;
+   a typed prompt can resolve the hook's stock-search keyword separately.
+2. The hook is spoken over that opening media while `useVideoChat` sends the
+   user's message, exact spoken hook, conversation context, and selected mode
+   to the same authenticated application endpoint.
+3. `createVideoChatHandler(...)` owns chat actions, suggestions, narration,
    capability discovery, and generated-video budgets. The application supplies
    provider callbacks and policy.
-3. Video answers flow into `createVideoHandler(...)`, which calls the
+4. Video answers flow into `createVideoHandler(...)`, which calls the
    application's `streamText` adapter. This is where Anthropic, OpenAI, or
    another text model is connected.
-4. The system prompt combines the composition rules with the trusted template
+5. The system prompt combines the composition rules with the trusted template
    catalog, including generated metadata for customer-owned templates. The user
-   prompt serializes the factual input, instructions,
+   prompt serializes the factual input, spoken hook, instructions,
    personalization, brand, and approved media.
-5. The model streams NDJSON plan parts. The server parses and validates complete
+6. The model streams NDJSON plan parts. The server parses and validates complete
    scenes before emitting versioned video events.
-6. The browser reduces those events into a deterministic `Video`; playback and
-   narration start as soon as the first playable scene arrives.
+7. The browser reduces those events into a deterministic `Video`. The opening
+   loops or holds until its voice ends and the first playable scene is ready;
+   the planned playback and narration then take over in one cut.
 
 The lower-level `useVideo` and `VideoPlayer` path skips chat actions and remains
 available for explicit one-shot video response integrations.

@@ -11,7 +11,7 @@ import { findStockFootage } from "./stock";
 
 const PLANNER_MODEL = process.env.ANTHROPIC_PLANNER_MODEL ?? "claude-sonnet-5";
 const NARRATION_MODEL = process.env.ANTHROPIC_NARRATION_MODEL ?? "claude-haiku-4-5";
-const OPENING_MODEL = process.env.ANTHROPIC_OPENING_MODEL ?? "claude-sonnet-5";
+const OPENING_MODEL = process.env.ANTHROPIC_OPENING_MODEL ?? "claude-haiku-4-5";
 const VIDEO_MODEL = process.env.FAL_VIDEO_MODEL ?? "minimax/h3-max/text-to-video";
 const SHOT_DEADLINE_MS = 180_000;
 
