@@ -474,11 +474,46 @@ export function welcomeScreen(): Promise<Response> {
   return welcome.then((response) => response.clone());
 }
 
+/*
+ * What to ask next, and something to look at while deciding.
+ *
+ * The follow-ups end the session the way the welcome screen opens it: four
+ * cards with real footage on them. That costs one extra field per suggestion -
+ * the subject to search for - and four Pexels lookups, which are a search
+ * rather than a generation and so cost nothing per request. The model is
+ * better placed to name the subject than anything downstream is: it knows the
+ * question means colliding galaxies rather than the word "collide".
+ *
+ * The lookups run while the answer is still playing, so the cards are ready by
+ * the time the last scene ends.
+ */
 const FOLLOWUPS_SYSTEM = [
   "You suggest what a learner would ask next, having just heard an explanation.",
-  'Return JSON only: {"followups": string[]} with exactly three short questions.',
-  "Make them specific to what was explained, never generic.",
+  'Return JSON only: {"followups": [{"question": string, "keyword": string}]} with exactly four entries.',
+  "question: short, specific to what was explained, never generic.",
+  "keyword: two to four words naming something filmable that stands for the question,",
+  "for stock footage search. Concrete subjects only - no abstractions, no text on screen.",
 ].join("\n");
+
+interface FollowupSubject {
+  question: string;
+  keyword: string;
+}
+
+function readSubjects(text: string): FollowupSubject[] {
+  const parsed = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as { followups?: unknown };
+  return (Array.isArray(parsed.followups) ? parsed.followups : [])
+    .flatMap((entry) => {
+      // Written by a model, so nothing about the shape is assumed. A question
+      // whose keyword came back missing still earns a card - it wears the
+      // ground colour, exactly as a search that found nothing does.
+      const record = entry as { question?: unknown; keyword?: unknown };
+      const question = typeof record.question === "string" ? record.question.trim() : "";
+      const keyword = typeof record.keyword === "string" ? record.keyword.trim() : "";
+      return question ? [{ question, keyword }] : [];
+    })
+    .slice(0, 4);
+}
 
 export async function suggestFollowups(request: Request): Promise<Response> {
   const payload = await request.json() as { question?: string; lines?: string[] };
@@ -489,11 +524,14 @@ export async function suggestFollowups(request: Request): Promise<Response> {
       maxOutputTokens: 512,
       prompt: `QUESTION: ${payload.question ?? ""}\n\nEXPLANATION:\n${(payload.lines ?? []).join("\n")}`,
     });
-    const parsed = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as { followups?: unknown };
-    const followups = (Array.isArray(parsed.followups) ? parsed.followups : [])
-      .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
-      .slice(0, 3);
-    return Response.json({ followups });
+    const subjects = readSubjects(text);
+    const signal = AbortSignal.timeout(10_000);
+    const media = await Promise.all(subjects.map((subject) =>
+      (subject.keyword ? findStockFootage(subject.keyword, "landscape", signal) : Promise.resolve(null))
+        .catch(() => null)));
+    return Response.json({
+      followups: subjects.map((subject, index) => ({ question: subject.question, media: media[index] ?? null })),
+    });
   } catch {
     // Suggestions are a convenience; a lesson without them is still a lesson.
     return Response.json({ followups: [] });

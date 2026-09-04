@@ -1,6 +1,7 @@
 import type { Video, VideoOrientation, VideoScene } from "@vanillaskyai/video";
 import type { Theme } from "./themes";
 import type { VisualMode } from "./modes";
+import type { Suggestion } from "./suggestion-cards";
 import { definitions } from "../vanillasky";
 
 const templateIds = definitions.map((template) => template.id);
@@ -90,7 +91,7 @@ export function plannerInstructions(filmedScenes: number): string {
 
 export interface StreamedLesson {
   /** Resolves when the last scene has been planned and narrated. */
-  done: Promise<{ video: Video; followups: string[] }>;
+  done: Promise<{ video: Video; followups: Suggestion[] }>;
 }
 
 async function narrateScene(
@@ -130,7 +131,7 @@ export async function streamLessonWithRetry(
     /** Drop what the failed attempt had staged, so positions line up again. */
     onRetry?: () => void;
   },
-): Promise<{ video: Video; followups: string[] }> {
+): Promise<{ video: Video; followups: Suggestion[] }> {
   try {
     return await streamLesson(options);
   } catch (cause) {
@@ -178,7 +179,7 @@ export async function streamLesson(options: {
    */
   onScene: (scene: VideoScene, position: number) => void | Promise<void>;
   onStyle: (style: Video["style"]) => void;
-}): Promise<{ video: Video; followups: string[] }> {
+}): Promise<{ video: Video; followups: Suggestion[] }> {
   const started = Date.now();
   const response = await fetch(`/api/lesson?filmed=${options.mode.filmedScenes}`, {
     method: "POST",
@@ -335,6 +336,6 @@ export async function streamLesson(options: {
 
   return {
     video: { schemaVersion: "0.1", orientation: options.orientation, scenes, style: style! },
-    followups: followups as string[],
+    followups: followups as Suggestion[],
   };
 }
