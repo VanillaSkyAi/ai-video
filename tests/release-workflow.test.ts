@@ -157,9 +157,16 @@ describe("release workflow", () => {
     }
     expect(releaseBuild).not.toContain("must pin the install command");
     expect(releaseBuild).not.toContain("must link examples at");
-    for (const example of ["react-vite", "server-integrations", "nextjs-quickstart"]) {
-      const exampleManifest = JSON.parse(readFileSync(`examples/${example}/package.json`, "utf8"));
-      expect(exampleManifest.dependencies["@vanillaskyai/video"], example).toBe(manifest.version);
+    expect(releaseBuild).toContain('path: join("starters", "video-chat")');
+    const executableConsumers = [
+      ["react-vite", "examples/react-vite"],
+      ["video-chat", "starters/video-chat"],
+      ["server-integrations", "examples/server-integrations"],
+      ["nextjs-quickstart", "examples/nextjs-quickstart"],
+    ];
+    for (const [name, path] of executableConsumers) {
+      const exampleManifest = JSON.parse(readFileSync(`${path}/package.json`, "utf8"));
+      expect(exampleManifest.dependencies["@vanillaskyai/video"], name).toBe(manifest.version);
     }
   });
 

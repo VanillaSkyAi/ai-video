@@ -12,11 +12,17 @@ import { stopProcessTree } from "./lib/stop-process-tree.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const workspace = mkdtempSync(join(tmpdir(), "vanillasky-documented-examples-"));
+const childEnvironment = {
+  ...process.env,
+  npm_config_audit: "false",
+  npm_config_fund: "false",
+  npm_config_cache: join(workspace, "npm-cache"),
+};
 const examples = [
-  { name: "react-vite", url: "http://localhost:5173/" },
-  { name: "ai-tutor", url: "http://localhost:5173/" },
-  { name: "server-integrations" },
-  { name: "nextjs-quickstart", url: "http://localhost:3000/", browser: true, rejectsProduction: true },
+  { name: "react-vite", source: join("examples", "react-vite"), url: "http://localhost:5173/" },
+  { name: "video-chat", source: join("starters", "video-chat"), url: "http://localhost:5173/", browser: true },
+  { name: "server-integrations", source: join("examples", "server-integrations") },
+  { name: "nextjs-quickstart", source: join("examples", "nextjs-quickstart"), url: "http://localhost:3000/", browser: true, rejectsProduction: true },
 ];
 const commandLog = [];
 const selectedArtifact = selectPackedArtifact({
@@ -48,7 +54,7 @@ function run(command, args, cwd) {
   execFileSync(command, args, {
     cwd,
     stdio: "inherit",
-    env: { ...process.env, npm_config_cache: join(workspace, "npm-cache") },
+    env: childEnvironment,
   });
 }
 
@@ -72,6 +78,7 @@ async function verifyProductionAuth(app) {
   const productionServer = spawn("npm", ["run", "start", "--", "-H", "127.0.0.1", "-p", "3001"], {
     cwd: app,
     stdio: ["ignore", "pipe", "pipe"],
+    env: childEnvironment,
     detached: process.platform !== "win32",
   });
   const capture = (chunk) => { output.value = `${output.value}${chunk}`.slice(-8_000); };
@@ -93,7 +100,7 @@ async function verifyProductionAuth(app) {
 }
 
 async function runExample(example) {
-  const source = join(root, "examples", example.name);
+  const source = join(root, example.source);
   const app = join(workspace, example.name);
   cpSync(source, app, {
     recursive: true,
@@ -121,7 +128,7 @@ async function runExample(example) {
         server = spawn("npm", ["run", "dev"], {
           cwd: app,
           stdio: ["ignore", "pipe", "pipe"],
-          env: { ...process.env, npm_config_cache: join(workspace, "npm-cache") },
+          env: childEnvironment,
           detached: process.platform !== "win32",
         });
         const capture = (chunk) => { output.value = `${output.value}${chunk}`.slice(-8_000); };
@@ -135,9 +142,14 @@ async function runExample(example) {
           page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
           page.on("pageerror", (error) => errors.push(error.message));
           await page.goto(example.url);
-          await page.getByRole("heading", { name: "VanillaSky quickstart" }).waitFor();
-          await page.getByRole("button", { name: "Generate video" }).waitFor();
-          if (errors.length) throw new Error(`Next.js quickstart browser errors: ${errors.join(" | ")}`);
+          if (example.name === "video-chat") {
+            await page.getByRole("heading", { name: /An AI chat that responds/i }).waitFor();
+            await page.getByPlaceholder("Ask anything…").waitFor();
+          } else {
+            await page.getByRole("heading", { name: "VanillaSky quickstart" }).waitFor();
+            await page.getByRole("button", { name: "Generate video" }).waitFor();
+          }
+          if (errors.length) throw new Error(`${example.name} browser errors: ${errors.join(" | ")}`);
         }
         continue;
       }
@@ -156,7 +168,9 @@ async function runExample(example) {
       throw new Error(`${example.name} installed ${installedVersion}, expected packed candidate ${candidateVersion}`);
     }
     if (example.browser) {
-      console.log(`${example.name}: literal install/build/dev commands, UI startup, browser console, and fail-closed production auth passed; model generation was not exercised.`);
+      const checks = ["literal install/build/dev commands", "UI startup", "browser console"];
+      if (example.rejectsProduction) checks.push("fail-closed production auth");
+      console.log(`${example.name}: ${checks.join(", ")} passed; model generation was not exercised.`);
     } else {
       console.log(`${example.name}: documented commands passed from a clean copy.`);
     }

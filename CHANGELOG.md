@@ -4,6 +4,12 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Reframes the canonical interactive demo as a general-purpose video chat
+  starter for explanations, stories, recommendations, and creative prompts.
+  It now runs with one text-model key, falls back to browser speech, and unlocks
+  generated speech, stock media, transcription, and generated video only when
+  their application-owned provider keys are configured.
+
 - Adds `paused` to `VideoPlayer`: hold the playhead where it is, and release it
   from the same frame. It completes `controls={false}`. Turning the player's own
   controls off hands playback to the application, and until now there was no
@@ -34,7 +40,7 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
   duration from them - but internally, so applications reached for `minDuration`
   instead. That is a compression bound, the least a template survives being
   squeezed to when a video must fit a fixed length: 1 second for `media`, 1.5
-  for `bigNumber`. A narrated lesson built on it flashes past. `getSceneDuration`
+  for `bigNumber`. A narrated response built on it flashes past. `getSceneDuration`
   answers the real question, taking a scene's `narration` into account, since
   speech is slower than reading.
 

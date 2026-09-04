@@ -26,8 +26,8 @@ On a branch off current `main`:
 2. Set the version in `package.json`, then run `npm install --package-lock-only`
    to match `package-lock.json`.
 3. Update the exact `@vanillaskyai/video` dependency in each executable
-   `examples/*/package.json`. Tests and the release builder assert these pins,
-   so the reviewed examples and packed artifact cannot drift apart. Public
+   `examples/*/package.json` and `starters/video-chat/package.json`. Tests and
+   the release builder assert these pins, so the reviewed consumers and packed artifact cannot drift apart. Public
    human and agent guides intentionally keep an unversioned install command and
    package-relative example links; do not rewrite onboarding copy for a release.
 

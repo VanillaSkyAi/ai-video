@@ -9,8 +9,8 @@ import type { VideoScene } from "../src/protocol/types";
  *
  * A narrated video is not a video with audio bolted on: the line belongs to the
  * scene, so it has to start when that scene does and stop when the viewer moves
- * on. Every one of those was a bug while building the AI tutor - the voice
- * starting before the first frame, a follow-up silently cutting the tutor off,
+ * on. Every one of those was a bug while building video chat - the voice
+ * starting before the first frame, a follow-up silently cutting the response off,
  * a line still playing over the next scene.
  *
  * The provider is not the SDK's business. An application supplies something

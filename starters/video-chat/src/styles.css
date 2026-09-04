@@ -1,0 +1,895 @@
+/*
+ * The video chat's chrome.
+ *
+ * Every colour, radius and duration here is a token from `tokens.css`, and
+ * nothing in this file names one directly. That is what makes the experience
+ * adoptable: an application overrides a handful of custom properties and it is
+ * theirs - no Tailwind config, no component library, no build step. Requiring
+ * a design system would take back the SDK's own promise that the application
+ * owns its UI.
+ *
+ * The shape is one continuous moment. The video is the page; the chrome is a
+ * bar above it and a panel below it, and neither ever covers the picture.
+ */
+@import "./tokens.css";
+
+* { box-sizing: border-box; }
+
+html { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+body {
+  margin: 0;
+  /* The whole page follows the theme, the video excepted. An always-dark
+     surround under a light panel read as two pages stitched together, and it
+     meant the chrome above the video and the composer below it were being
+     drawn from different palettes. */
+  background: var(--vs-bg);
+  color: var(--vs-fg);
+  font-family: var(--vs-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+/*
+ * Something went wrong, said quietly.
+ *
+ * Bare red text on the page reads as a crash. A tinted notice with the message
+ * inside it reads as one thing having gone wrong while everything else is
+ * fine, which is what is true - the response still plays, the composer still
+ * works, and only the microphone could not start. The icon carries the meaning
+ * for anyone who does not see the colour.
+ */
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--vs-radius);
+  background: var(--vs-danger-surface);
+  color: var(--vs-danger);
+  font-size: var(--vs-text-footnote);
+  line-height: var(--vs-lead-footnote);
+  letter-spacing: var(--vs-track-footnote);
+}
+.error svg { flex: 0 0 auto; margin-top: 0.05rem; }
+.error span { min-width: 0; }
+
+/*
+ * Three rows: the bar, the picture, and everything under it.
+ *
+ * The picture used to sit in the row that grew, so the space left over belonged
+ * to it and split above and below - which stranded the composer at the bottom
+ * with a gap over it that nothing owned. The last row grows instead and centres
+ * what is in it, so the composer sits in the middle of the space below the
+ * picture rather than at the far end of it.
+ */
+.app {
+  /*
+   * One column, computed once, read by the bar and by the picture.
+   *
+   * Measured against the viewport rather than against `100%`. A custom property
+   * is substituted where it is *used*, so `100%` meant the window to the bar
+   * and the padded box to the picture - two different numbers from one
+   * expression, which drifted the two apart by the gutter on any window where
+   * the height bound sat close to the width bound.
+   *
+   * Bounded by the height left over once the bar and the controls have taken
+   * theirs, so the picture gives way on a short window and the bar goes with
+   * it: a bar that stayed behind is a bar that has come loose from the thing it
+   * belongs to.
+   */
+  --vs-side: 1rem;
+  --vs-frame: min(72rem, 100dvw - 2 * var(--vs-side), (100dvh - var(--vs-reserve)) * 16 / 9);
+  /* What the controls sit at when the picture is too narrow to hang them on. */
+  --vs-column: min(48rem, 100dvw - 2 * var(--vs-side));
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/*
+ * One focus ring, on everything, and only for keyboards.
+ *
+ * `:focus-visible` rather than `:focus` so a mouse click does not leave a ring
+ * behind, and an offset so the ring reads as around the control rather than as
+ * part of it. Declared once here instead of per component, which is how a
+ * control ends up shipping without one.
+ */
+:where(button, [href], input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--vs-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--vs-radius-pill);
+}
+
+/* ---------------------------------------------------------------- chrome */
+
+.chrome {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  /* The same width as the picture below it, so the buttons sit on its edges
+     rather than on the window's. */
+  /*
+   * The picture's width, or the column's - whichever is wider.
+   *
+   * Hanging the bar on the picture is right while the picture is the widest
+   * thing on the page. Once the window is tall and narrow the picture becomes a
+   * portrait frame far narrower than the composer, and a bar cut to it floats
+   * in the middle above a control running the full column. The switch happens
+   * where the picture passes the column, so there is no breakpoint to pick.
+   */
+  /* The column minus its own gutters, so in column mode the buttons land on
+     the composer's edges rather than on the box around it. */
+  width: max(var(--vs-frame), var(--vs-column) - 2 * var(--vs-side));
+  margin: 0 auto;
+  padding: max(0.6rem, env(safe-area-inset-top)) 0 0.5rem;
+}
+.group { display: flex; align-items: center; gap: 0.5rem; }
+
+.round {
+  display: grid;
+  place-items: center;
+  width: var(--vs-touch);
+  height: var(--vs-touch);
+  border: 0;
+  border-radius: var(--vs-radius-pill);
+  background: var(--vs-surface-raised);
+  color: var(--vs-fg);
+  cursor: pointer;
+  transition: background-color var(--vs-duration) ease, transform var(--vs-duration) ease;
+}
+.round:hover { background: var(--vs-surface-hover); }
+.round:active { transform: scale(0.95); }
+
+.pill {
+  border: 0;
+  border-radius: var(--vs-radius-pill);
+  /* The same height as the round button beside it. Two controls in one group
+     at different heights read as an accident. */
+  min-height: var(--vs-touch);
+  padding: 0 0.95rem;
+  background: var(--vs-surface-raised);
+  color: var(--vs-fg);
+  font: inherit;
+  font-size: var(--vs-text-footnote);
+  line-height: var(--vs-lead-footnote);
+  letter-spacing: var(--vs-track-footnote);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--vs-duration) ease;
+}
+.pill:hover { background: var(--vs-surface-hover); }
+
+/* ----------------------------------------------------------------- stage */
+
+.stage-area {
+  position: relative;
+  min-height: 0;
+  display: grid;
+  /* Centred both ways. Where the frame is limited by its width rather than by
+     the height available - a tall window - the leftover space splits above and
+     below it, so the gap under the picture is larger than the one over the
+     composer. That is what centring means, and a picture sitting in the middle
+     of its space is worth more than two gaps that measure the same. */
+  place-items: center;
+  /* Nothing below: the gap under the picture is now owned by the panel, as a
+     single deliberate space rather than two gutters meeting at a line. */
+  /* Air above, nothing below: the space under the picture belongs to the row
+     beneath, which centres the composer in it. Without this the picture sat
+     directly under the bar, because the row that grows is now the one below. */
+  padding: 1.5rem var(--vs-side) 0;
+}
+
+/*
+ * A frame in the response's own shape, as large as it will go.
+ *
+ * Not a fixed 16:9. Templates re-lay-out, so a templates-only response is
+ * landscape on a desktop and portrait on a phone; a filmed one keeps whatever
+ * it was filmed as, because its aspect ratio is inside the file. Either way
+ * the frame follows the video rather than the video being made to follow the
+ * frame - a portrait response on a desktop is a portrait video with black either
+ * side, which is honest, where stretching it would not be.
+ *
+ * Sizing by aspect ratio rather than by height also keeps the picture whole.
+ * The player derives its height from its width, so a 9:16 response in a box
+ * sized only by width is taller than the space it has and loses its top and
+ * bottom - and generated type is the first thing off the edge.
+ */
+.stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  /* The largest 16:9 box that fits once the bar above and the controls below
+     have taken what they need. Measured against the viewport rather than
+     against its parent, because the parent no longer grows to fill - and a
+     size container cannot size itself from its own query. */
+  width: var(--vs-frame);
+  overflow: hidden;
+  border-radius: var(--vs-radius-lg);
+  /* The welcome screen scales to the frame it sits in, which is this one. */
+  container-type: size;
+}
+.app[data-orientation="portrait"] { --vs-frame: min(100dvw - 2 * var(--vs-side), (100dvh - var(--vs-reserve)) * 9 / 16); }
+.app[data-orientation="portrait"] .stage { aspect-ratio: 9 / 16; }
+@media (min-width: 900px) { .stage { border: 1px solid var(--vs-border); } }
+
+/*
+ * The player fills the frame it is given. Contain, never cover: the scenes
+ * carry generated type, and cropping a caption is worse than a band of black.
+ */
+.stage > * { position: absolute; inset: 0; width: 100%; height: 100%; display: grid; place-items: center; }
+.stage :where(video, canvas, img) { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* The wait, furnished rather than measured: the ground the response's own
+   scenes are composed on, with one slow drift across it. The video chat's opening
+   line is spoken over this, and read in the line below. */
+.ground {
+  position: absolute;
+  inset: -30%;
+  background: radial-gradient(closest-side, oklch(1 0 0 / 28%), transparent 70%);
+  animation: drift 9s ease-in-out infinite alternate;
+}
+@keyframes drift {
+  from { transform: translate3d(-12%, -8%, 0) scale(1); }
+  to { transform: translate3d(14%, 10%, 0) scale(1.25); }
+}
+
+/*
+ * The prompt, on the ground the response is composed on.
+ *
+ * It is the one thing already known when a response is asked for, so it costs
+ * nothing and it is what the opening line is spoken over. It reads as the top
+ * half of one sentence: the prompt here, the words being said in the line
+ * under the stage. Both give way the moment the video has a frame to show.
+ */
+.asked {
+  /* Absolutely positioned by the stage rule with left and right both pinned,
+     so a capped width needs auto margins to sit in the middle rather than
+     against the left edge. */
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: grid;
+  gap: 1.1rem;
+  justify-items: center;
+  align-content: center;
+  text-align: center;
+  color: var(--vs-on-media);
+}
+.asked-prompt {
+  margin: 0;
+  /* The one place the type is allowed to be large, and it is tracked tighter
+     than anything else in the system. Everything around it stays quiet. */
+  /* The measure belongs here rather than on the box around it. `ch` is
+     relative to the element's own font size, so a cap on the container is
+     computed at body size and squeezes a display headline into a column of
+     three words. */
+  max-width: 26ch;
+  font-size: var(--vs-text-display);
+  line-height: var(--vs-lead-display);
+  letter-spacing: var(--vs-track-display);
+  font-weight: 700;
+  text-wrap: balance;
+  animation: step-in 620ms ease both;
+}
+
+/*
+ * What the machine is doing, under what was asked.
+ *
+ * No clock and no scene count: at eight seconds a number counting up measures
+ * the wait rather than filling it, and a scene tally is the composing
+ * machinery narrating itself to someone who asked about the Moon. This says
+ * the page has not stopped, and at this length that is enough. It describes
+ * the camera, not the response - the response is the line under the stage, and
+ * that one is the video chat talking.
+ */
+.asked-step {
+  margin: 0;
+  font-size: var(--vs-text-subhead);
+  line-height: var(--vs-lead-subhead);
+  letter-spacing: var(--vs-track-subhead);
+  font-weight: 500;
+  background: linear-gradient(100deg, oklch(1 0 0 / 45%) 20%, oklch(1 0 0) 42%, oklch(1 0 0 / 45%) 64%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sweep 2.4s linear infinite, step-in 520ms ease both;
+}
+@keyframes step-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --------------------------------------------------------------- welcome */
+
+/*
+ * The opening screen: footage, an invitation, and four prompts that show
+ * what a response looks like before one has been requested.
+ */
+.welcome { position: absolute; inset: 0; overflow: hidden; }
+.frame-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+/* Dimmed towards the corner the words sit in rather than evenly: an even scrim
+   flattens the picture into a texture, where this leaves the far side of the
+   frame at full strength. */
+.welcome-wash {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(100deg, oklch(0.14 0.05 265 / 88%) 0%, oklch(0.14 0.05 265 / 62%) 38%, transparent 72%),
+    linear-gradient(0deg, oklch(0.14 0.05 265 / 45%) 0%, transparent 45%);
+}
+
+.welcome-body {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(0.9rem, 2.2cqh, 1.6rem);
+  /* More at the head than the foot: the headline reads against the top edge of
+     the frame, so it wants room the cards at the bottom do not. */
+  padding: clamp(2rem, 8cqh, 4.5rem) clamp(1.25rem, 4cqw, 3.5rem) clamp(1.25rem, 4cqh, 2.5rem);
+  color: oklch(1 0 0);
+}
+
+
+.welcome-title {
+  margin: 0;
+  font-size: clamp(1.6rem, 5.2cqw, 3.4rem);
+  /* Loose enough that the descenders on the first line clear the caps on the
+     second. At 1.08 the two lines were nearly touching, which reads as one
+     block rather than two lines of a sentence. */
+  line-height: 1.22;
+  letter-spacing: var(--vs-track-display);
+  font-weight: 600;
+  text-wrap: balance;
+}
+/* The second line is the difference rather than the category, so it is the one
+   thing on the screen that is not white. */
+.welcome-title em { font-style: normal; color: oklch(0.8 0.11 268); }
+
+
+.cards {
+  display: flex;
+  gap: clamp(0.5rem, 1.2cqw, 0.9rem);
+  /* Pushed to the foot of the frame: the invitation sits at the top and the
+     prompts sit at the bottom, so the picture between them is the thing the
+     screen is actually showing off. */
+  margin: auto -0.4rem 0;
+  /* Room for the selected card's ring, which sits outside its box and would
+     otherwise be cut off on every side by this scroll container. The negative
+     margin cancels it, so the first card's edge still lines up with the
+     headline above it. */
+  padding: 0.4rem;
+  list-style: none;
+  max-width: calc(100% + 0.8rem);
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: none;
+}
+.cards::-webkit-scrollbar { display: none; }
+.cards::-webkit-scrollbar { display: none; }
+.cards button {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: clamp(7rem, 12.5cqw, 9.5rem);
+  aspect-ratio: 3 / 4;
+  padding: 0;
+  overflow: hidden;
+  /* No border. A translucent white hairline over footage is a different edge
+     on every frame - crisp where the picture is dark, gone where it is bright -
+     which is why these read as unfinished. A shadow separates a card from what
+     is behind it without drawing a line that has to survive the video. */
+  border: 0;
+  border-radius: clamp(0.75rem, 1.3cqw, 1.1rem);
+  background: oklch(0.16 0.04 280);
+  box-shadow: 0 2px 6px -2px oklch(0 0 0 / 40%), 0 12px 28px -10px oklch(0 0 0 / 55%);
+  /* Reserved so the ring costs no layout when it arrives. */
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  color: oklch(1 0 0);
+  cursor: pointer;
+  text-align: left;
+  transition: transform var(--vs-duration) var(--vs-ease), box-shadow var(--vs-duration) ease,
+    outline-color var(--vs-duration) ease;
+}
+/*
+ * The prompt in hand.
+ *
+ * A ring rather than a border: it is a state, not an edge, so it sits outside
+ * the card where it cannot be mistaken for part of the picture. The glow is
+ * what carries it over footage of any brightness, the same problem that made a
+ * hairline border unusable here.
+ */
+.cards button[data-active] {
+  outline-color: oklch(0.84 0.1 268);
+  box-shadow:
+    0 0 0 5px oklch(0.72 0.15 268 / 22%),
+    0 2px 6px -2px oklch(0 0 0 / 40%),
+    0 14px 32px -10px oklch(0 0 0 / 60%);
+}
+.cards button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 10px -2px oklch(0 0 0 / 45%), 0 20px 40px -12px oklch(0 0 0 / 65%);
+}
+.cards button:active { transform: translateY(-1px); }
+.card-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, oklch(0.12 0.03 280 / 92%) 0%, oklch(0.12 0.03 280 / 30%) 45%, transparent 70%);
+}
+.card-prompt {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 0.6rem 0.7rem;
+  /* The floor is the scale's smallest step rather than something smaller: on a
+     phone the container query resolves to a few pixels and the clamp's low end
+     is what actually renders, which put these under Apple's 11pt minimum. */
+  font-size: clamp(var(--vs-text-footnote), 0.95cqw, 0.9rem);
+  line-height: var(--vs-lead-footnote);
+  letter-spacing: var(--vs-track-footnote);
+  font-weight: 500;
+  text-wrap: balance;
+}
+
+
+/* Where the cards are in a row that does not fit - a phone. */
+/* Real buttons, so the row can be worked without a pointer. The hit area is
+   the WCAG minimum even though the dot itself is small. */
+/* Centred across the frame: the row of cards is left-aligned with the headline,
+   but the dots belong to the whole frame rather than to the row's start. */
+.card-dots { display: flex; gap: 0.15rem; margin-top: 0.6rem; align-self: center; }
+.card-dots button {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.card-dots button::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: var(--vs-radius-pill);
+  background: oklch(1 0 0 / 35%);
+  transition: width var(--vs-duration) var(--vs-ease), background-color var(--vs-duration) ease;
+}
+.card-dots button:hover::before { background: oklch(1 0 0 / 60%); }
+.card-dots button.on::before { width: 1.35rem; background: oklch(0.84 0.1 268); }
+
+
+@media (max-width: 899px) {
+  .welcome-body { gap: 0.7rem; padding: 1.75rem 1rem 1rem; }
+  .welcome-title { font-size: clamp(1.75rem, 9cqw, 2.25rem); }
+  /* Wider cards, so a prompt reads in two or three lines rather than four
+     stacked words. */
+  .cards button { width: clamp(9rem, 42cqw, 11rem); }
+  .card-prompt { padding: 0.7rem 0.75rem; }
+}
+
+/* ---------------------------------------------------------------- ending */
+
+/*
+ * The end of a response, on the frame it ended on.
+ *
+ * A finished response used to hand back a row of grey pills under the composer,
+ * which read as metadata about the page rather than as the four things it was
+ * offering to do next. The same cards the opening screen uses say it properly,
+ * and say it in the shape the next response will arrive in.
+ *
+ * It covers the foot of the picture rather than all of it: the last scene is
+ * the conclusion, and hiding it the instant it lands takes the response away at
+ * the moment it is finished.
+ */
+.ending {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Above the player, and only ever over its own stage. */
+  z-index: 1;
+  /* The wash and the cards each fade in on their own terms; together they read
+     as the picture settling rather than a panel arriving. */
+  animation: fade-in 420ms ease both;
+}
+/*
+ * Weighted to the foot, but reaching further up than the cards do.
+ *
+ * A closing scene sets its headline in the middle of the frame, which is where
+ * the label sits - so a wash that stopped just above the cards left two pieces
+ * of white type crossing each other. Carrying it most of the way up settles
+ * that without flattening the scene: the top third is untouched, and what is
+ * under the cards is dark enough to read anything against.
+ */
+.ending-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg,
+    oklch(0.14 0.05 265 / 94%) 0%,
+    oklch(0.14 0.05 265 / 82%) 38%,
+    oklch(0.14 0.05 265 / 40%) 72%,
+    transparent 100%);
+}
+.ending-body {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(0.5rem, 1.4cqh, 0.9rem);
+  padding: 0 clamp(1.25rem, 4cqw, 3.5rem) clamp(1.25rem, 4cqh, 2.5rem);
+  color: oklch(1 0 0);
+}
+/*
+ * Four prompts over a picture are not self-evidently a prompt: they could
+ * as easily be part of the response. Two words settle it.
+ */
+.ending-label {
+  margin: 0;
+  font-size: clamp(var(--vs-text-footnote), 1.1cqw, var(--vs-text-subhead));
+  line-height: var(--vs-lead-footnote);
+  letter-spacing: var(--vs-track-footnote);
+  font-weight: 600;
+  color: oklch(1 0 0 / 78%);
+  /* The wash carries it on almost every frame; this carries it on the bright
+     ones, where a closing shot can be near-white behind two small words. */
+  text-shadow: 0 1px 3px oklch(0.14 0.05 265 / 70%);
+}
+/* The rail is pushed to the foot of the welcome screen by the space above it;
+   here the layer is only as tall as its contents, so there is nothing to push
+   against and the auto margin would collapse the gap under the label. */
+.ending .cards { margin-top: 0; }
+/* Wider than the welcome's, because they are read rather than glanced at: the
+   welcome's four cards are an illustration of what the video chat does, where these
+   are four sentences someone is choosing between. */
+.ending .cards button { width: clamp(8rem, 15.5cqw, 12rem); }
+/* Under the row rather than centred on the frame. The welcome's cards fill a
+   portrait frame, so centred dots sit under them; in a 16:9 frame the row
+   stops well short of the right edge and centred dots float away from what
+   they belong to. */
+.ending .card-dots { align-self: flex-start; margin-left: -0.35rem; }
+
+/* --------------------------------------------------- history and settings */
+
+.sheet-popover {
+  position: absolute;
+  z-index: 30;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(26rem, calc(100% - 2rem));
+  max-height: 70%;
+  overflow-y: auto;
+  /* Even room around the rows inside, so the fills sit in the panel rather
+     than against its edge. */
+  padding: 0.4rem;
+  border-radius: var(--vs-radius-lg);
+  background: var(--vs-surface-pop);
+  color: var(--vs-fg);
+  border: 1px solid var(--vs-border);
+  backdrop-filter: blur(20px);
+  box-shadow: var(--vs-shadow-pop);
+  animation: rise 180ms ease both;
+}
+
+/* A gap between the rows, so two hover fills never touch: without it the
+   highlight on one row runs straight into the next and the two read as a block
+   rather than as separate things to press. */
+.history { display: grid; gap: 0.35rem; }
+.history button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 0;
+  border-radius: var(--vs-radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.history button:hover { background: var(--vs-surface-hover); }
+.history button.current { background: var(--vs-surface-selected); }
+.history button:disabled { opacity: 0.5; cursor: default; }
+.history .index { color: var(--vs-fg-muted); font-size: var(--vs-text-caption); line-height: var(--vs-lead-caption); font-variant-numeric: tabular-nums; }
+.history .prompt { font-size: var(--vs-text-body); line-height: var(--vs-lead-headline); letter-spacing: var(--vs-track-headline); font-weight: 500; }
+
+.settings { padding: 1rem 1.1rem 1.2rem; display: grid; gap: 1rem; }
+.settings-note { margin: 0; font-size: var(--vs-text-caption); line-height: var(--vs-lead-caption); color: var(--vs-fg-muted); }
+.settings fieldset { margin: 0; padding: 0; border: 0; display: grid; gap: 0.45rem; }
+.settings legend {
+  padding: 0 0 0.45rem;
+  font-size: var(--vs-text-footnote);
+  line-height: var(--vs-lead-footnote);
+  letter-spacing: var(--vs-track-footnote);
+  font-weight: 600;
+  color: var(--vs-fg-muted);
+}
+.settings label { display: flex; align-items: baseline; gap: 0.6rem; cursor: pointer; }
+.settings label span { display: grid; gap: 0.1rem; font-size: var(--vs-text-subhead); line-height: var(--vs-lead-subhead); letter-spacing: var(--vs-track-subhead); color: var(--vs-fg-muted); }
+.settings label strong { font-weight: 600; font-size: var(--vs-text-body); line-height: var(--vs-lead-headline); letter-spacing: var(--vs-track-headline); color: var(--vs-fg); }
+.settings input { accent-color: var(--vs-accent); margin: 0; }
+
+/* ----------------------------------------------------------------- panel */
+
+/*
+ * No line under the picture.
+ *
+ * A divider separates two things that would otherwise be confused, and these
+ * two are not: the subtitle is what the video is saying and the composer is how
+ * you respond to it. Drawing a rule between them cut the video off from its own
+ * voice, and gave the page a horizon it did not need - the picture is already a
+ * card with its own edges, floating on the page, so the page can simply
+ * continue underneath it.
+ */
+/* Grows into the space under the picture, and centres what it holds there. */
+.panel { display: grid; align-items: center; min-height: 0; background: var(--vs-bg); }
+.sheet, .settings, .history { color-scheme: inherit; }
+/*
+ * The bar's rhythm, on an 8px grid.
+ *
+ * The top is two steps, matching the two between the subtitle and the field,
+ * so the cue sits centred in the space under the picture rather than pinned to
+ * its underside. The bottom is two steps as well, because that edge is the
+ * window rather than a neighbour, and a control resting on the frame reads as
+ * unfinished; Apple's own content margins sit at 16 on a phone and 20 on a
+ * desktop, and this follows them.
+ */
+.panel-inner {
+  display: grid;
+  /* Two steps between the subtitle and the field: the subtitle belongs to the
+     picture above it, not to the control below, and at one step a two-line cue
+     nearly touched the composer. The row's own margin supplies the other. */
+  gap: 0.5rem;
+  width: var(--vs-column);
+  margin: 0 auto;
+  /* Equal air above and below the subtitle, so it reads as centred in the
+     space between the picture and the composer rather than hanging off the
+     picture. The top used to be one step against two below, which put the
+     cue visibly nearer the video. The full margin at the bottom stays: that
+     edge is the window, not a neighbour. */
+  padding: 1rem var(--vs-side) max(1rem, env(safe-area-inset-bottom));
+}
+@media (min-width: 900px) {
+  .app { --vs-side: 1.5rem; }
+  .stage-area { padding: 2.5rem var(--vs-side) 0; }
+  .panel-inner { padding: 1rem var(--vs-side) 1.25rem; }
+}
+
+/* Two lines' worth, always, once a session exists: most cues are one line and
+   some are two, and the bar must not resize between them. */
+.line-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  /* Exactly two lines, and no padding of its own. The subtitle belongs to the
+     picture, so the space around it is the panel's to give. */
+  min-height: calc(2 * var(--vs-text-body) * var(--vs-lead-body));
+  margin-bottom: 0.5rem;
+}
+
+/*
+ * The subtitle. One line, changed by the player's own scene change and by
+ * nothing else - there is no timer advancing it anywhere.
+ */
+.line {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  /* Two lines, like any subtitle. Reserving room for the longest cue only
+     works until a longer one arrives, and on a phone a sentence that is two
+     lines wide is three lines tall. Clamping makes the slot the same size at
+     every width and for every line; the whole sentence is in the sheet. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--vs-text-body);
+  line-height: var(--vs-lead-body);
+  letter-spacing: var(--vs-track-body);
+  color: var(--vs-fg);
+  animation: fade-in 320ms ease both;
+}
+
+@keyframes sweep { from { background-position: 140% 0; } to { background-position: -40% 0; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+.full-response {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.1rem;
+  border: 0;
+  background: none;
+  color: var(--vs-fg-muted);
+  font: inherit;
+  font-size: var(--vs-text-footnote);
+  line-height: var(--vs-lead-footnote);
+  letter-spacing: var(--vs-track-footnote);
+  font-weight: 500;
+  cursor: pointer;
+}
+.full-response:hover { color: var(--vs-fg); }
+
+/* -------------------------------------------------------------- composer */
+
+/*
+ * Lifted off the page rather than sunk into it.
+ *
+ * A field filled with a grey a shade darker than its surroundings reads as a
+ * slot something goes in. Raising it - a white ground, a hairline, and a
+ * shadow soft enough to be felt rather than seen - reads as the one thing on
+ * the screen you are meant to use, which is what it is.
+ *
+ * A pill, because at one line that is what it is; it becomes a stadium as the
+ * prompt grows past a line, which is the same shape doing the same job.
+ */
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: 3.5rem;
+  padding: 0.35rem 0.4rem 0.35rem 1.25rem;
+  border: 1px solid var(--vs-border);
+  border-radius: var(--vs-radius-pill);
+  background: var(--vs-surface-input);
+  box-shadow: var(--vs-shadow-input);
+  transition: border-color var(--vs-duration) ease, box-shadow var(--vs-duration) ease;
+}
+/* The whole field reads as focused, so the ring is on the box rather than on
+   the textarea inside it - which is what makes a composer look like one
+   control instead of three. */
+.composer:focus-within {
+  border-color: var(--vs-focus);
+  box-shadow: 0 0 0 1px var(--vs-focus), var(--vs-shadow-input);
+}
+.composer textarea:focus-visible { outline: none; }
+.composer textarea {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: 8rem;
+  padding: 0.55rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--vs-text-body);
+  line-height: var(--vs-lead-body);
+  letter-spacing: var(--vs-track-body);
+  resize: none;
+  field-sizing: content;
+}
+.composer textarea:focus { outline: none; }
+.composer textarea::placeholder { color: var(--vs-fg-muted); }
+
+.ghost {
+  display: grid;
+  place-items: center;
+  width: var(--vs-touch);
+  height: var(--vs-touch);
+  border: 0;
+  border-radius: var(--vs-radius-pill);
+  background: none;
+  color: var(--vs-fg-muted);
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: color var(--vs-duration) ease, transform var(--vs-duration) ease;
+}
+.ghost:hover:not(:disabled) { color: var(--vs-fg); }
+.ghost:active:not(:disabled) { transform: scale(0.95); }
+.ghost:disabled { opacity: 0.35; cursor: default; }
+/* The transport and the mic are a pair, so they are the same size and the same
+   weight and sit next to each other rather than being spaced like two
+   unrelated controls. */
+/* Listening has to be unmistakable: it is a state the person put the page in
+   deliberately, and a slightly different icon colour is not a response to "is
+   it hearing me?". */
+/*
+ * Even spacing measured in ink, not in boxes.
+ *
+ * All three controls are the same 44px square, so equal margins between them
+ * ought to look equal - and do not. The send button fills its box; a ghost
+ * paints a twelve-pixel glyph in the middle of one and leaves the sixteen
+ * pixels around it empty. Equal margins therefore put 38px of visible space
+ * between the two ghosts and 22px between the mic and the send, which is why
+ * the transport looked stranded on the left. The eye measures the gap between
+ * the marks, so the marks are what these numbers even out: the ghosts sit
+ * flush, their own padding supplying the gap, and the send is pushed off by
+ * roughly the padding it does not have.
+ */
+.composer .ghost + .ghost { margin-left: 0; }
+.composer .ghost + .send { margin-left: 0.95rem; }
+
+.ghost.listening {
+  color: var(--vs-accent-fg);
+  background: var(--vs-voice);
+}
+
+.send {
+  display: grid;
+  place-items: center;
+  width: var(--vs-touch);
+  height: var(--vs-touch);
+  border: 0;
+  border-radius: var(--vs-radius-pill);
+  /* A flat fill. The gradient-plus-glow it replaces is the tell of a button
+     designed to look impressive rather than to be pressed - and here the only
+     saturated thing on the page should be the video. */
+  background: var(--vs-accent);
+  color: var(--vs-accent-fg);
+  cursor: pointer;
+  transition: opacity var(--vs-duration) ease, transform var(--vs-duration) ease;
+}
+.send:hover:not(:disabled) { background: var(--vs-accent-deep); }
+.send:active:not(:disabled) { transform: scale(0.95); }
+.send:disabled { background: var(--vs-surface-selected); color: var(--vs-fg-muted); cursor: default; }
+
+/* The voice, where the way to interrupt it is. */
+.waveform { display: flex; align-items: center; gap: 3px; height: 1rem; flex: 0 0 auto; }
+.waveform span { width: 2px; height: 100%; border-radius: var(--vs-radius-pill); background: var(--vs-voice); transform: scaleY(0.2); opacity: 0.6; }
+.waveform.on span { opacity: 1; animation-name: wave; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+@keyframes wave { 0%, 100% { transform: scaleY(0.25); } 50% { transform: scaleY(1); } }
+/* While the mic is open the bars are yours, not the video chat's, so they move
+   faster and wear the accent that says "this is you". */
+.waveform.hearing span { background: var(--vs-voice); animation-duration: 420ms !important; }
+
+/* ------------------------------------------------------------------ sheet */
+
+.sheet-layer { position: fixed; inset: 0; z-index: 40; }
+.scrim { position: absolute; inset: 0; width: 100%; border: 0; background: oklch(0.08 0.015 300 / 55%); backdrop-filter: blur(4px); cursor: default; }
+.sheet {
+  position: absolute;
+  inset: auto 0 0;
+  width: min(48rem, 100%);
+  max-height: 82dvh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-top: 1px solid var(--vs-border);
+  border-radius: var(--vs-radius-lg) var(--vs-radius-lg) 0 0;
+  background: var(--vs-bg);
+  animation: slide-up var(--vs-duration-slow) var(--vs-ease) both;
+}
+@keyframes slide-up { from { transform: translateY(100%); } to { transform: none; } }
+.sheet header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; padding: 1.1rem 1.25rem 0; }
+.sheet h1 { margin: 0; font-size: var(--vs-text-title3); line-height: var(--vs-lead-title3); letter-spacing: var(--vs-track-title3); font-weight: 600; }
+.sheet .round { background: var(--vs-surface-raised); color: var(--vs-fg-muted); flex: 0 0 auto; }
+.sheet-body { overflow-y: auto; padding: 0.75rem 1.25rem 2rem; }
+.sheet-body p { margin: 0 0 1rem; font-size: var(--vs-text-body); line-height: 1.6; letter-spacing: var(--vs-track-body); color: var(--vs-fg); }
+.sheet-body p:first-child { color: var(--vs-fg); }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Everything that moves, in one place. The drifting ground and the sweeping
+     step line are decoration; the sheet and popovers still appear, they just
+     appear rather than travel. */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .asked-step { color: var(--vs-on-media); -webkit-text-fill-color: currentColor; }
+}
+
+/* ----------------------------------------------------------- the scenes */
+/* A template owns its own frame. */
+.scene { width: 100%; height: 100%; display: grid; place-content: center; gap: 1rem; padding: 3rem; box-sizing: border-box; text-align: center; }
+.scene h1 { margin: 0; font-size: 3rem; line-height: 1.1; }
+.scene h2 { margin: 0; font-size: 1.5rem; font-weight: 500; opacity: 0.75; }
+.steps ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.75rem; font-size: 1.7rem; }
+.figure strong { font-size: 5rem; }
+.figure span { opacity: 0.7; }
+.scene.media { position: relative; overflow: hidden; align-content: end; justify-items: start; text-align: left; }

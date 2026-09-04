@@ -70,9 +70,15 @@ function verifySource() {
   // Executable examples pin the artifact under review. Human and agent guides
   // intentionally use npm's current stable release and package-relative links,
   // so a release never rewrites onboarding copy solely to update a version.
-  for (const example of ["react-vite", "server-integrations", "nextjs-quickstart"]) {
-    const manifest = readJson(join(root, "examples", example, "package.json"));
-    assertEqual(manifest.dependencies?.[expectedPackage], version, `${example} SDK dependency`);
+  const executableConsumers = [
+    { name: "react-vite", path: join("examples", "react-vite") },
+    { name: "video-chat", path: join("starters", "video-chat") },
+    { name: "server-integrations", path: join("examples", "server-integrations") },
+    { name: "nextjs-quickstart", path: join("examples", "nextjs-quickstart") },
+  ];
+  for (const consumer of executableConsumers) {
+    const manifest = readJson(join(root, consumer.path, "package.json"));
+    assertEqual(manifest.dependencies?.[expectedPackage], version, `${consumer.name} SDK dependency`);
   }
 
   const releaseNotes = releaseNotesFor(readFileSync(join(root, "CHANGELOG.md"), "utf8"), version);
