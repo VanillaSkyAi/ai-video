@@ -255,6 +255,7 @@ describe("release workflow", () => {
     expect(example.dependencies.react).toMatch(/^\^19\./);
     expect(example.dependencies["react-dom"]).toMatch(/^\^19\./);
     expect(reactCompatibility).toContain("react: [18]");
+    expect(reactCompatibility).toContain("npm install --no-audit --no-save --package-lock=false");
     expect(reactCompatibility).toContain("react@${{ matrix.react }}.3.1");
     expect(reactCompatibility).toContain("react-dom@${{ matrix.react }}.3.1");
     expect(reactCompatibility).toContain("@types/react@18.3.28");

@@ -164,7 +164,7 @@ jobs:
       - name: Install the locked npm CLI
         run: npm install --global npm@11.17.0
       - run: npm ci --no-audit
-      - run: npm install --no-save --package-lock=false react@${{ matrix.react }}.3.1 react-dom@${{ matrix.react }}.3.1 @types/react@18.3.28 @types/react-dom@18.3.7
+      - run: npm install --no-audit --no-save --package-lock=false react@${{ matrix.react }}.3.1 react-dom@${{ matrix.react }}.3.1 @types/react@18.3.28 @types/react-dom@18.3.7
       - run: npm run typecheck
       - run: npm test -- tests/react.test.tsx tests/player.test.tsx tests/template-kit.test.tsx tests/templates.test.tsx
       - run: npm run build
