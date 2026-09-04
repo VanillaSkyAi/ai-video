@@ -24,7 +24,14 @@ describe("public API", () => {
 
   it("exposes one obvious React path", async () => {
     const api = await import("../src/react");
-    expect(Object.keys(api).sort()).toEqual(["VideoError", "VideoPlayer", "useNarration", "useVideo"]);
+    expect(Object.keys(api).sort()).toEqual([
+      "VideoError",
+      "VideoPlayer",
+      "createVideoChatVoice",
+      "useNarration",
+      "useVideo",
+      "useVideoChat",
+    ]);
     const error = new api.VideoError("safe", { code: "video_failed" });
     expect(error).not.toHaveProperty("cause");
     // @ts-expect-error Raw internal causes are not part of the browser-safe public error API.

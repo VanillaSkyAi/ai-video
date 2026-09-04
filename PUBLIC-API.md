@@ -99,7 +99,11 @@ provider-neutral text-delta escape hatch.
 ### Types
 
 - `VideoChatCapabilities`
+- `VideoChatConversationTurn`
 - `VideoChatHandlerOptions`
+- `VideoChatMode`
+- `VideoChatWelcomeOptions`
+- `VideoChatWelcomePrompt`
 - `VideoHandlerOptions`
 - `MediaResolver`
 - `MediaResolverContext`
@@ -169,17 +173,54 @@ templates and browser speech remain available.
 
 ### Values
 
+- `useVideoChat(options?)`
+- `createVideoChatVoice(options?)`
 - `useVideo(options?)`
 - `VideoPlayer`
 - `VideoError`
 
 ### Types
 
+- `UseVideoChatOptions`
+- `UseVideoChatResult`
+- `VideoChatTurn`
+- `VideoChatStatus`
+- `VideoChatMode`
+- `VideoChatCapabilities`
+- `VideoChatWelcome`
+- `VideoChatSuggestion`
+- `VideoChatMedia`
+- `VideoChatVoice`
+- `VideoChatPreparedSpeech`
+- `CreateVideoChatVoiceOptions`
 - `UseVideoOptions`
 - `UseVideoResult`
 - `VideoPlaybackMode`
 - `VideoPlayerProps`
 - `VideoErrorOptions`
+
+`useVideoChat` is the opinionated client for `createVideoChatHandler`. It owns
+the conversation lifecycle and returns UI-neutral state plus a spread-ready
+player binding:
+
+```tsx
+const chat = useVideoChat();
+
+await chat.ask("Tell me a tiny mystery set on a night train");
+
+return chat.playerProps
+  ? <VideoPlayer key={chat.playerKey} {...chat.playerProps} />
+  : null;
+```
+
+The hook loads capabilities and welcome suggestions, sends completed turns as
+bounded context, cancels replaced prompts, retries once only before playback,
+paces each scene to its prepared speech, and keeps pause, mute, replay, history,
+captions, and actual playback completion synchronized. The default voice tries
+the handler's generated-speech action and falls back to browser speech. Pass a
+`VideoChatVoice` to replace it without rebuilding session orchestration.
+Each `VideoChatTurn` exposes `completed`, so partial or cancelled responses can
+remain visible without being mistaken for conversation context.
 
 `UseVideoResult` has this conceptual shape:
 

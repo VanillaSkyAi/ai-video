@@ -12,7 +12,6 @@ describe("video chat starter", () => {
       "server.ts",
       "vite.config.ts",
       "src/main.tsx",
-      "src/generate-response.ts",
       "src/welcome.tsx",
     ];
     const source = files
@@ -48,8 +47,6 @@ describe("video chat starter", () => {
     const config = readFileSync(join(starterRoot, "vite.config.ts"), "utf8");
     const client = [
       "src/main.tsx",
-      "src/generate-response.ts",
-      "src/spoken-voice.ts",
       "src/use-voice-input.ts",
       "src/welcome.tsx",
     ].map((file) => readFileSync(join(starterRoot, file), "utf8")).join("\n");
@@ -60,54 +57,20 @@ describe("video chat starter", () => {
     expect(config).toContain('request.once("aborted"');
     expect(config).toContain('includes("text/event-stream")');
     expect(client).not.toMatch(/\/api\/(?:response|narration|suggestions|speech|opening|transcribe|welcome)/);
-    expect(client).toContain("/api/video-chat?action=response");
+    expect(client).toContain("useVideoChat");
+    expect(client).not.toContain("createSceneTimeline");
+    expect(client).not.toContain("useNarration");
+    expect(client).not.toContain("createSpokenVoice");
     expect(server).toContain("async ({ text, signal })");
     expect(server).toContain("abortSignal: signal");
     expect(server).not.toContain("JSON.stringify(detail)");
   });
-});
 
-describe("video chat browser voice fallback", () => {
-  it("prepares and speaks when generated speech is unavailable", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("missing", { status: 404 })));
-    const speak = vi.fn((utterance: { onend?: () => void }) => utterance.onend?.());
-    vi.stubGlobal("speechSynthesis", { speak, cancel: vi.fn(), pause: vi.fn(), resume: vi.fn() });
-    vi.stubGlobal("SpeechSynthesisUtterance", class {
-      rate = 1;
-      onend?: () => void;
-      onerror?: () => void;
-      constructor(public text: string) {}
-    });
+  it("only enables replay and history for completed responses", () => {
+    const client = readFileSync(join(starterRoot, "src/main.tsx"), "utf8");
 
-    const { createSpokenVoice } = await import("../starters/video-chat/src/spoken-voice");
-    const voice = createSpokenVoice();
-    const prepared = await voice.prepare("A short spoken response.");
-
-    expect(prepared?.seconds).toBeGreaterThan(0);
-    await voice.speak("A short spoken response.", { signal: new AbortController().signal });
-    expect(speak).toHaveBeenCalledOnce();
-
-    vi.unstubAllGlobals();
-  });
-
-  it("cancels generated speech preparation with its prompt", async () => {
-    let requestSignal: AbortSignal | undefined;
-    vi.stubGlobal("fetch", vi.fn((_input: string, init?: RequestInit) => {
-      requestSignal = init?.signal as AbortSignal | undefined;
-      return new Promise<Response>((_resolve, reject) => {
-        requestSignal?.addEventListener("abort", () => reject(requestSignal?.reason), { once: true });
-      });
-    }));
-    const { createSpokenVoice } = await import("../starters/video-chat/src/spoken-voice");
-    const voice = createSpokenVoice();
-    const controller = new AbortController();
-    const preparing = voice.prepare("A line that gets replaced.", controller.signal);
-
-    controller.abort(new DOMException("Prompt replaced", "AbortError"));
-
-    await expect(preparing).rejects.toMatchObject({ name: "AbortError" });
-    expect(requestSignal?.aborted).toBe(true);
-    vi.unstubAllGlobals();
+    expect(client).toContain("shown?.completed && shown.video");
+    expect(client).toContain("disabled={!turn.completed || !turn.video}");
   });
 });
 

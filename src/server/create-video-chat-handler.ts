@@ -18,6 +18,21 @@ import {
   VIDEO_CHAT_OPENING_PROMPT,
   VIDEO_CHAT_SUGGESTIONS_PROMPT,
 } from "./video-chat-prompts.js";
+import type {
+  VideoChatCapabilities,
+  VideoChatConversationTurn,
+  VideoChatMode,
+  VideoChatWelcomeOptions,
+  VideoChatWelcomePrompt,
+} from "../video-chat/types.js";
+
+export type {
+  VideoChatCapabilities,
+  VideoChatConversationTurn,
+  VideoChatMode,
+  VideoChatWelcomeOptions,
+  VideoChatWelcomePrompt,
+} from "../video-chat/types.js";
 
 const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
 const DEFAULT_MAX_AUDIO_BYTES = 8 * 1024 * 1024;
@@ -25,17 +40,11 @@ const MAX_PROMPT_CHARACTERS = 8_000;
 const MAX_CONVERSATION_TURNS = 12;
 const MAX_CONVERSATION_RESPONSE_CHARACTERS = 8_000;
 
-export type VideoChatMode = "templates" | "some" | "full";
 export type VideoChatTextTask =
   | "opening"
   | "opening-continuation"
   | "narration"
   | "suggestions";
-
-export interface VideoChatConversationTurn {
-  prompt: string;
-  response?: string;
-}
 
 export interface VideoChatTextContext {
   task: VideoChatTextTask;
@@ -88,25 +97,6 @@ export type VideoChatMediaResolver = (
   query: string,
   context: VideoChatMediaContext,
 ) => ResolvedMedia | null | Promise<ResolvedMedia | null>;
-
-export interface VideoChatWelcomePrompt {
-  prompt: string;
-  mediaQuery?: string;
-}
-
-export interface VideoChatWelcomeOptions {
-  heroQuery?: string;
-  prompts?: readonly VideoChatWelcomePrompt[];
-}
-
-export interface VideoChatCapabilities {
-  templates: true;
-  generatedSpeech: boolean;
-  generatedVideo: boolean;
-  stockMedia: boolean;
-  transcription: boolean;
-  modes: VideoChatMode[];
-}
 
 export interface VideoChatHandlerOptions extends Omit<
   VideoHandlerOptions,

@@ -12,16 +12,15 @@ import { selectPackedArtifact } from "./lib/release-integrity.mjs";
 
 export const PACKED_SIZE_BUDGET = 1_250_000;
 export const UNPACKED_SIZE_BUDGET = 5_000_000;
-// Set against a measured graph of 37,983 bytes, which had left 17 bytes before
-// the reserve - so any addition at all failed, including a single optional
-// schema field. Raised once, deliberately, rather than nudged each time
-// something bumps into it: 48,000 is roughly a quarter of room over today's
-// graph, enough that a feature is weighed on its merits and a careless import
-// still trips the gate.
+// The provider-neutral video-chat session intentionally raised the measured
+// graph from 37,983 to 62,129 bytes: the React entry now owns streamed planning,
+// conversation state, voice preparation, replay, and cancellation instead of
+// making every application copy them. 72,000 keeps nearly 10 KB over that
+// measurement while still catching an accidental eager renderer import.
 //
 // This is a ratchet, not a safety limit. Raise it only with a measurement and a
 // reason, never to get a build green.
-export const INITIAL_CLIENT_GZIP_BUDGET = 48_000;
+export const INITIAL_CLIENT_GZIP_BUDGET = 72_000;
 export const TEST_KIT_GZIP_BUDGET = 50_000;
 export const LOADED_TEST_KIT_GZIP_BUDGET = 60_000;
 export const ENTRY_GZIP_HEADROOM = 5_000;
