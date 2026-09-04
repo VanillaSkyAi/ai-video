@@ -60,6 +60,10 @@ function parsePlanLine(line: string) {
       const planPart = { ...object };
       const repairedScene = { ...scene as Record<string, unknown> };
       let repaired = false;
+      if (object.placement != null && object.placement !== "closer") {
+        delete planPart.placement;
+        repaired = true;
+      }
       if (object.timing != null && !("timing" in scene)) {
         repairedScene.timing = object.timing;
         delete planPart.timing;
