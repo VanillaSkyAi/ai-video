@@ -55,6 +55,9 @@ interface VideoPlayerSharedProps {
   paused?: boolean;
   /** Repeat the saved video and its soundtrack instead of showing the replay affordance. */
   loop?: boolean;
+  /** Fires once when the playhead reaches the end of a non-looping video. */
+  onPlaybackEnd?: (video: Video) => void;
+  /** Fires when a streamed response has finished composing. */
   onComplete?: (video: Video) => void;
   onError?: (error: Error) => void;
   /** Fires when the scene under the playhead changes, including on a loop wrap. */
@@ -66,11 +69,12 @@ export type VideoPlayerProps = VideoPlayerSharedProps & (
   | { stream?: AsyncIterable<VideoEvent>; video?: never; templates?: TemplateRegistry }
 );
 
-export interface VideoPlayerRuntimeProps extends Omit<VideoPlayerSharedProps, "onComplete" | "onError"> {
+export interface VideoPlayerRuntimeProps extends Omit<VideoPlayerSharedProps, "onComplete" | "onPlaybackEnd" | "onError"> {
   kit: PlayerTemplateRegistry;
   stream?: AsyncIterable<VideoEvent>;
   video?: Video;
   onComplete?: (state: VideoState) => void;
+  onPlaybackEnd?: (state: VideoState) => void;
   onError?: (error: Error, state: VideoState) => void;
   onStateChange?: (state: VideoState) => void;
 }

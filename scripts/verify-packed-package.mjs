@@ -554,7 +554,11 @@ declare const chatCapabilities: VideoChatCapabilities;
 declare const summary: VideoGenerationSummary;
 declare const usage: VideoProviderUsage;
 declare const warning: VideoWarning;
-const savedPlayer = createElement(VideoPlayer, { video, autoPlay: false });
+const savedPlayer = createElement(VideoPlayer, {
+  video,
+  autoPlay: false,
+  onPlaybackEnd: (completed) => { void completed.schemaVersion; },
+});
 const builtinId: BuiltinTemplateId = "bigNumber";
 const family: TemplateFamily = "Data & metrics";
 declare const builtinMetadata: BuiltinTemplateMetadata;
@@ -609,7 +613,13 @@ createRoot(document.getElementById("root")).render(mediaProbe
   ? createElement("main", { "data-case": "source-owned-media" },
       createElement(VideoPlayer, { video: mediaVideo, templates, autoPlay: true, startMuted: true, loop: true, width: 360 }))
   : createElement("main", null,
-      createElement(VideoPlayer, { video, templates, autoPlay: false, width: 360 }),
+      createElement(VideoPlayer, {
+        video,
+        templates,
+        autoPlay: false,
+        width: 360,
+        onPlaybackEnd: () => { globalThis.document.documentElement.dataset.playbackEnded = "true"; },
+      }),
       createElement("output", {
         id: "typed-error",
         "data-code": error.code,
@@ -674,6 +684,11 @@ createRoot(document.getElementById("root")).render(mediaProbe
     if (!mediaLoaded) throw new Error("Packed supplied-media reference image did not decode");
     await page.waitForSelector('[data-template-id="bigNumber"]', { timeout: 5_000 });
     await page.getByText("retention").waitFor({ timeout: 5_000 });
+    try {
+      await page.waitForFunction(() => globalThis.document.documentElement.dataset.playbackEnded === "true", undefined, { timeout: 5_000 });
+    } catch {
+      throw new Error("Packed playback-end callback did not fire");
+    }
     if (generationRequests !== 0) throw new Error("Packed saved replay called the generation endpoint");
     if (browserErrors.length > 0) throw new Error(`Packed consumer browser errors:\n${browserErrors.join("\n")}`);
 
