@@ -57,7 +57,7 @@ export function SuggestionCards({ suggestions, label, onAsk }: {
   suggestions: readonly VideoChatSuggestion[];
   /** Names the row for a screen reader; the cards themselves carry the words. */
   label: string;
-  onAsk: (prompt: string) => void;
+  onAsk: (suggestion: VideoChatSuggestion) => void;
 }) {
   const railRef = useRef<HTMLUListElement>(null);
   /**
@@ -128,7 +128,7 @@ export function SuggestionCards({ suggestions, label, onAsk }: {
           data-active={index === at ? "" : undefined}
           onFocus={() => take(index)}
           onPointerEnter={() => take(index)}
-          onClick={() => onAsk(card.prompt)}
+          onClick={() => onAsk(card)}
         >
           <Frame media={card.media} playing={index === at} />
           <span className="card-wash" aria-hidden="true" />

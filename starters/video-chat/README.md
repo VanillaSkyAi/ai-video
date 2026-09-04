@@ -31,11 +31,14 @@ Restart the development server after changing keys. Open
 
 ## How a response is made
 
-1. The SDK's `/api/video-chat` endpoint plans five visual beats and resolves optional media.
-2. The SDK's `VideoChat` component writes or accepts one spoken line for each scene as it arrives.
-3. Its session engine prepares the voice before placing the scene on the timeline.
-4. The SDK holds the scene for the measured or estimated speech time.
-5. The SDK prepares four possible next prompts while playback continues.
+1. A fast text model writes one short spoken hook and a stock-footage keyword.
+2. A clicked welcome or follow-up card reuses its loaded footage immediately;
+   a typed prompt resolves the hook keyword through the optional stock provider.
+3. The SDK speaks that hook while the main model plans five visual beats.
+4. The opening footage loops or holds until the first planned scene and its
+   voice are ready, then the response timeline takes over without a blank gap.
+5. The SDK holds every planned scene for its measured or estimated speech time
+   and prepares four possible next prompts while playback continues.
 
 The text model is the only required provider. Generated speech, transcription,
 stock media, and generated video are independent upgrades and never prevent a
@@ -54,4 +57,5 @@ video provider is configured.
 
 The provider names its own model. Override the tested defaults with
 `ANTHROPIC_PLANNER_MODEL`, `ANTHROPIC_NARRATION_MODEL`, `ANTHROPIC_OPENING_MODEL`,
-or `FAL_VIDEO_MODEL` when needed.
+or `FAL_VIDEO_MODEL` when needed. The opening defaults to Haiku so this first
+hook stays off the critical path as much as possible.

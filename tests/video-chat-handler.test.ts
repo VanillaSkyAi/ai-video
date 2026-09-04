@@ -78,6 +78,7 @@ describe("createVideoChatHandler", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         prompt: "Invent a playful bedtime story about a moonlit bakery",
+        spokenHook: "Tonight, one impossible loaf is about to change this tiny bakery.",
         mode: "templates",
         orientation: "landscape",
         conversation: [{ prompt: "Make it whimsical", response: "We chose a tiny fox hero." }],
@@ -95,6 +96,44 @@ describe("createVideoChatHandler", () => {
     expect(userPrompt).toContain("Invent a playful bedtime story");
     expect(userPrompt).toContain("Make it whimsical");
     expect(userPrompt).toContain("tiny fox hero");
+    expect(userPrompt).toContain("OPENING ALREADY SPOKEN");
+    expect(userPrompt).toContain("one impossible loaf");
+  });
+
+  it("creates a short opening hook and resolves its stock background separately", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    const mediaCalls: Array<{ query: string; purpose: string }> = [];
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      streamText: plannedResponse(),
+      generateText: async ({ task }: { task: string }) => task === "opening"
+        ? '```json\n{"hook":"The Moon turns too—it simply keeps perfect pace.","keyword":"moon orbit earth"}\n```'
+        : "unused",
+      searchMedia: async (query: string, { purpose }: { purpose: string }) => {
+        mediaCalls.push({ query, purpose });
+        return { url: "https://media.example/moon.mp4", type: "video" };
+      },
+    });
+
+    const opening = await handler(new Request("https://app.example/api/video-chat?action=opening", {
+      method: "POST",
+      body: JSON.stringify({ prompt: "Why does the Moon always show one face?" }),
+    }));
+    expect(await opening.json()).toEqual({
+      line: "The Moon turns too—it simply keeps perfect pace.",
+      keyword: "moon orbit earth",
+    });
+    expect(mediaCalls).toEqual([]);
+
+    const media = await handler(new Request("https://app.example/api/video-chat?action=opening-media", {
+      method: "POST",
+      body: JSON.stringify({ keyword: "moon orbit earth", orientation: "landscape" }),
+    }));
+    expect(await media.json()).toEqual({
+      media: { url: "https://media.example/moon.mp4", type: "video" },
+    });
+    expect(mediaCalls).toEqual([{ query: "moon orbit earth", purpose: "response" }]);
   });
 
   it("keeps generated-video spend limits on the server", async () => {

@@ -84,9 +84,11 @@ npm run dev
 ```
 
 Open the reported localhost URL. Try one explanatory question and one unrelated
-creative request in the same conversation. Confirm each response starts before
-the full plan is complete, speaks, reaches its final frame, and leaves the
-composer ready for another turn.
+creative request in the same conversation. Confirm each response starts with a
+spoken hook before the full plan is complete, holds its opening until the first
+scene is ready, reaches its final frame, and leaves the composer ready for
+another turn. With stock media enabled, click a welcome or follow-up card and
+confirm its footage carries directly into that opening.
 
 The generated local authorization accepts localhost only. Replace it with your
 real session check, rate limits, and usage policy before deploying.

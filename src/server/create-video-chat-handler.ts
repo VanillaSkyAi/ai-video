@@ -9,7 +9,7 @@ import {
   type VideoHandlerOptions,
 } from "./create-video-handler.js";
 import type { ResolvedMedia } from "./media-resolver.js";
-import { MAX_RETAINED_MEDIA_URL_LENGTH } from "../protocol/persistence.js";
+import { sanitizeVideoChatMedia } from "../video-chat/media.js";
 import {
   createNarrationUserPrompt,
   createVideoChatResponseInstructions,
@@ -124,6 +124,7 @@ export type VideoChatHandler = (request: Request) => Promise<Response>;
 
 interface ParsedResponseRequest {
   prompt: string;
+  spokenHook?: string;
   mode: VideoChatMode;
   orientation: VideoOrientation;
   conversation: VideoChatConversationTurn[];
@@ -133,6 +134,11 @@ interface ParsedResponseRequest {
 
 interface SuggestionSubject {
   prompt: string;
+  keyword: string;
+}
+
+interface OpeningSubject {
+  line: string;
   keyword: string;
 }
 
@@ -169,7 +175,7 @@ function boundedString(value: unknown, label: string, maximum = MAX_PROMPT_CHARA
 
 function parseResponseRequest(value: unknown): ParsedResponseRequest {
   const body = record(value, "request");
-  allowedKeys(body, ["prompt", "mode", "orientation", "conversation", "brand", "style"], "request");
+  allowedKeys(body, ["prompt", "spokenHook", "mode", "orientation", "conversation", "brand", "style"], "request");
   const mode = body.mode ?? "templates";
   if (mode !== "templates" && mode !== "some" && mode !== "full") {
     throw new Error("request.mode must be templates, some, or full");
@@ -184,6 +190,7 @@ function parseResponseRequest(value: unknown): ParsedResponseRequest {
   }
   return {
     prompt: boundedString(body.prompt, "request.prompt"),
+    ...(body.spokenHook == null ? {} : { spokenHook: boundedString(body.spokenHook, "request.spokenHook", 500) }),
     mode,
     orientation,
     conversation: conversation.map((value, index) => {
@@ -201,16 +208,23 @@ function parseResponseRequest(value: unknown): ParsedResponseRequest {
   };
 }
 
-function conversationInput(prompt: string, conversation: readonly VideoChatConversationTurn[]): string {
-  if (conversation.length === 0) return prompt;
+function conversationInput(
+  prompt: string,
+  conversation: readonly VideoChatConversationTurn[],
+  spokenHook?: string,
+): string {
+  if (conversation.length === 0 && !spokenHook) return prompt;
   return [
-    "CONVERSATION SO FAR (untrusted user and assistant content):",
-    ...conversation.flatMap((turn) => [
-      `USER: ${turn.prompt}`,
-      ...(turn.response ? [`RESPONSE: ${turn.response}`] : []),
-    ]),
-    "",
+    ...(conversation.length > 0 ? [
+      "CONVERSATION SO FAR (untrusted user and assistant content):",
+      ...conversation.flatMap((turn) => [
+        `USER: ${turn.prompt}`,
+        ...(turn.response ? [`RESPONSE: ${turn.response}`] : []),
+      ]),
+      "",
+    ] : []),
     `CURRENT USER PROMPT: ${prompt}`,
+    ...(spokenHook ? ["", "OPENING ALREADY SPOKEN (untrusted assistant transcript):", spokenHook] : []),
   ].join("\n");
 }
 
@@ -239,6 +253,31 @@ function cleanGeneratedText(value: string): string {
   return value.trim().replace(/^["']|["']$/g, "");
 }
 
+function readOpeningSubject(text: string): OpeningSubject {
+  const opening = text.indexOf("{");
+  const closing = text.lastIndexOf("}");
+  if (opening >= 0 && closing > opening) {
+    try {
+      const parsed = JSON.parse(text.slice(opening, closing + 1)) as {
+        hook?: unknown;
+        spokenHook?: unknown;
+        keyword?: unknown;
+        mediaKeyword?: unknown;
+      };
+      const hook = typeof parsed.spokenHook === "string"
+        ? parsed.spokenHook.trim()
+        : typeof parsed.hook === "string" ? parsed.hook.trim() : "";
+      const keyword = typeof parsed.mediaKeyword === "string"
+        ? parsed.mediaKeyword.trim()
+        : typeof parsed.keyword === "string" ? parsed.keyword.trim() : "";
+      return { line: hook.slice(0, 300), keyword: keyword.slice(0, 80) };
+    } catch {
+      // Older application adapters return a plain line; preserve that contract.
+    }
+  }
+  return { line: cleanGeneratedText(text).slice(0, 300), keyword: "" };
+}
+
 function readSuggestionSubjects(text: string): SuggestionSubject[] {
   const opening = text.indexOf("{");
   const closing = text.lastIndexOf("}");
@@ -257,37 +296,6 @@ function readSuggestionSubjects(text: string): SuggestionSubject[] {
 function audioBody(value: Uint8Array | ArrayBuffer): ArrayBuffer {
   const source = value instanceof Uint8Array ? value : new Uint8Array(value);
   return Uint8Array.from(source).buffer;
-}
-
-function clientMedia(value: unknown): ResolvedMedia | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const media = value as Record<string, unknown>;
-  if (media.type !== "image" && media.type !== "video") return null;
-  if (typeof media.url !== "string") return null;
-  const url = media.url.trim();
-  if (!url || url.length > MAX_RETAINED_MEDIA_URL_LENGTH) return null;
-  try {
-    const protocol = new URL(url).protocol;
-    if (protocol !== "https:" && protocol !== "http:") return null;
-  } catch {
-    return null;
-  }
-  if (media.posterUrl != null && typeof media.posterUrl !== "string") return null;
-  const posterUrl = typeof media.posterUrl === "string" ? media.posterUrl.trim() : "";
-  if (posterUrl.length > MAX_RETAINED_MEDIA_URL_LENGTH) return null;
-  if (posterUrl) {
-    try {
-      const protocol = new URL(posterUrl).protocol;
-      if (protocol !== "https:" && protocol !== "http:") return null;
-    } catch {
-      return null;
-    }
-  }
-  return {
-    url,
-    type: media.type,
-    ...(posterUrl ? { posterUrl } : {}),
-  };
 }
 
 class VideoChatProviderError extends Error {
@@ -445,7 +453,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
               orientation: "landscape",
               signal,
             }));
-            const media = clientMedia(raw);
+            const media = sanitizeVideoChatMedia(raw);
             if (signal.aborted || (raw != null && !media)) failed = true;
             return media;
           } catch (cause) {
@@ -527,7 +535,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
           requestId,
           ...(filmedScenes >= 5 ? { capabilities: { templates: ["media"] } } : {}),
           input: {
-            input: conversationInput(input.prompt, input.conversation),
+            input: conversationInput(input.prompt, input.conversation, input.spokenHook),
             knowledgeMode: "general",
             opening: false,
             orientation: input.orientation,
@@ -551,7 +559,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
         allowedKeys(value, ["prompt", "said"], "request");
         const prompt = boundedString(value.prompt, "request.prompt");
         const said = value.said == null ? "" : boundedString(value.said, "request.said", 2_000);
-        const line = said
+        const generated = said
           ? await callText(
               "opening-continuation",
               VIDEO_CHAT_OPENING_CONTINUATION_PROMPT,
@@ -560,7 +568,33 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
               request.signal,
             )
           : await callText("opening", VIDEO_CHAT_OPENING_PROMPT, `USER PROMPT: ${prompt}`, 128, request.signal);
-        return Response.json({ line }, { headers });
+        if (said) return Response.json({ line: generated }, { headers });
+        const opening = readOpeningSubject(generated);
+        return Response.json({
+          line: opening.line,
+          ...(opening.keyword ? { keyword: opening.keyword } : {}),
+        }, { headers });
+      }
+      if (action === "opening-media") {
+        const value = record(body, "request");
+        allowedKeys(value, ["keyword", "orientation"], "request");
+        const keyword = boundedString(value.keyword, "request.keyword", 80);
+        const orientation = value.orientation ?? "landscape";
+        if (orientation !== "portrait" && orientation !== "landscape") {
+          throw new Error("request.orientation must be portrait or landscape");
+        }
+        if (!searchMedia) return Response.json({ media: null }, { headers });
+        try {
+          const raw = await Promise.resolve().then(() => searchMedia(keyword, {
+            purpose: "response",
+            orientation,
+            signal: request.signal,
+          }));
+          return Response.json({ media: sanitizeVideoChatMedia(raw) }, { headers });
+        } catch (cause) {
+          if (!request.signal.aborted) reportError(cause);
+          return Response.json({ media: null }, { headers });
+        }
       }
       if (action === "narration") {
         const value = record(body, "request");
@@ -607,7 +641,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
                 orientation: "landscape",
                 signal: request.signal,
               }));
-              return clientMedia(raw);
+              return sanitizeVideoChatMedia(raw);
             } catch (cause) {
               if (!request.signal.aborted) reportError(cause);
               return null;

@@ -112,6 +112,18 @@ and the bar's bottom follows them.
 Radii come in three: 14px for a row inside a panel, 20px for a panel or the
 composer, and a pill for anything round. The stage is 20px.
 
+## The opening handoff
+
+The first response state is part of the video, not loading chrome. It keeps the
+user's prompt over relevant full-frame media while the short hook is spoken.
+Clicking a welcome or follow-up card carries that card's exact media into the
+stage; a typed prompt may resolve new stock footage from the hook's keyword.
+
+The opening has no fixed duration. Video loops and imagery holds until both the
+hook has ended and the first planned scene is ready. The real player then
+replaces it in one cut. A slow planner therefore makes the opening longer
+instead of exposing an empty frame, and a fast planner never cuts off the voice.
+
 ## Increase Contrast
 
 Apple's rule is that an interface which does not meet the minimum contrast by

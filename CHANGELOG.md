@@ -4,6 +4,13 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Starts each video-chat answer with a short spoken hook over relevant stock
+  footage, then holds that opening until the first planned scene is ready.
+  Welcome and follow-up cards reuse their already-loaded media immediately;
+  typed prompts resolve footage from the hook's bounded media keyword. The
+  planner receives the exact spoken hook so the response continues without
+  repeating or contradicting it.
+
 - Keeps key-only video chat clean in real browsers: planner catalogs now hide
   templates whose required media cannot be supplied, and unavailable generated
   speech switches to browser voice without repeated 404 responses.

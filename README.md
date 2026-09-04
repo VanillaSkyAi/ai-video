@@ -35,7 +35,7 @@ client:
 | --- | --- |
 | `XAI_API_KEY` | Generated speech |
 | `FAL_KEY` | Generated video and voice transcription |
-| `PEXELS_API_KEY` | Stock media |
+| `PEXELS_API_KEY` | Stock media, including opening backgrounds |
 
 `npx vanillasky doctor` reports readiness by key name and never prints values.
 Provider SDKs remain dependencies of the generated application, not the core

@@ -279,6 +279,13 @@
   background: radial-gradient(closest-side, oklch(1 0 0 / 28%), transparent 70%);
   animation: vanillasky-video-chat-drift 9s ease-in-out infinite alternate;
 }
+.vanillasky-video-chat .opening-wash {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at center, oklch(0.12 0.04 265 / 8%) 0%, oklch(0.12 0.04 265 / 42%) 100%),
+    linear-gradient(0deg, oklch(0.12 0.04 265 / 24%), oklch(0.12 0.04 265 / 24%));
+}
 @keyframes vanillasky-video-chat-drift {
   from { transform: translate3d(-12%, -8%, 0) scale(1); }
   to { transform: translate3d(14%, 10%, 0) scale(1.25); }

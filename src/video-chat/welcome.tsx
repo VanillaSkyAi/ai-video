@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { VideoChatWelcome } from "./types.js";
+import type { VideoChatSuggestion, VideoChatWelcome } from "./types.js";
 import { Frame, SuggestionCards } from "./suggestion-cards";
 
 /**
@@ -17,7 +17,7 @@ import { Frame, SuggestionCards } from "./suggestion-cards";
  */
 export function Welcome({ data, onAsk, title }: {
   data?: VideoChatWelcome;
-  onAsk: (prompt: string) => void;
+  onAsk: (suggestion: VideoChatSuggestion) => void;
   title?: ReactNode;
 }) {
   return <div className="welcome">

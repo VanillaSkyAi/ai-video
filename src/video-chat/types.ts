@@ -25,6 +25,11 @@ export interface VideoChatSuggestion {
   media: VideoChatMedia | null;
 }
 
+export interface VideoChatAskOptions {
+  /** Reuse already-loaded suggestion footage while the answer is prepared. */
+  openingMedia?: VideoChatMedia | null;
+}
+
 export interface VideoChatWelcome {
   hero: VideoChatMedia | null;
   cards: VideoChatSuggestion[];

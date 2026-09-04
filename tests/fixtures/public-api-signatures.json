@@ -531,7 +531,7 @@
           "type"
         ],
         "declaration": [
-          "interface UseVideoChatResult {\n    ask(prompt: string): Promise<Video | undefined>;\n    cancel(reason?: string): void;\n    pause(): void;\n    resume(): void;\n    replay(): void;\n    selectTurn(id: string): void;\n    reset(): void;\n    turns: readonly VideoChatTurn[];\n    currentTurn?: VideoChatTurn;\n    shownTurn?: VideoChatTurn;\n    capabilities?: VideoChatCapabilities;\n    welcome?: VideoChatWelcome;\n    availableModes: readonly VideoChatMode[];\n    status: VideoChatStatus;\n    error?: VideoError;\n    suggestions: readonly VideoChatSuggestion[];\n    caption?: string;\n    transcript: readonly string[];\n    speaking: boolean;\n    muted: boolean;\n    setMuted(muted: boolean): void;\n    playbackEnded: boolean;\n    playerKey: number;\n    playerProps?: VideoPlayerProps;\n}"
+          "interface UseVideoChatResult {\n    ask(prompt: string, options?: VideoChatAskOptions): Promise<Video | undefined>;\n    cancel(reason?: string): void;\n    pause(): void;\n    resume(): void;\n    replay(): void;\n    selectTurn(id: string): void;\n    reset(): void;\n    turns: readonly VideoChatTurn[];\n    currentTurn?: VideoChatTurn;\n    shownTurn?: VideoChatTurn;\n    capabilities?: VideoChatCapabilities;\n    welcome?: VideoChatWelcome;\n    availableModes: readonly VideoChatMode[];\n    status: VideoChatStatus;\n    error?: VideoError;\n    suggestions: readonly VideoChatSuggestion[];\n    caption?: string;\n    transcript: readonly string[];\n    speaking: boolean;\n    muted: boolean;\n    setMuted(muted: boolean): void;\n    playbackEnded: boolean;\n    playerKey: number;\n    playerProps?: VideoPlayerProps;\n}"
         ]
       },
       "UseVideoOptions": {
@@ -556,6 +556,14 @@
         ],
         "declaration": [
           "declare function VideoChat({ options, className, welcomeTitle }: VideoChatProps): react.JSX.Element;"
+        ]
+      },
+      "VideoChatAskOptions": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatAskOptions {\n    openingMedia?: VideoChatMedia | null;\n}"
         ]
       },
       "VideoChatCapabilities": {
@@ -619,7 +627,7 @@
           "type"
         ],
         "declaration": [
-          "interface VideoChatTurn {\n    id: string;\n    prompt: string;\n    completed: boolean;\n    opening?: string;\n    orientation: VideoOrientation;\n    fixedOrientation: boolean;\n    video?: Video;\n    suggestions: readonly VideoChatSuggestion[];\n}"
+          "interface VideoChatTurn {\n    id: string;\n    prompt: string;\n    completed: boolean;\n    opening?: string;\n    openingMedia?: VideoChatMedia;\n    orientation: VideoOrientation;\n    fixedOrientation: boolean;\n    video?: Video;\n    suggestions: readonly VideoChatSuggestion[];\n}"
         ]
       },
       "VideoChatVoice": {
