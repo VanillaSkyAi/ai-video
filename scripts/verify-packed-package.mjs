@@ -808,7 +808,7 @@ createRoot(document.getElementById("root")).render(createElement("main", null,
     if (startedPlayers !== 5) {
       throw new Error("React 19 transition players did not start synchronously");
     }
-    await page.clock.fastForward(450);
+    await page.clock.runFor(450);
     const transitionCase = page.locator('[data-case="transition"]');
     await transitionCase.locator('[data-scene-layer="outgoing"]').waitFor({ timeout: 4_000 });
     const outgoingProgress = await transitionCase.locator('[data-scene-layer="outgoing"] [data-probe]').evaluate((element) => ({
@@ -877,11 +877,7 @@ createRoot(document.getElementById("root")).render(createElement("main", null,
       || await transitionCase.locator("[data-layer-scene-id]").count() !== 2) {
       throw new Error("React 19 transition scene identity was duplicated or missing");
     }
-    const settledFinalSceneProgress = 0.85;
-    const probeSceneDurationMs = 600;
-    const observedPlaybackMs = outgoingProgress.raw * probeSceneDurationMs;
-    const settledPlaybackTargetMs = probeSceneDurationMs * (1 + settledFinalSceneProgress);
-    await page.clock.fastForward(Math.ceil(settledPlaybackTargetMs - observedPlaybackMs));
+    await page.clock.runFor(650);
     for (const id of ["undefined", "unknown", "isolated"]) {
       const progress = await page.locator(`[data-case="${id}"] [data-probe]`).evaluate((element) => ({
         raw: Number(element.getAttribute("data-progress")),

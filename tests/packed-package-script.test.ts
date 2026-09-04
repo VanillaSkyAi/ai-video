@@ -96,9 +96,9 @@ describe("packed package verification", () => {
     expect(script).toContain("incomingProgress.motion !== 0");
     expect(script).toContain("React 19 shared background incorrectly crossfaded scene layers");
     expect(script).toContain("React 19 shared background did not preserve native template motion");
-    expect(script).toContain("const settledFinalSceneProgress = 0.85");
-    expect(script).toContain("await page.clock.fastForward(Math.ceil(");
-    expect(script).not.toContain("await page.clock.fastForward(600)");
+    expect(script).toContain("await page.clock.runFor(450)");
+    expect(script).toContain("await page.clock.runFor(650)");
+    expect(script).not.toContain("page.clock.fastForward");
     expect(script).toContain("React 19 settled final scene did not preserve the readable hold frame");
     expect(script).toContain("settledProgress.motion !== 0.7");
     expect(script).toContain("Math.abs(progress.raw - progress.motion)");
