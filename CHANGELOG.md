@@ -4,6 +4,11 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Keeps video-chat responses running when a text provider labels an ordinary
+  scene with an unsupported placement hint. The provider adapter drops that
+  harmless hint while preserving `placement: "closer"` and strict protocol
+  validation.
+
 - Keeps `VideoChat` hydration stable when voice input exists only in the
   browser, and preserves provider warnings, usage, finish reasons, and model
   IDs while the chat opening is intercepted from the planner stream.

@@ -144,4 +144,25 @@ describe("text-delta planner", () => {
       scene: { narration: "This line should stay with the scene." },
     });
   });
+
+  it("drops a provider's body placement label from an otherwise valid scene", async () => {
+    const planner = createTextDeltaVideoPlanner({
+      streamText: async function* () {
+        yield '{"type":"scene.add","placement":"body","scene":{"id":"one","templateId":"notification","variables":{},"timing":{"fixedDuration":4}}}\n';
+        yield '{"type":"plan.complete"}\n';
+      },
+    });
+
+    const parts = [];
+    for await (const part of planner(context)) parts.push(part);
+    expect(parts[0]).toEqual({
+      type: "scene.add",
+      scene: {
+        id: "one",
+        templateId: "notification",
+        variables: {},
+        timing: { fixedDuration: 4 },
+      },
+    });
+  });
 });
