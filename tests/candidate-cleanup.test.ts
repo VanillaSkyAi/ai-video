@@ -83,6 +83,15 @@ describe("fresh 0.1 candidate cleanup", () => {
     expect(unapprovedSourceHits(markers)).toEqual([]);
   });
 
+  it("removes abandoned experiments and unused onboarding code", () => {
+    const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+    const firstShotSource = readFileSync(join(root, "src/video-chat/first-shot.ts"), "utf8");
+
+    expect(existsSync(join(root, "examples/rich-media-poc"))).toBe(false);
+    expect(manifest.devDependencies).not.toHaveProperty("mdast-util-from-markdown");
+    expect(firstShotSource).not.toContain("sanitizeVideoChatFirstShot");
+  });
+
   it("ships the reviewed docs and examples with only intentional runtime dependencies", () => {
     const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 

@@ -31,20 +31,12 @@ the optional template compiler.
 
 ## Obsolete code found
 
-### Remove without a product decision
+### Removed without changing the product
 
-1. **`examples/rich-media-poc/`** — 91 tracked files and 19,037 lines. Nothing
-   outside the directory references it, it is not shipped in the npm package,
-   and the root test and CI commands do not run it. It belongs to the previous
-   adaptive-channel and mixed-media exploration, not the video-chat product.
-2. **`mdast-util-from-markdown`** — declared development dependency with no
-   import anywhere in the repository.
-3. **`sanitizeVideoChatFirstShot`** — internal helper left behind when browser-
-   supplied first-shot data was removed. Keep the small internal type where it
-   is used and remove the unused sanitizer.
-4. **Merged local worktrees** — the workspace currently has 17 clean completed
-   worktrees in addition to the active one. They are not repository content;
-   prune them separately after confirming no process still uses them.
+The first cleanup deleted `examples/rich-media-poc/` (91 tracked files and
+19,037 lines), the unused `mdast-util-from-markdown` development dependency,
+and the unused `sanitizeVideoChatFirstShot` helper. None was shipped or reached
+by the canonical chat, root tests, or CI.
 
 ### Replace, then remove
 
@@ -91,10 +83,10 @@ freezes all six entry-point signatures.
 
 ## Improvement sequence
 
-### 1. Delete isolated dead weight
+### 1. Delete isolated dead weight — complete
 
-Remove the rich-media POC, unused dependency, and unused first-shot sanitizer.
-This is low risk and should be one PR with the full root suite and package gates.
+The rich-media POC, unused dependency, and unused first-shot sanitizer are gone.
+The cleanup is protected by the root suite and package gates.
 
 ### 2. Make every integration chat-shaped
 
