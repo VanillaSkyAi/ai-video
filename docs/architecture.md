@@ -7,22 +7,24 @@ embedded video that starts playing while it is still being composed.
 ## The shortest mental model
 
 ```text
-application context
+user message + conversation context
   → app-owned model
   → trusted scene plan
   → validation and streaming protocol
-  → embedded React player
+  → synchronized voice-and-video response
 ```
 
-VanillaSky does not choose your model, retrieve your application context, or
-generate executable UI code. It supplies the video-planning prompt, trusted
-visual vocabulary, validation, streaming lifecycle, and player.
+VanillaSky does not choose your model, retrieve private application context, or
+own your product policy. It supplies the complete default chat, video-planning
+prompts, trusted visual vocabulary, conversation and narration lifecycle,
+validation, streaming, and player.
 
 ## Repository map
 
 | Location | Purpose |
 | --- | --- |
-| `src/server/create-video-handler.ts` | Public server integration and provider adapter boundary |
+| `src/server/create-video-chat-handler.ts` | Complete chat endpoint and capability boundary |
+| `src/server/create-video-handler.ts` | Lower-level video composition and provider adapter boundary |
 | `src/server/prompts/` | System and user prompts sent to the app-owned model |
 | `src/server/model/` | Converts provider text deltas into typed video plan parts |
 | `src/protocol/` | Shared request, event, validation, checksum, and SSE contract |
@@ -51,19 +53,25 @@ prompt/validation registry in `vanillasky/server.ts`.
 
 ## Request flow
 
-1. `useVideo().generate(...)` sends grounded input and live application context
-   to the authenticated application route.
-2. `createVideoHandler(...)` builds the prompts and calls the application's
-   `streamText` adapter. This is where OpenAI, Anthropic, or another model is
-   connected.
-3. The system prompt combines the composition rules with the trusted template
+1. `VideoChat` uses `useVideoChat` to send the user's message, conversation
+   context, and selected mode to one authenticated application endpoint.
+2. `createVideoChatHandler(...)` owns chat actions, suggestions, narration,
+   capability discovery, and generated-video budgets. The application supplies
+   provider callbacks and policy.
+3. Video answers flow into `createVideoHandler(...)`, which calls the
+   application's `streamText` adapter. This is where Anthropic, OpenAI, or
+   another text model is connected.
+4. The system prompt combines the composition rules with the trusted template
    catalog, including generated metadata for customer-owned templates. The user
    prompt serializes the factual input, instructions,
    personalization, brand, and approved media.
-4. The model streams NDJSON plan parts. The server parses and validates complete
+5. The model streams NDJSON plan parts. The server parses and validates complete
    scenes before emitting versioned video events.
-5. The browser reduces those events into a deterministic `Video`; `VideoPlayer`
-   starts as soon as its first playable scene arrives.
+6. The browser reduces those events into a deterministic `Video`; playback and
+   narration start as soon as the first playable scene arrives.
+
+The lower-level `useVideo` and `VideoPlayer` path skips chat actions and remains
+available for explicit one-shot video response integrations.
 
 ## Where to change common behavior
 

@@ -4,6 +4,10 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Makes the complete voice-and-video chat the primary README, getting-started,
+  agent, provider, concepts, and architecture path. The one-shot composition
+  APIs remain documented as an advanced non-chat integration.
+
 - Adds `vanillasky init` and `vanillasky doctor`. Init creates the canonical
   thin video-chat app, installs its app-owned provider packages, starts with
   packaged templates and browser voice, and requests one server-only text key.

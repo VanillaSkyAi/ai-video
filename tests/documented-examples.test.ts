@@ -53,16 +53,37 @@ describe("documented examples", () => {
     expect(existsSync(evaluationPath)).toBe(true);
     const guide = readFileSync(guidePath, "utf8");
     const evaluation = readFileSync(evaluationPath, "utf8");
-    expect(guide).toContain("## Build the first response");
-    expect(guide).toContain("createVideoHandler");
-    expect(guide).toContain("useVideo()");
-    expect(guide).toContain("Never invent another provider");
+    expect(guide).toContain("## Set up the canonical chat");
+    expect(guide).toContain("npx vanillasky init");
+    expect(guide).toContain("npx vanillasky doctor");
+    expect(guide).toContain("npm run dev");
+    expect(guide).toContain("Never read or print a secret value");
     expect(guide).toContain(".env.local");
+    expect(guide).not.toMatch(/createVideoHandler|useVideo\(|<VideoPlayer/);
     expect(guide).not.toMatch(/101 demo|proof of concept|cold-start evaluation/i);
     expect(evaluation).toContain("Do not inspect SDK source");
     expect(evaluation).toContain("npm pack --silent --json");
     expect(readme).toContain("[Agent integration guide](docs/agent-integration.md)");
     expect(agentInstructions).toContain("docs/agent-integration.md");
+  });
+
+  it("makes video chat the one primary onboarding path", () => {
+    const paths = ["README.md", "docs/getting-started.md", "docs/agent-integration.md"];
+    for (const path of paths) {
+      const guide = readFileSync(resolve(root, path), "utf8");
+      expect(guide, path).toContain("npm install @vanillaskyai/video");
+      expect(guide, path).toContain("npx vanillasky init");
+      expect(guide, path).toContain("npx vanillasky doctor");
+      expect(guide, path).toContain("npm run dev");
+      expect(guide, path).toMatch(/templates.*browser voice/is);
+      expect(guide, path).not.toMatch(/\btutor|\blearner|\blesson|\beducation/i);
+    }
+
+    const gettingStarted = readFileSync(resolve(root, "docs/getting-started.md"), "utf8");
+    expect(gettingStarted).toContain("<VideoChat />");
+    expect(gettingStarted).not.toMatch(/createVideoHandler|useVideo\(|<VideoPlayer/);
+    const providerGuide = readFileSync(resolve(root, "docs/provider-integration.md"), "utf8");
+    expect(providerGuide.indexOf("npx vanillasky init")).toBeLessThan(providerGuide.indexOf("createVideoChatHandler"));
   });
 
   it("defines audio as a soundtrack and names narration as outside the 0.1 contract", () => {

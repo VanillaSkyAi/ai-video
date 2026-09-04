@@ -1,36 +1,45 @@
-# Give your AI a video output
+# Give your AI a voice and a face
 
-**VanillaSky is the open-source video response layer.** Turn text, structured
-data, and live application context into personalized video responses that start
-playing while your LLM composes them.
+**VanillaSky is the open-source voice-and-video chat layer.** Add a polished,
+general-purpose AI conversation that speaks and starts playing visual answers
+while they are still being composed.
 
 > **Status: Beta.** VanillaSky is pre-1.0 and its public API may change as we
 > test it in real applications. Pin an exact version before production use.
 
-Your application owns the model, data, authentication, provider keys, and
-branding. VanillaSky owns the planning prompt, trusted templates, validation,
-streaming, session, player, and an optional complete chat interface.
+Your application owns the providers, keys, authentication, persistence,
+branding, and product copy. VanillaSky owns the chat flow, planning prompts,
+trusted templates, validation, streaming, voice timing, and player.
 
-## See it first
-
-Generate a video in the browser, with no install and no API key, in the
-[playground](https://vanillasky.ai/playground/). The
-[website](https://vanillasky.ai/) has the overview and full
-[documentation](https://vanillasky.ai/docs/).
-
-## Start
-
-For humans:
+## Start on localhost
 
 ```bash
 npm install @vanillaskyai/video
 npx vanillasky init
 ```
 
-Add `ANTHROPIC_API_KEY` to the generated `.env.local`, then run `npm run dev`.
-That one key gives you the complete interface with packaged templates and
-browser voice. Run `npx vanillasky doctor` to see which optional upgrades are
-enabled.
+Add `ANTHROPIC_API_KEY` to the generated, ignored `.env.local`, then run:
+
+```bash
+npx vanillasky doctor
+npm run dev
+```
+
+Open the reported localhost URL. One text key gives you the complete chat with
+packaged templates and browser voice. No template setup is required.
+
+Optional server-only keys progressively add capabilities without changing the
+client:
+
+| Key | Adds |
+| --- | --- |
+| `XAI_API_KEY` | Generated speech |
+| `FAL_KEY` | Generated video and voice transcription |
+| `PEXELS_API_KEY` | Stock media |
+
+`npx vanillasky doctor` reports readiness by key name and never prints values.
+Provider SDKs remain dependencies of the generated application, not the core
+package.
 
 For coding agents:
 
@@ -38,10 +47,19 @@ For coding agents:
 npx skills add VanillaSkyAi/video@vanillasky
 ```
 
-Then prompt: `Use $vanillasky to turn this application's data into a personalized video response.`
+Then prompt: `Use $vanillasky to set up and verify a general-purpose video chat in this project.`
 
-For a complete voice-and-video chat, mount the default interface after adding
-the provider-neutral server handler:
+## What init creates
+
+The generated application is a thin, editable shell:
+
+- `src/main.tsx` mounts the complete SDK-owned `<VideoChat />` interface;
+- `server.ts` connects app-owned text, speech, transcription, stock, and video
+  providers through one `createVideoChatHandler`;
+- `vite.config.ts` serves the UI and the single `/api/video-chat` endpoint;
+- `.env.local` holds server-only keys and is ignored by Git.
+
+The UI stays this small:
 
 ```tsx
 import { VideoChat } from "@vanillaskyai/video/react";
@@ -52,136 +70,58 @@ export function App() {
 }
 ```
 
-The canonical [video-chat starter](https://github.com/VanillaSkyAi/video/tree/main/starters/video-chat)
-shows the full server configuration. Use `useVideoChat` instead only when you
-want a custom UI.
+Use `useVideoChat` when you want a custom interface while keeping the SDK-owned
+conversation and playback lifecycle. Edit the generated server when you want a
+different provider. The [provider guide](docs/provider-integration.md) explains
+both boundaries.
 
-## Connect your LLM
+## Templates are the built-in fallback
 
-VanillaSky never chooses a provider or model. Configure that separately on the
-server, then connect the model your application already owns. The route below
-assumes an AI SDK `LanguageModel` exported as `videoModel`; if you do not have
-one yet, choose a provider and current model in [Provider integration](docs/provider-integration.md).
+The packaged visual templates are the fast, inexpensive default and require no
+copied source tree. Add a video provider when you want generated footage; the
+same conversation can mix both modes.
 
-Create one authenticated server route:
+Copy template source only when you want to own and edit it:
 
-```ts
-// app/api/video/route.ts
-import { streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/video/server";
-import { videoModel } from "@/lib/video-model";
-
-const handle = createVideoHandler({
-  // Local development only. Replace with your session check before deploying.
-  authorize: (request) => {
-    if (process.env.VANILLASKY_LOCAL_DEMO !== "1") return false;
-    const hostname = new URL(request.url).hostname;
-    return hostname === "localhost" || hostname === "127.0.0.1";
-  },
-  streamText: ({ systemPrompt, userPrompt, signal }) => streamText({
-    model: videoModel,
-    system: systemPrompt,
-    prompt: userPrompt,
-    abortSignal: signal,
-  }),
-});
-
-export const POST = handle;
-export const OPTIONS = handle;
+```bash
+npm install --save-dev tsx
+npx vanillasky templates add bigNumber
 ```
 
-The packaged development command supplies the local marker only to `next dev`,
-so production builds and `next start` deny every request. Replace it before
-deploying. The model can come from Anthropic, OpenAI, an AI SDK registry or
-gateway, or any compatible streaming adapter. The
-[Next.js quickstart](examples/nextjs-quickstart) shows the later, explicit
-provider-selection step with a quality-oriented Claude Sonnet model.
+That compiler is needed only for source-owned templates. See
+[Custom templates](docs/custom-templates.md).
 
-For planner-selected image and video backgrounds, configure the optional
-server-only `resolveMedia` callback described in
-[Media and soundtrack audio](docs/media-and-audio.md#media-providers).
+## Go deeper
 
-## Generate a video
+The default chat is the primary product path. The lower-level
+`createVideoHandler`, `useVideo`, and `VideoPlayer` APIs remain available for
+applications that need individual video responses without the chat lifecycle.
+See the [Next.js quickstart](examples/nextjs-quickstart) and
+[advanced integration guide](docs/integrate-nextjs.md).
 
-Call the route from React and render the player:
-
-```tsx
-"use client";
-
-import { VideoPlayer, useVideo } from "@vanillaskyai/video/react";
-
-export function VideoResponse() {
-  const video = useVideo();
-
-  return <>
-    <button onClick={() => { void video.generate({
-      input: "Activation increased from 41% to 58% after guided onboarding.",
-      personalization: { firstName: "Maya" },
-    }); }}>
-      Generate video
-    </button>
-
-    {video.error && <p role="alert">Video generation failed.</p>}
-    <VideoPlayer {...video.playerProps} />
-  </>;
-}
-```
-
-That is the complete path. Built-in templates require no setup. VanillaSky
-shows each complete, validated scene as soon as it is ready and returns a
-deterministic `Video` object when generation finishes.
-
-A copy-and-run app is in [`examples/nextjs-quickstart`](examples/nextjs-quickstart).
-
-## Shape the response
-
-Start with `input`. It is the complete factual boundary by default:
-
-```ts
-video.generate({
-  input: JSON.stringify({
-    period: "Q2",
-    activation: { previous: 41, current: 58 },
-    cause: "guided onboarding",
-  }),
-  instructions: "Lead with the improvement, then explain what changed.",
-  personalization: { firstName: "Maya", plan: "Pro" },
-});
-```
-
-- Put claims, numbers, names, dates, and quotations in `input`.
-- Keep `knowledgeMode: "input-only"` (the default) for source-grounded video,
-  or choose `knowledgeMode: "general"` when the model should answer a question
-  or develop content with stable general knowledge.
-- Put presentation direction in `instructions`.
-- Put viewer or account context in `personalization`.
-- Add brand, approved media, soundtrack audio, or a smaller template set only
-  when the experience needs them.
-
-VanillaSky does not provide an LLM, hosted generation service, narration, TTS,
-or speech synchronization. MP4/WebM encoding and export are application-owned.
-Completed videos can be stored as JSON and replayed without calling the LLM.
-
-Custom templates are optional. Only source-owned templates need the local TSX
-compiler: `npm install --save-dev tsx`.
+Completed responses are deterministic JSON and can be stored and replayed.
+MP4/WebM export remains application-owned.
 
 ## Documentation
 
 | Goal | Guide |
 | --- | --- |
-| See a video without installing | [Playground](https://vanillasky.ai/playground/) |
-| Integrate with a coding agent | [Agent integration guide](docs/agent-integration.md) |
-| Build the first response | [Getting started](docs/getting-started.md) |
-| Copy the Next.js route and component | [Next.js integration](docs/integrate-nextjs.md) |
-| Connect another model | [Provider integration](docs/provider-integration.md) |
-| Understand grounding and prompts | [Prompt and input](docs/prompt-and-input.md) |
+| Run the complete chat | [Getting started](docs/getting-started.md) |
+| Set it up with a coding agent | [Agent integration guide](docs/agent-integration.md) |
+| Change or add providers | [Provider integration](docs/provider-integration.md) |
+| Customize the interface | [Customization](docs/customization.md) |
+| Understand prompts and grounding | [Prompt and input](docs/prompt-and-input.md) |
 | Add brand or viewer context | [Branding and personalization](docs/branding-and-personalization.md) |
 | Add media or soundtrack audio | [Media and soundtrack audio](docs/media-and-audio.md) |
 | Persist and replay results | [Persistence and replay](docs/persistence.md) |
-| Run a looping, self-refreshing channel | [Live channels](docs/live-channels.md) |
-| Create source-owned templates | [Custom templates](docs/custom-templates.md) |
+| Build continuous playback | [Live channels](docs/live-channels.md) |
+| Build individual video responses | [Next.js integration](docs/integrate-nextjs.md) |
 | Test routes and streams | [Test integrations](docs/testing.md) |
 | Deploy securely | [Production](docs/production.md) · [Security](docs/security.md) |
 | Inspect the API contract | [Public API](PUBLIC-API.md) · [Protocol](docs/reference/protocol.md) |
+
+Try a keyless template response in the
+[playground](https://vanillasky.ai/playground/), or visit
+[vanillasky.ai](https://vanillasky.ai/).
 
 Apache-2.0

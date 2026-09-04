@@ -47,9 +47,12 @@ and verify the smallest relevant suite before broad gates.
 ## Consumer integrations
 
 Use the root README, `docs/agent-integration.md`, or the optional `vanillasky`
-skill for ordinary integrations. Start with input, one provider route,
-`useVideo()`, `VideoPlayer`, and the built-in templates. Add optional features
-only when the application needs them.
+skill for ordinary integrations. Start with `npm install`, `vanillasky init`,
+`vanillasky doctor`, and the default `VideoChat`. Keep the packaged templates
+and browser voice until that complete experience works. Add optional providers
+or switch to `useVideoChat` only when the application needs them. Use the
+lower-level `createVideoHandler`, `useVideo`, and `VideoPlayer` path only for an
+explicit non-chat integration.
 
 Only for an explicit cold-start evaluation, follow
 `docs/maintainers/cold-start-evaluation.md`. Keep evaluation findings separate

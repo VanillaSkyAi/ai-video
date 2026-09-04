@@ -2,6 +2,19 @@
 
 # Core concepts
 
+## Video chat
+
+The default product surface is a conversation whose answers are synchronized
+voice-and-video responses. `VideoChat` supplies the complete interface;
+`useVideoChat` supplies the same session, turn, suggestion, voice, and playback
+lifecycle for custom interfaces; `createVideoChatHandler` connects app-owned
+providers and reports their capabilities through one endpoint.
+
+Packaged templates and browser voice are the base mode. A text model makes that
+mode answer, while optional provider callbacks progressively add generated
+speech, stock media, transcription, and generated video without changing the
+client.
+
 ## Video response
 
 A video response is a short, responsive animated experience assembled from

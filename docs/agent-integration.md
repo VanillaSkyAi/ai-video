@@ -2,39 +2,64 @@
 
 # Agent integration
 
-Use the same public path a human developer uses. The optional repository skill
-packages these instructions for coding agents:
+Coding agents should build the same canonical video chat as a human developer.
+Install the repository skill when the agent supports skills:
 
 ```bash
 npx skills add VanillaSkyAi/video@vanillasky
 ```
 
-## Build the first response
+Then prompt: `Use $vanillasky to set up and verify a general-purpose video chat in this project.`
 
-1. Install `@vanillaskyai/video`.
-2. Choose and configure a current model separately; put its provider key in an
-   ignored `.env.local` file.
-3. Connect that app-owned model with `createVideoHandler` in an authenticated
-   server route.
-4. Pass grounded text or structured data as `input`.
-5. Call `useVideo()` and render `VideoPlayer` in React.
-6. Verify one complete response in a browser before adding optional features.
+## Set up the canonical chat
 
-The root README and `examples/nextjs-quickstart` are the canonical working
-reference. Built-in templates require no registry setup.
+The skill follows this public path in an empty npm project:
 
-## Keep responsibilities clear
+```bash
+npm install @vanillaskyai/video
+npx vanillasky init
+npx vanillasky doctor
+npm run dev
+```
 
-VanillaSky owns the planning prompt, trusted templates, validation, streaming
-protocol, and player. The application owns its LLM, credentials,
-authentication, source retrieval, media licensing, persistence, and product
-UI.
+Init generates the thin application-owned shell around the SDK's complete
+`VideoChat` experience. The default uses packaged templates + browser voice.
+One text-provider key makes it answer; optional keys enable generated speech,
+stock media, transcription, and generated video without client changes.
 
-Use `input` for facts the video may claim, `instructions` for presentation
-direction, and `personalization` for viewer or account context. Treat all three
-as untrusted application data. Add brand, media, audio, persistence, or custom
-templates only when the requested experience needs them.
+If doctor reports a missing key, add the named key to the ignored `.env.local`
+yourself. Never read or print a secret value, and never paste one into the chat.
+Doctor is the safe capability interface: it reports names and readiness only.
 
-If a required credential is missing, ask the developer to add it to the ignored
-environment file. Never invent another provider or request secret values in
-chat.
+## Verify, do not merely scaffold
+
+The agent should leave the dev server running and open its reported localhost
+URL in a real browser. Browser automation should use normal motion
+(`reducedMotion: "no-preference"`) so playback advances.
+
+1. Confirm the welcome screen, suggestions, composer, and voice control load
+   without console or page errors.
+2. Ask one explanatory question and confirm the answer streams, speaks, reaches
+   its final frame, and returns to a usable composer.
+3. Ask one unrelated creative question in the same conversation and confirm it
+   produces a distinct response.
+4. If doctor reports generated video ready, choose that mode and verify one
+   suitable prompt without editing client code.
+5. Check failed network responses before reporting success.
+
+The handoff should name the localhost URL and ready capabilities. It should
+never include credential values.
+
+## Keep ownership clear
+
+VanillaSky owns the chat flow, planning prompts, templates, validation,
+streaming, voice timing, and player. The application owns provider choices,
+keys, authentication, persistence, branding, copy, and policy.
+
+Customize generated application files only after the default chat passes in the
+browser. Do not inspect SDK internals, copy its template tree, or invent a
+parallel integration path. Source-own a template with
+`npx vanillasky templates ...` only when the product actually needs to edit it.
+
+The root README and [Getting started](getting-started.md) are the canonical
+human references. Evaluation-only package checks remain in the maintainer docs.
