@@ -358,6 +358,7 @@ describe("release workflow", () => {
   it("exercises the complete packed CLI ownership journey without weakening the scaffold", () => {
     const verifier = readFileSync("scripts/verify-onboarding.mjs", "utf8");
 
+    expect(verifier).toContain('["exec", "--yes", "--no-audit", "create-vite@9.1.2"');
     for (const command of ["list", "describe", "create", "add", "sync", "check"]) {
       expect(verifier).toContain(`runCli(["${command}"`);
     }
