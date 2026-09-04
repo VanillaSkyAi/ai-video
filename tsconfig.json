@@ -13,6 +13,8 @@
     "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
+      "@vanillaskyai/video": ["src/index.ts"],
+      "@vanillaskyai/video/react": ["src/react.ts"],
       "@vanillaskyai/video/server": ["src/server.ts"],
       "@vanillaskyai/video/templates": ["src/templates.ts"]
     },

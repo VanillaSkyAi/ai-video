@@ -9,7 +9,7 @@ import { getSceneDuration, getSceneDurationBounds } from "../src/index";
  * that used those was internal, so consumers reached for `minDuration` instead.
  * That is the wrong number: it is the least a template survives being squeezed
  * to when a video must fit a fixed length, not the time it takes to read. It is
- * 1 second for `media` and 1.5 for `bigNumber`, and a narrated lesson built on
+ * 1 second for `media` and 1.5 for `bigNumber`, and a narrated response built on
  * it flashes past.
  */
 const steps = {

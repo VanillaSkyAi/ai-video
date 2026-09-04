@@ -28,8 +28,14 @@ try {
   const tarball = selectedArtifact.path;
   const candidateVersion = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
 
-  for (const example of ["react-vite", "ai-tutor", "server-integrations", "nextjs-quickstart"]) {
-    const cwd = join(root, "examples", example);
+  const consumers = [
+    { name: "react-vite", path: join("examples", "react-vite") },
+    { name: "video-chat", path: join("starters", "video-chat") },
+    { name: "server-integrations", path: join("examples", "server-integrations") },
+    { name: "nextjs-quickstart", path: join("examples", "nextjs-quickstart") },
+  ];
+  for (const example of consumers) {
+    const cwd = join(root, example.path);
     execFileSync("npm", [
       "install", "--package-lock=false", "--ignore-scripts", "--no-audit", "--no-fund", "--no-save", tarball,
     ], { cwd, stdio: "inherit" });
@@ -37,7 +43,7 @@ try {
       "-p", "require('./node_modules/@vanillaskyai/video/package.json').version",
     ], { cwd, encoding: "utf8" }).trim();
     if (installedVersion !== candidateVersion) {
-      throw new Error(`${example} installed ${installedVersion}, expected packed ${candidateVersion}`);
+      throw new Error(`${example.name} installed ${installedVersion}, expected packed ${candidateVersion}`);
     }
   }
   console.log(`Examples installed current packed SDK ${candidateVersion}.`);

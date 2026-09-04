@@ -1,0 +1,292 @@
+/*
+ * The theming contract.
+ *
+ * Everything the chrome draws with is one of these, and nothing else in the
+ * stylesheet names a colour. That is the whole point: an application adopting
+ * this experience overrides a handful of custom properties and it is theirs,
+ * with no build step, no Tailwind config, and no component library to install.
+ * The SDK's own promise is that the application owns its UI, and a design
+ * system as a hard dependency is the one thing that would take that back.
+ *
+ * Three states, because that is what a theme actually is:
+ *
+ *   :root                        the light palette, and the default
+ *   prefers-color-scheme: dark   the OS preference, when nothing overrides it
+ *   [data-theme="light"|"dark"]  an explicit choice, which wins over both
+ *
+ * The dark block is guarded against `[data-theme="light"]` so a viewer who has
+ * chosen light on a dark OS gets light. Never give a token its only definition
+ * inside a media query.
+ *
+ * What is deliberately not themed: the video. Its palette is the brand the
+ * response was composed in and it is baked into the scenes, so a response that
+ * changed colour with the OS setting would be a different response. Light mode
+ * is a chrome concern, which is what keeps it small.
+ */
+
+:root {
+  /* Ground and type. `raised` is a control resting on the page - the chrome
+     buttons, the composer, the chips; `pop` is a surface floating above it. */
+  /* Mixed from the brand's own ink (#10073C, hue 281) rather than a neutral
+     grey, so the chrome and the response belong to one palette. */
+  /* Not quite white, so the white composer above it has something to lift off.
+     A raised control on a ground the same colour is only a border. */
+  --vs-bg: oklch(0.974 0.004 281);
+  --vs-fg: oklch(0.21 0.05 281);
+  --vs-fg-muted: oklch(0.5 0.04 281);
+  --vs-surface-raised: oklch(0.94 0.009 281);
+  --vs-surface-hover: oklch(0.9 0.014 281);
+  --vs-surface-selected: oklch(0.87 0.018 281);
+  --vs-surface-pop: oklch(1 0 0 / 92%);
+  /* The composer sits above the page rather than in it - the one control on
+     the screen that is lifted, because it is the one you are meant to use. */
+  --vs-surface-input: oklch(1 0 0);
+  --vs-shadow-input: 0 1px 2px oklch(0.2 0.026 281 / 4%), 0 6px 16px -12px oklch(0.2 0.026 281 / 18%);
+  /* A lighter version for the smaller things that sit on the page beside it. */
+  --vs-shadow-raised: 0 1px 2px oklch(0.2 0.026 281 / 5%), 0 2px 6px -4px oklch(0.2 0.026 281 / 14%);
+  /* Type drawn on the video's own brand gradient, which is dark in every
+     theme because the response's palette is baked into its scenes. This is the
+     one pair that must not follow the page. */
+  --vs-on-media: oklch(1 0 0);
+
+  --vs-border: oklch(0.21 0.05 281 / 14%);
+  --vs-border-strong: oklch(0.21 0.05 281 / 26%);
+
+  /*
+   * Two accents, split by meaning rather than by taste. Blue is what the
+   * viewer can act on - send, focus, selection - which is the convention every
+   * system reader already knows. Pink is the video chat's own voice, and appears
+   * only while it is speaking or listening. One accent for you, one for it.
+   *
+   * The glyph on the blue is the brand ink rather than white: white on
+   * #00A5FF measures 2.68:1, which fails even the bar for a graphical control,
+   * where the ink is 7.00:1.
+   */
+  /* Deep enough that a white glyph sits on it at 4.63:1 - the brand blue
+     itself is 2.68:1 under white, which fails even the bar for an icon. One
+     blue serves both themes: 4.53:1 against the light page, 4.39:1 against the
+     dark one. */
+  --vs-accent: #0079C4;
+  --vs-accent-deep: #006098;
+  --vs-accent-fg: #FFFFFF;
+  --vs-accent-ring: oklch(0.55 0.15 244 / 45%);
+  --vs-voice: #FF3A71;
+  /*
+   * Focus is its own colour because it has its own job: to be found. On the
+   * light page the blue is the clearest thing available at 4.53:1, but on the
+   * dark violet ground blue sits close to the ground in hue and falls to
+   * 4.05:1 against the composer, where the pink separates at 5.45:1. So the
+   * focus colour follows legibility rather than following the action colour.
+   */
+  --vs-focus: #0079C4;
+  --vs-focus-ring: oklch(0.55 0.15 244 / 45%);
+  /* Held away from the accent's hue on purpose - an error that looks like the
+     send button is not an error. */
+  --vs-danger: oklch(0.42 0.16 32);
+  --vs-danger-surface: oklch(0.55 0.19 32 / 9%);
+
+  /*
+   * Type: eight steps, after Apple's SF text styles rather than a doubling
+   * ramp. Each carries its own leading and tracking, taken from the tracking
+   * table in Apple's typography guidance.
+   *
+   * The tracking is not a slope. SF tightens to about -26/1000em around
+   * 17-20pt and then opens back up, crossing zero near 23pt and reaching
+   * +14/1000em by 28. So a display size is tracked *wider* than body, not
+   * tighter - the opposite of the rule of thumb, and the reason the prompt
+   * card used to read cramped.
+   *
+   * Body is 17px, not 16: Apple's own default for a reading distance, and the
+   * single change that most affects how the subtitle line reads.
+   */
+  --vs-text-caption: 0.75rem;      /* 12 - history index, notes */
+  --vs-lead-caption: 1.33;
+  --vs-track-caption: 0;           /* SF at 12pt is exactly zero */
+
+  --vs-text-footnote: 0.8125rem;   /* 13 - chips, session pill */
+  --vs-lead-footnote: 1.38;
+  --vs-track-footnote: -0.006em;   /* SF at 13pt */
+
+  --vs-text-subhead: 0.9375rem;    /* 15 - option descriptions */
+  --vs-lead-subhead: 1.33;
+  --vs-track-subhead: -0.016em;    /* SF at 15pt */
+
+  --vs-text-body: 1.0625rem;       /* 17 - the subtitle line, composer, sheet */
+  --vs-lead-body: 1.47;
+  --vs-track-body: -0.026em;       /* SF at 17pt */
+
+  --vs-lead-headline: 1.29;        /* 17 semibold - titles, option labels */
+  --vs-track-headline: -0.026em;   /* SF at 17pt */
+
+  --vs-text-title3: 1.25rem;       /* 20 - sheet title */
+  --vs-lead-title3: 1.25;
+  --vs-track-title3: -0.023em;     /* SF at 20pt */
+
+  --vs-text-display: clamp(1.75rem, 3.4vw, 2.75rem);  /* the prompt card */
+  --vs-lead-display: 1.05;
+  /* +14/1000em, which is where SF actually sits at 28pt and above. */
+  --vs-track-display: 0.014em;
+
+  /* Shape and motion. */
+  --vs-radius: 0.875rem;
+  --vs-radius-lg: 1.25rem;
+  --vs-radius-pill: 999px;
+  /*
+   * System faces only - nothing to download, nothing to license, and the
+   * chrome renders in whatever the reader's machine already draws its own
+   * interface in. SF where it exists, then Helvetica Neue, then Helvetica.
+   * All three share a grotesque skeleton, so the tracking below holds across
+   * the whole stack rather than being tuned for one face.
+   *
+   * The video keeps its own webfont: scenes must render identically for every
+   * viewer, where the chrome only has to look right where it is read.
+   */
+  --vs-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --vs-shadow-pop: 0 16px 48px -12px oklch(0.191 0.094 281 / 30%);
+  --vs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* One place to turn every transition off, which the reduced-motion block at
+     the end of the stylesheet does. */
+  --vs-duration: 150ms;
+  --vs-duration-slow: 260ms;
+
+  /* What the picture must leave for the chrome above it and the controls
+     below it: the bar, the composer block, and one gutter. */
+  --vs-reserve: 18rem;
+
+  /* The gap between the picture and the divider, and the divider and what is
+     under it. One value, because the two have to match. */
+  --vs-gutter: 0.5rem;
+
+  /* Apple's own recommendation for space around a bezelled control. */
+  --vs-control-gap: 0.75rem;
+
+  /* The smallest a pointer target may be. Anything the chrome renders as a
+     control is at least this in both directions. */
+  --vs-touch: 2.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* Below the brand ink, so #10073C itself becomes the surface a control
+       rests on and the page recedes behind it. At this lightness the chroma
+       reads as depth rather than as hue - a near-black that happens to be
+       the brand's. */
+    --vs-bg: oklch(0.128 0.068 281);
+    --vs-fg: oklch(0.97 0.012 281);
+    --vs-fg-muted: oklch(0.72 0.035 281);
+    --vs-surface-raised: oklch(0.191 0.094 281);
+    --vs-surface-hover: oklch(0.25 0.09 281);
+    --vs-surface-selected: oklch(0.3 0.086 281);
+    --vs-surface-pop: oklch(0.175 0.085 281 / 94%);
+  --vs-surface-input: oklch(0.225 0.088 281);
+  --vs-shadow-input: 0 1px 2px oklch(0 0 0 / 20%), 0 6px 16px -12px oklch(0 0 0 / 40%);
+  --vs-shadow-raised: 0 1px 2px oklch(0 0 0 / 24%), 0 2px 6px -4px oklch(0 0 0 / 36%);
+    --vs-surface-input: oklch(0.225 0.088 281);
+    --vs-shadow-input: 0 1px 2px oklch(0 0 0 / 20%), 0 6px 16px -12px oklch(0 0 0 / 40%);
+  --vs-shadow-raised: 0 1px 2px oklch(0 0 0 / 24%), 0 2px 6px -4px oklch(0 0 0 / 36%);
+    --vs-shadow-raised: 0 1px 2px oklch(0 0 0 / 24%), 0 2px 6px -4px oklch(0 0 0 / 36%);
+
+    --vs-border: oklch(1 0 0 / 14%);
+    --vs-border-strong: oklch(1 0 0 / 24%);
+
+    /* Pink on the dark ground, blue on the light one. The brand blue is what a
+       light page needs and the brand pink is what this one wants: it reads at
+       5.9:1 against the page, and white on it is 3.45:1 - past the 3:1 an icon
+       needs, where the bright blue was 2.68:1 and past nothing. */
+    --vs-accent: #FF3A71;
+    --vs-accent-deep: #FF006F;
+    --vs-accent-fg: #FFFFFF;
+    --vs-accent-ring: oklch(0.664 0.231 10.5 / 55%);
+    --vs-voice: #FF3A71;
+    --vs-focus: #FF3A71;
+    --vs-focus-ring: oklch(0.664 0.231 10.5 / 55%);
+    --vs-danger: oklch(0.75 0.16 32);
+    --vs-danger-surface: oklch(0.75 0.16 32 / 14%);
+
+    --vs-shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 60%);
+  }
+}
+
+:root[data-theme="dark"] {
+  --vs-bg: oklch(0.128 0.068 281);
+  --vs-fg: oklch(0.97 0.012 281);
+  --vs-fg-muted: oklch(0.72 0.035 281);
+  --vs-surface-raised: oklch(0.191 0.094 281);
+  --vs-surface-hover: oklch(0.25 0.09 281);
+  --vs-surface-selected: oklch(0.3 0.086 281);
+  --vs-surface-pop: oklch(0.175 0.085 281 / 94%);
+  --vs-surface-input: oklch(0.225 0.088 281);
+  --vs-shadow-input: 0 1px 2px oklch(0 0 0 / 20%), 0 6px 16px -12px oklch(0 0 0 / 40%);
+  --vs-shadow-raised: 0 1px 2px oklch(0 0 0 / 24%), 0 2px 6px -4px oklch(0 0 0 / 36%);
+
+  --vs-border: oklch(1 0 0 / 14%);
+  --vs-border-strong: oklch(1 0 0 / 24%);
+
+  /* Pink on the dark ground, blue on the light one. The brand blue is what a
+     light page needs and the brand pink is what this one wants: it reads at
+     5.9:1 against the page, and white on it is 3.45:1 - past the 3:1 an icon
+     needs, where the bright blue was 2.68:1 and past nothing. */
+  --vs-accent: #FF3A71;
+  --vs-accent-deep: #FF006F;
+  --vs-accent-fg: #FFFFFF;
+  --vs-accent-ring: oklch(0.664 0.231 10.5 / 55%);
+  --vs-voice: #FF3A71;
+  --vs-focus: #FF3A71;
+  --vs-focus-ring: oklch(0.664 0.231 10.5 / 55%);
+  --vs-danger: oklch(0.75 0.16 32);
+
+  --vs-shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 60%);
+}
+
+/*
+ * Increase Contrast.
+ *
+ * Apple's rule is explicit: if an interface does not meet the minimum contrast
+ * by default, it must at least offer more when the system setting asks for it.
+ * Ours does meet it — this is the second half of the same rule, which is that
+ * someone who has asked every app on their machine for more contrast should
+ * get more here too, not merely the minimum.
+ *
+ * Borders become visible lines rather than hairlines, muted type stops being
+ * muted, and the accent deepens far enough to carry white at 7:1.
+ */
+@media (prefers-contrast: more) {
+  :root {
+    --vs-fg-muted: oklch(0.35 0.04 281);
+    --vs-border: oklch(0.21 0.05 281 / 40%);
+    --vs-border-strong: oklch(0.21 0.05 281 / 65%);
+    --vs-accent: #005E96;
+    --vs-accent-deep: #004A78;
+    --vs-focus: #005E96;
+    --vs-focus-ring: oklch(0.45 0.13 244 / 70%);
+    --vs-danger: oklch(0.34 0.15 32);
+    --vs-shadow-input: 0 0 0 1px oklch(0.21 0.05 281 / 35%);
+    --vs-shadow-raised: 0 0 0 1px oklch(0.21 0.05 281 / 28%);
+  }
+
+  :root:not([data-theme="light"]) {
+    --vs-fg-muted: oklch(0.88 0.02 281);
+    --vs-border: oklch(1 0 0 / 42%);
+    --vs-border-strong: oklch(1 0 0 / 70%);
+    --vs-accent: #FF7CA1;
+    --vs-accent-deep: #FF3A71;
+    --vs-accent-fg: #10073C;
+    --vs-focus: #FF7CA1;
+    --vs-focus-ring: oklch(0.78 0.16 10 / 75%);
+    --vs-danger: oklch(0.86 0.13 32);
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root[data-theme="light"] {
+    --vs-fg-muted: oklch(0.35 0.04 281);
+    --vs-border: oklch(0.21 0.05 281 / 40%);
+    --vs-border-strong: oklch(0.21 0.05 281 / 65%);
+    --vs-accent: #005E96;
+    --vs-accent-deep: #004A78;
+    --vs-accent-fg: #FFFFFF;
+    --vs-focus: #005E96;
+    --vs-danger: oklch(0.34 0.15 32);
+  }
+}

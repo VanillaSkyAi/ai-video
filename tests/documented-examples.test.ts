@@ -191,5 +191,7 @@ describe("documented examples", () => {
     expect(verifier).toContain('"pack", "--silent", "--json", "--pack-destination", workspace');
     expect(verifier).toContain('manifest.dependencies["@vanillaskyai/video"] = `file:${candidateTarball}`');
     expect(verifier).toContain("installedVersion !== candidateVersion");
+    expect(verifier).toContain('npm_config_audit: "false"');
+    expect(verifier).toContain('npm_config_fund: "false"');
   });
 });

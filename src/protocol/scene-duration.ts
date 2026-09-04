@@ -10,7 +10,7 @@ import type { VideoScene, VideoTemplatePacing } from "./types.js";
  * instead - the obvious field, and the one this repository documents least well
  * - gives the wrong answer: it is the least a template survives being squeezed
  * to when a video has to fit a fixed length, not the time it takes to read. It
- * is 1 second for `media` and 1.5 for `bigNumber`, and a narrated lesson built
+ * is 1 second for `media` and 1.5 for `bigNumber`, and a narrated response built
  * on those flashes past.
  *
  * There is deliberately no upper bound. Once every word is on screen and read,

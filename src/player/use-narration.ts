@@ -8,7 +8,7 @@ import type { VideoScene } from "../protocol/types.js";
  * scene, so it has to begin when that scene does and stop when the viewer moves
  * on - and every one of those was a bug in the application this was extracted
  * from: the voice starting before the first frame, a follow-up question
- * silently cutting the tutor off mid-sentence, a line still playing over the
+ * silently cutting the response off mid-sentence, a line still playing over the
  * scene after it.
  *
  * The provider is not the SDK's business. An application supplies something
