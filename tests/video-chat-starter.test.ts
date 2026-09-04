@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 const starterRoot = join(process.cwd(), "starters", "video-chat");
 
@@ -12,7 +12,6 @@ describe("video chat starter", () => {
       "server.ts",
       "vite.config.ts",
       "src/main.tsx",
-      "src/welcome.tsx",
     ];
     const source = files
       .map((file) => readFileSync(join(starterRoot, file), "utf8"))
@@ -45,11 +44,7 @@ describe("video chat starter", () => {
   it("keeps orchestration in the SDK behind one endpoint", () => {
     const server = readFileSync(join(starterRoot, "server.ts"), "utf8");
     const config = readFileSync(join(starterRoot, "vite.config.ts"), "utf8");
-    const client = [
-      "src/main.tsx",
-      "src/use-voice-input.ts",
-      "src/welcome.tsx",
-    ].map((file) => readFileSync(join(starterRoot, file), "utf8")).join("\n");
+    const client = readFileSync(join(starterRoot, "src/main.tsx"), "utf8");
 
     expect(server).toContain("createVideoChatHandler");
     expect(server).not.toContain("createVideoHandler");
@@ -57,7 +52,9 @@ describe("video chat starter", () => {
     expect(config).toContain('request.once("aborted"');
     expect(config).toContain('includes("text/event-stream")');
     expect(client).not.toMatch(/\/api\/(?:response|narration|suggestions|speech|opening|transcribe|welcome)/);
-    expect(client).toContain("useVideoChat");
+    expect(client).toContain("<VideoChat");
+    expect(client).toContain('@vanillaskyai/video/video-chat.css');
+    expect(client).not.toContain("useVideoChat");
     expect(client).not.toContain("createSceneTimeline");
     expect(client).not.toContain("useNarration");
     expect(client).not.toContain("createSpokenVoice");
@@ -66,26 +63,22 @@ describe("video chat starter", () => {
     expect(server).not.toContain("JSON.stringify(detail)");
   });
 
-  it("only enables replay and history for completed responses", () => {
+  it("does not duplicate SDK-owned UI and session behavior", () => {
     const client = readFileSync(join(starterRoot, "src/main.tsx"), "utf8");
 
-    expect(client).toContain("shown?.completed && shown.video");
-    expect(client).toContain("disabled={!turn.completed || !turn.video}");
-  });
-});
-
-describe("video chat voice input capabilities", () => {
-  it("does not offer recorder transcription without a configured provider", async () => {
-    vi.stubGlobal("window", {
-      MediaRecorder: class {},
-      navigator: { mediaDevices: { getUserMedia: vi.fn() } },
-    });
-
-    const { supportsVoiceInput } = await import("../starters/video-chat/src/use-voice-input");
-
-    expect(supportsVoiceInput(false)).toBe(false);
-    expect(supportsVoiceInput(true)).toBe(true);
-
-    vi.unstubAllGlobals();
+    expect(client.split("\n").length).toBeLessThan(20);
+    for (const duplicated of [
+      "icons.tsx",
+      "modes.ts",
+      "suggestion-cards.tsx",
+      "themes.ts",
+      "use-dismiss.ts",
+      "use-voice-input.ts",
+      "welcome.tsx",
+      "styles.css",
+      "tokens.css",
+    ]) {
+      expect(() => readFileSync(join(starterRoot, "src", duplicated), "utf8")).toThrow();
+    }
   });
 });

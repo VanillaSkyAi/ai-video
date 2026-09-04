@@ -7,8 +7,9 @@ playing while your LLM composes them.
 > **Status: Beta.** VanillaSky is pre-1.0 and its public API may change as we
 > test it in real applications. Pin an exact version before production use.
 
-Your application owns the model, data, authentication, and UI. VanillaSky owns
-the planning prompt, trusted templates, validation, streaming, and player.
+Your application owns the model, data, authentication, provider keys, and
+branding. VanillaSky owns the planning prompt, trusted templates, validation,
+streaming, session, player, and an optional complete chat interface.
 
 ## See it first
 
@@ -32,6 +33,22 @@ npx skills add VanillaSkyAi/video@vanillasky
 ```
 
 Then prompt: `Use $vanillasky to turn this application's data into a personalized video response.`
+
+For a complete voice-and-video chat, mount the default interface after adding
+the provider-neutral server handler:
+
+```tsx
+import { VideoChat } from "@vanillaskyai/video/react";
+import "@vanillaskyai/video/video-chat.css";
+
+export function App() {
+  return <VideoChat />;
+}
+```
+
+The canonical [video-chat starter](https://github.com/VanillaSkyAi/video/tree/main/starters/video-chat)
+shows the full server configuration. Use `useVideoChat` instead only when you
+want a custom UI.
 
 ## Connect your LLM
 

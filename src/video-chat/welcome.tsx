@@ -1,4 +1,5 @@
-import type { VideoChatWelcome } from "@vanillaskyai/video/react";
+import type { ReactNode } from "react";
+import type { VideoChatWelcome } from "./types.js";
 import { Frame, SuggestionCards } from "./suggestion-cards";
 
 /**
@@ -14,7 +15,11 @@ import { Frame, SuggestionCards } from "./suggestion-cards";
  * degrades to the brand gradient when there is no key and no network, which is
  * the state the rest of the video chat already handles.
  */
-export function Welcome({ data, onAsk }: { data?: VideoChatWelcome; onAsk: (prompt: string) => void }) {
+export function Welcome({ data, onAsk, title }: {
+  data?: VideoChatWelcome;
+  onAsk: (prompt: string) => void;
+  title?: ReactNode;
+}) {
   return <div className="welcome">
     <Frame media={data?.hero ?? null} poster />
     {/* The footage is a ground for type, so it is dimmed towards the corner
@@ -27,8 +32,7 @@ export function Welcome({ data, onAsk }: { data?: VideoChatWelcome; onAsk: (prom
           ChatGPT or Perplexity knows what this is by the end of line one, and
           the accent line carries the only part that is new. */}
       <h1 className="welcome-title">
-        An AI chat that responds<br />
-        <em>in video, not text.</em>
+        {title ?? <>An AI chat that responds<br /><em>in video, not text.</em></>}
       </h1>
 
       <SuggestionCards suggestions={data?.cards ?? []} label="Suggested prompts" onAsk={onAsk} />

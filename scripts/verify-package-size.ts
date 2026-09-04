@@ -12,15 +12,16 @@ import { selectPackedArtifact } from "./lib/release-integrity.mjs";
 
 export const PACKED_SIZE_BUDGET = 1_250_000;
 export const UNPACKED_SIZE_BUDGET = 5_000_000;
-// The provider-neutral video-chat session intentionally raised the measured
-// graph from 37,983 to 62,129 bytes: the React entry now owns streamed planning,
-// conversation state, voice preparation, replay, and cancellation instead of
-// making every application copy them. 72,000 keeps nearly 10 KB over that
-// measurement while still catching an accidental eager renderer import.
+// The provider-neutral video-chat session and default interface intentionally
+// raised the measured graph from 37,983 to 71,088 bytes: the React entry now
+// owns streamed planning, conversation state, voice preparation, replay,
+// cancellation, and the complete accessible UI instead of making every
+// application copy them. 81,000 keeps just over 10 KB over that measurement
+// while still catching an accidental eager renderer import.
 //
 // This is a ratchet, not a safety limit. Raise it only with a measurement and a
 // reason, never to get a build green.
-export const INITIAL_CLIENT_GZIP_BUDGET = 72_000;
+export const INITIAL_CLIENT_GZIP_BUDGET = 81_000;
 export const TEST_KIT_GZIP_BUDGET = 50_000;
 export const LOADED_TEST_KIT_GZIP_BUDGET = 60_000;
 export const ENTRY_GZIP_HEADROOM = 5_000;

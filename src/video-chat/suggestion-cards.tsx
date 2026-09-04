@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { VideoChatMedia, VideoChatSuggestion } from "./types.js";
 
 /**
  * A prompt offered as a card with real footage on it.
@@ -15,17 +16,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * just wears the ground colour, which is the state the rest of the video chat
  * already handles.
  */
-export interface CardMedia {
-  url: string;
-  type: "video" | "image";
-  posterUrl?: string;
-}
-
-export interface Suggestion {
-  prompt: string;
-  media: CardMedia | null;
-}
-
 /**
  * One frame of footage, playing only when it is being looked at.
  *
@@ -35,7 +25,7 @@ export interface Suggestion {
  * that one video is worth more than a page of text. It is also four decoders
  * running for three pictures nobody is watching.
  */
-export function Frame({ media, poster, playing }: { media: CardMedia | null; poster?: boolean; playing?: boolean }) {
+export function Frame({ media, poster, playing }: { media: VideoChatMedia | null; poster?: boolean; playing?: boolean }) {
   const video = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -64,7 +54,7 @@ export function Frame({ media, poster, playing }: { media: CardMedia | null; pos
 }
 
 export function SuggestionCards({ suggestions, label, onAsk }: {
-  suggestions: Suggestion[];
+  suggestions: readonly VideoChatSuggestion[];
   /** Names the row for a screen reader; the cards themselves carry the words. */
   label: string;
   onAsk: (prompt: string) => void;
@@ -147,13 +137,12 @@ export function SuggestionCards({ suggestions, label, onAsk }: {
       </li>)}
     </ul>
 
-    {suggestions.length > 1 && <div className="card-dots" role="tablist" aria-label={label}>
+    {suggestions.length > 1 && <div className="card-dots" role="group" aria-label={`${label} navigation`}>
       {suggestions.map((card, index) => <button
         key={card.prompt}
         type="button"
-        role="tab"
-        aria-selected={index === at}
-        aria-label={card.prompt}
+        aria-pressed={index === at}
+        aria-label={`Show suggestion ${index + 1}: ${card.prompt}`}
         className={index === at ? "on" : undefined}
         onClick={() => take(index)}
       />)}

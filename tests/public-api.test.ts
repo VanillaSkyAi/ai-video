@@ -25,6 +25,7 @@ describe("public API", () => {
   it("exposes one obvious React path", async () => {
     const api = await import("../src/react");
     expect(Object.keys(api).sort()).toEqual([
+      "VideoChat",
       "VideoError",
       "VideoPlayer",
       "createVideoChatVoice",

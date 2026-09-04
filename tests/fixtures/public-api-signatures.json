@@ -550,6 +550,14 @@
           "interface UseVideoResult {\n    generate(input: VideoInput): Promise<Video>;\n    abort(reason?: string): void;\n    video?: Video;\n    status: VideoStatus;\n    error?: VideoError;\n    warnings: readonly VideoWarning[];\n    playerProps: VideoPlayerProps & {\n        video?: never;\n    };\n}"
         ]
       },
+      "VideoChat": {
+        "kinds": [
+          "value"
+        ],
+        "declaration": [
+          "declare function VideoChat({ options, className, welcomeTitle }: VideoChatProps): react.JSX.Element;"
+        ]
+      },
       "VideoChatCapabilities": {
         "kinds": [
           "type"
@@ -580,6 +588,14 @@
         ],
         "declaration": [
           "interface VideoChatPreparedSpeech {\n    seconds: number;\n}"
+        ]
+      },
+      "VideoChatProps": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatProps {\n    options?: UseVideoChatOptions;\n    className?: string;\n    welcomeTitle?: ReactNode;\n}"
         ]
       },
       "VideoChatStatus": {

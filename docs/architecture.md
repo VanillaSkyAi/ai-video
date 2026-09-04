@@ -27,6 +27,7 @@ visual vocabulary, validation, streaming lifecycle, and player.
 | `src/server/model/` | Converts provider text deltas into typed video plan parts |
 | `src/protocol/` | Shared request, event, validation, checksum, and SSE contract |
 | `src/player/` | Browser stream client, `useVideo`, timeline, and React player |
+| `src/video-chat/` | Default `VideoChat` interface and headless conversation/session engine |
 | `src/visual-system/catalog/` | Template metadata, schemas, loading, and planner catalog |
 | `src/visual-system/scene-templates/` | Complete scenes the model may select |
 | `src/visual-system/primitives/` | Reusable visual components used inside scenes |
@@ -35,7 +36,7 @@ visual vocabulary, validation, streaming lifecycle, and player.
 | `src/visual-system/theme/` | Color and design tokens |
 | `src/cli/` | `vanillasky create`, `add`, `sync`, `check`, `list`, and `describe` for customer-owned templates |
 | `registry/items/` | Generated distributable copies installed into customer projects |
-| `src/index.ts`, `src/server.ts`, `src/react.ts`, `src/templates.ts`, `src/template-catalog.ts`, `src/test.ts` | The six small public package entry points |
+| `src/index.ts`, `src/server.ts`, `src/react.ts`, `src/templates.ts`, `src/template-catalog.ts`, `src/test.ts`, `styles/video-chat.css` | The six small code entry points and one scoped stylesheet |
 
 The source of truth for built-in visuals is `src/visual-system`. The JSON files
 in `registry/items` are distribution artifacts, kept flat so the CLI can address
@@ -79,6 +80,7 @@ prompt/validation registry in `vanillasky/server.ts`.
 
 ## Public vocabulary
 
-Use `Video`, `VideoInput`, `useVideo`, and `VideoPlayer` for the product API.
-Use “video response” when describing the lifecycle or output category. Use
-“motion” only for animation behavior inside the visual system.
+Use `VideoChat`, `useVideoChat`, `createVideoChatHandler`, `Video`, `VideoInput`,
+`useVideo`, and `VideoPlayer` for the product API. Use “video response” when
+describing the lifecycle or output category. Use “motion” only for animation
+behavior inside the visual system.

@@ -7,6 +7,8 @@ export type { UseVideoOptions, UseVideoResult } from "./player/use-video.js";
 export { useNarration } from "./player/use-narration.js";
 export type { Narration, NarrationOptions, NarrationVoice } from "./player/use-narration.js";
 export { useVideoChat } from "./video-chat/use-video-chat.js";
+export { VideoChat } from "./video-chat/video-chat.js";
+export type { VideoChatProps } from "./video-chat/video-chat.js";
 export type {
   UseVideoChatOptions,
   UseVideoChatResult,
