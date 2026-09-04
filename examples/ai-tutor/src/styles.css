@@ -488,7 +488,9 @@ body {
   width: min(26rem, calc(100% - 2rem));
   max-height: 70%;
   overflow-y: auto;
-  padding: 0.5rem;
+  /* Even room around the rows inside, so the fills sit in the panel rather
+     than against its edge. */
+  padding: 0.4rem;
   border-radius: var(--vs-radius-lg);
   background: var(--vs-surface-pop);
   color: var(--vs-fg);
@@ -498,12 +500,16 @@ body {
   animation: rise 180ms ease both;
 }
 
+/* A gap between the rows, so two hover fills never touch: without it the
+   highlight on one row runs straight into the next and the two read as a block
+   rather than as separate things to press. */
+.history { display: grid; gap: 0.35rem; }
 .history button {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 0.6rem;
   width: 100%;
-  padding: 0.6rem 0.75rem;
+  padding: 0.65rem 0.75rem;
   border: 0;
   border-radius: var(--vs-radius);
   background: transparent;
@@ -707,6 +713,13 @@ body {
 /* Listening has to be unmistakable: it is a state the person put the page in
    deliberately, and a slightly different icon colour is not an answer to "is
    it hearing me?". */
+/* One gap between every control on the trailing edge. The send button used to
+   carry a margin of its own, so the pause sat flush against the mic while the
+   mic stood off from the send - three controls in a row on two different
+   rhythms. */
+.composer .ghost + .ghost,
+.composer .ghost + .send { margin-left: 0.35rem; }
+
 .ghost.listening {
   color: var(--vs-accent-fg);
   background: var(--vs-voice);
@@ -715,8 +728,6 @@ body {
 .send {
   display: grid;
   place-items: center;
-  /* The one control set apart from the icon pair beside it. */
-  margin-left: 0.35rem;
   width: var(--vs-touch);
   height: var(--vs-touch);
   border: 0;
