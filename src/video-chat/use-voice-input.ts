@@ -69,6 +69,13 @@ export interface VoiceInput {
   stop: () => void;
 }
 
+export interface VoiceInputRequestOptions {
+  endpoint?: string | URL;
+  headers?: HeadersInit;
+  credentials?: RequestCredentials;
+  fetcher?: typeof fetch;
+}
+
 const WHY: Record<string, string> = {
   "not-allowed": "The microphone is blocked for this site. Allow it in your browser's settings, then try again.",
   "service-not-allowed": "The microphone is blocked for this site. Allow it in your browser's settings, then try again.",
@@ -86,30 +93,25 @@ const WHY: Record<string, string> = {
  * finished, and it costs a fraction of a cent - which is why it is what
  * happens after the free path fails rather than instead of it.
  */
-async function recordAndTranscribe(signal: AbortSignal, stop: (halt: () => void) => void): Promise<string> {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const chunks: Blob[] = [];
-  const recorder = new MediaRecorder(stream);
-  recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
-  const finished = new Promise<void>((resolve) => { recorder.onstop = () => resolve(); });
-  // A timeslice, so data lands as it is captured rather than only on stop -
-  // a recorder that emits nothing until the end has nothing to emit if the
-  // stop and the flush race.
-  recorder.start(250);
-  stop(() => { if (recorder.state !== "inactive") recorder.stop(); });
-  signal.addEventListener("abort", () => { if (recorder.state !== "inactive") recorder.stop(); }, { once: true });
-  await finished;
-  // The tracks stay live until they are stopped, and a microphone left open is
-  // a recording light that never goes out.
-  for (const track of stream.getTracks()) track.stop();
-  if (signal.aborted || chunks.length === 0) return "";
+function actionEndpoint(endpoint: string | URL): string {
+  const value = String(endpoint);
+  return `${value}${value.includes("?") ? "&" : "?"}action=transcription`;
+}
 
-  const clip = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-  const response = await fetch("/api/video-chat?action=transcription", {
+/** Internal request seam kept separate from microphone capture for deterministic testing. */
+export async function transcribeRecording(
+  clip: Blob,
+  signal: AbortSignal,
+  options: VoiceInputRequestOptions,
+): Promise<string> {
+  const headers = new Headers(options.headers);
+  headers.set("content-type", clip.type);
+  const response = await (options.fetcher ?? fetch)(actionEndpoint(options.endpoint ?? "/api/video-chat"), {
     method: "POST",
-    headers: { "content-type": clip.type },
+    headers,
     body: clip,
     signal,
+    credentials: options.credentials,
   });
   if (!response.ok) {
     const detail = await response.json().catch(() => ({})) as {
@@ -121,9 +123,47 @@ async function recordAndTranscribe(signal: AbortSignal, stop: (halt: () => void)
   return String(((await response.json()) as { text?: string }).text ?? "").trim();
 }
 
+async function recordAndTranscribe(
+  signal: AbortSignal,
+  ready: (finish: () => void) => void,
+  captured: () => void,
+  options: VoiceInputRequestOptions,
+): Promise<string> {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  let clip: Blob | undefined;
+  try {
+    // Permission can resolve after Stop or unmount. Do not construct a recorder
+    // for an operation that has already ended, but always release its tracks.
+    if (signal.aborted) return "";
+    const chunks: Blob[] = [];
+    const recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+    const finished = new Promise<void>((resolve) => { recorder.onstop = () => resolve(); });
+    const finish = () => { if (recorder.state !== "inactive") recorder.stop(); };
+    ready(finish);
+    signal.addEventListener("abort", finish, { once: true });
+    if (signal.aborted) return "";
+    // A timeslice makes data land while capture is active rather than relying
+    // on the final stop event to both flush and finish.
+    recorder.start(250);
+    await finished;
+    signal.removeEventListener("abort", finish);
+    if (signal.aborted || chunks.length === 0) return "";
+
+    captured();
+    clip = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+  } finally {
+    // Every permission outcome owns tracks, including cancellation races and
+    // constructor/start failures.
+    for (const track of stream.getTracks()) track.stop();
+  }
+  return clip ? transcribeRecording(clip, signal, options) : "";
+}
+
 export function useVoiceInput(
   onTranscript: (text: string) => void,
   transcriptionAvailable = false,
+  options: VoiceInputRequestOptions = {},
 ): VoiceInput {
   const supported = supportsVoiceInput(transcriptionAvailable);
   const [listening, setListening] = useState(false);
@@ -134,21 +174,47 @@ export function useVoiceInput(
   // It does not recover within a session, so every later press goes straight
   // to the route rather than failing again first.
   const useRecorderRef = useRef(false);
-  const abortRef = useRef<AbortController>(undefined);
-  const haltRef = useRef<() => void>(undefined);
+  const operationRef = useRef<{ controller: AbortController; finish?: () => void }>(undefined);
   // Read inside the recogniser's own callbacks, which outlive the render that
   // created them.
   const handlerRef = useRef(onTranscript);
   handlerRef.current = onTranscript;
 
-  useEffect(() => () => recognitionRef.current?.abort(), []);
-
   const stop = useCallback(() => {
-    recognitionRef.current?.stop();
-    haltRef.current?.();
-    haltRef.current = undefined;
+    recognitionRef.current?.abort();
+    recognitionRef.current = undefined;
+    const operation = operationRef.current;
+    operationRef.current = undefined;
+    operation?.controller.abort();
+    operation?.finish?.();
     setListening(false);
+    setThinking(false);
   }, []);
+
+  useEffect(() => () => {
+    recognitionRef.current?.abort();
+    recognitionRef.current = undefined;
+    const operation = operationRef.current;
+    operationRef.current = undefined;
+    operation?.controller.abort();
+    operation?.finish?.();
+  }, []);
+
+  const finish = useCallback(() => {
+    const recognition = recognitionRef.current;
+    if (recognition) {
+      recognition.stop();
+      return;
+    }
+    const operation = operationRef.current;
+    if (operation?.finish) {
+      operation.finish();
+      setListening(false);
+      return;
+    }
+    // Permission is still pending, so there is no useful recording to finish.
+    stop();
+  }, [stop]);
 
   /** The fallback path: record here, transcribe on the server. */
   const record = useCallback(async () => {
@@ -156,31 +222,43 @@ export function useVoiceInput(
       setError("Server transcription is not configured.");
       return;
     }
-    const inFlight = new AbortController();
-    abortRef.current = inFlight;
+    if (operationRef.current) return;
+    const operation = { controller: new AbortController(), finish: undefined as (() => void) | undefined };
+    operationRef.current = operation;
     setError(undefined);
     setListening(true);
     try {
-      const heard = await recordAndTranscribe(inFlight.signal, (halt) => { haltRef.current = halt; });
-      setListening(false);
-      if (!heard) return;
-      setThinking(true);
+      const heard = await recordAndTranscribe(
+        operation.controller.signal,
+        (halt) => { if (operationRef.current === operation) operation.finish = halt; },
+        () => {
+          if (operationRef.current !== operation) return;
+          setListening(false);
+          setThinking(true);
+        },
+        options,
+      );
+      if (!heard || operation.controller.signal.aborted || operationRef.current !== operation) return;
       handlerRef.current(heard);
     } catch (cause) {
+      if (operation.controller.signal.aborted || operationRef.current !== operation) return;
       setListening(false);
       const message = cause instanceof Error ? cause.message : String(cause);
       setError(/denied|not allowed/i.test(message)
         ? "The microphone is blocked for this site. Allow it in your browser's settings, then try again."
         : message);
     } finally {
-      setThinking(false);
-      haltRef.current = undefined;
+      if (operationRef.current === operation) {
+        operationRef.current = undefined;
+        setListening(false);
+        setThinking(false);
+      }
     }
-  }, [transcriptionAvailable]);
+  }, [transcriptionAvailable, options.endpoint, options.headers, options.credentials, options.fetcher]);
 
   const toggle = useCallback(() => {
     if (listening) {
-      stop();
+      finish();
       return;
     }
     const Recognition = recognitionConstructor();
@@ -194,6 +272,7 @@ export function useVoiceInput(
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.onresult = (event) => {
+      if (recognitionRef.current !== recognition) return;
       let heard = "";
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
         heard += event.results[index]?.[0]?.transcript ?? "";
@@ -203,8 +282,14 @@ export function useVoiceInput(
     // Both endings are the same ending as far as the button is concerned: a
     // permission refusal, a timeout and a finished sentence all mean it is no
     // longer listening, and a mic that stays lit after that is a lie.
-    recognition.onend = () => setListening(false);
+    recognition.onend = () => {
+      if (recognitionRef.current !== recognition) return;
+      recognitionRef.current = undefined;
+      setListening(false);
+    };
     recognition.onerror = (event) => {
+      if (recognitionRef.current !== recognition) return;
+      recognitionRef.current = undefined;
       setListening(false);
       // A service the browser cannot reach is not something to report as a
       // failure - it is the moment to take the other road, silently, and to
@@ -227,7 +312,7 @@ export function useVoiceInput(
       setListening(false);
       setError("The microphone could not be started.");
     }
-  }, [listening, stop, record, transcriptionAvailable]);
+  }, [listening, finish, record, transcriptionAvailable]);
 
   return { supported, listening, thinking, error, toggle, stop };
 }

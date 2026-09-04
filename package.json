@@ -14,7 +14,9 @@
     "video"
   ],
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./styles/video-chat.css"
+  ],
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -27,6 +29,7 @@
   "files": [
     "bin",
     "dist",
+    "styles/video-chat.css",
     "registry/items",
     "examples/custom-template",
     "examples/nextjs-quickstart/.env.example",
@@ -80,7 +83,8 @@
       "types": "./dist/test.d.ts",
       "import": "./dist/test.js",
       "default": "./dist/test.js"
-    }
+    },
+    "./video-chat.css": "./styles/video-chat.css"
   },
   "scripts": {
     "acceptance:live": "tsx scripts/acceptance/run-live.ts",

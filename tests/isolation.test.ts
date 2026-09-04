@@ -70,6 +70,7 @@ describe("standalone package boundary", () => {
       "./templates",
       "./templates/catalog",
       "./test",
+      "./video-chat.css",
     ]);
     expect(templateApi).not.toHaveProperty("listTemplates");
     expect(templateApi).not.toHaveProperty("getTemplate");

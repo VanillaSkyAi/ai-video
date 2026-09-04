@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 /**
  * The chrome's icons, drawn rather than installed.
  *
@@ -14,7 +16,7 @@ const stroke = {
   strokeLinejoin: "round" as const,
 };
 
-function Glyph({ children }: { children: React.ReactNode }) {
+function Glyph({ children }: { children: ReactNode }) {
   return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" {...stroke}>{children}</svg>;
 }
 

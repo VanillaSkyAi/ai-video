@@ -71,6 +71,7 @@
     "runtime": "dist/react.js",
     "environment": "browser",
     "runtimeExports": [
+      "VideoChat",
       "VideoError",
       "VideoPlayer",
       "createVideoChatVoice",
@@ -88,6 +89,7 @@
       "UseVideoChatOptions",
       "UseVideoChatResult",
       "VideoChatCapabilities",
+      "VideoChatProps",
       "VideoChatMedia",
       "VideoChatMode",
       "VideoChatPreparedSpeech",

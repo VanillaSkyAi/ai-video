@@ -1,4 +1,4 @@
-import type { VideoBrandInput } from "@vanillaskyai/video";
+import type { VideoBrandInput } from "../protocol/types.js";
 
 /**
  * A look for the footage, not for the captions.
@@ -71,8 +71,8 @@ export const themes: Theme[] = [
  * to look like one thing. This is the same background the scenes are composed
  * on.
  */
-export function themeBackground(theme: Theme): string {
-  const background = theme.brand.background as { color?: string; colors?: readonly string[] } | undefined;
+export function themeBackground(brand: VideoBrandInput): string {
+  const background = brand.background as { color?: string; colors?: readonly string[] } | undefined;
   // 175deg, because that is the angle the renderer uses for a brand gradient.
   // A warm-up at a different angle is a different picture, and the cut to the
   // first scene is exactly where that shows.

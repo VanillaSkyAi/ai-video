@@ -25,10 +25,14 @@ describe("public package surface", () => {
       "./templates",
       "./templates/catalog",
       "./test",
+      "./video-chat.css",
     ]);
+    expect(manifest.exports["./video-chat.css"]).toBe("./styles/video-chat.css");
+    expect(manifest.files).toContain("styles/video-chat.css");
+    expect(manifest.sideEffects).toEqual(["./styles/video-chat.css"]);
     expect(manifest.bin).toEqual({ vanillasky: "bin/vanillasky.js" });
     expect(architecture).toContain("`vanillasky create`, `add`, `sync`, `check`, `list`, and `describe`");
-    expect(architecture).toContain("The six small public package entry points");
+    expect(architecture).toContain("six small code entry points and one scoped stylesheet");
   });
 
   it("does not advertise install-time build scripts in the published manifest", () => {

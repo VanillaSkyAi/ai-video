@@ -434,7 +434,7 @@ if (root.getVideoDuration(rootVideo) !== 4 || !Object.isFrozen(rootVideo)) {
   throw new Error("Packed duration helper returned an unexpected timeline");
 }
 if (Object.keys(server).sort().join() !== "createServerTemplateRegistry,createVideoChatHandler,createVideoHandler") throw new Error("Unexpected server API");
-if (Object.keys(react).sort().join() !== "VideoError,VideoPlayer,createVideoChatVoice,useNarration,useVideo,useVideoChat") throw new Error("Unexpected React API");
+if (Object.keys(react).sort().join() !== "VideoChat,VideoError,VideoPlayer,createVideoChatVoice,useNarration,useVideo,useVideoChat") throw new Error("Unexpected React API");
 if (Object.keys(templates).sort().join() !== "createTemplateRegistry,defineTemplate") throw new Error("Unexpected template API");
 if (builtinTemplates.length !== 28) throw new Error("Unexpected built-in template manifest");
 try {
@@ -517,8 +517,8 @@ import { VideoValidationError, parseVideo } from "@vanillaskyai/video";
 import type { Video, VideoBackground, VideoBrand, VideoInput, VideoValidationErrorCode } from "@vanillaskyai/video";
 // @ts-expect-error VideoState is internal and must not be exported from the root.
 import type { VideoState } from "@vanillaskyai/video";
-import { createVideoChatVoice, VideoError, VideoPlayer, useVideoChat } from "@vanillaskyai/video/react";
-import type { UseVideoChatResult, UseVideoResult, VideoChatTurn, VideoChatVoice } from "@vanillaskyai/video/react";
+import { createVideoChatVoice, VideoChat, VideoError, VideoPlayer, useVideoChat } from "@vanillaskyai/video/react";
+import type { UseVideoChatResult, UseVideoResult, VideoChatProps, VideoChatTurn, VideoChatVoice } from "@vanillaskyai/video/react";
 // @ts-expect-error VideoPlayerBinding is internal and must not be exported from React.
 import type { VideoPlayerBinding } from "@vanillaskyai/video/react";
 import type { VideoChatCapabilities, VideoChatHandlerOptions, VideoGenerationSummary, VideoHandlerOptions, VideoProviderUsage, VideoWarning } from "@vanillaskyai/video/server";
@@ -563,6 +563,8 @@ const savedPlayer = createElement(VideoPlayer, {
   onPlaybackEnd: (completed) => { void completed.schemaVersion; },
 });
 const createdChatVoice = createVideoChatVoice({ fetcher: fetch });
+const videoChatProps: VideoChatProps = { options: { voice: chatVoice }, className: "customer-shell" };
+const packedVideoChat = createElement(VideoChat, videoChatProps);
 const PackedChatTypeProbe = () => {
   const chat = useVideoChat({ voice: chatVoice });
   return createElement("output", null, chat.status, chatTurn.completed ? "complete" : "pending");
@@ -583,7 +585,7 @@ hook.state;
 hook.config;
 // @ts-expect-error Handler behavior selectors are not callback-shaped.
 handlerOptions.onInvalidPart;
-void [input, brandedInput, resolvedBackground, semanticBrand, video.schemaVersion, parsedVideo, validationCode, validationError.code, hook.video, hook.warnings, chatHook.playerProps, createdChatVoice, PackedChatTypeProbe, handlerOptions.invalidPartBehavior, chatHandlerOptions.generateText, chatCapabilities.modes, summary, usage, warning, error.code, error.status, error.requestId, error.runId, savedPlayer, builtinId, builtinMetadata, family, sceneTemplate, sceneMetadata, sceneProps, templateRegistry, timingMetadata, transitionTiming];
+void [input, brandedInput, resolvedBackground, semanticBrand, video.schemaVersion, parsedVideo, validationCode, validationError.code, hook.video, hook.warnings, chatHook.playerProps, createdChatVoice, videoChatProps, packedVideoChat, PackedChatTypeProbe, handlerOptions.invalidPartBehavior, chatHandlerOptions.generateText, chatCapabilities.modes, summary, usage, warning, error.code, error.status, error.requestId, error.runId, savedPlayer, builtinId, builtinMetadata, family, sceneTemplate, sceneMetadata, sceneProps, templateRegistry, timingMetadata, transitionTiming];
 `);
   writeFileSync(join(consumer, "types-tsconfig.json"), JSON.stringify({ compilerOptions: { strict: true, noEmit: true, target: "ES2022", module: "NodeNext", moduleResolution: "NodeNext", skipLibCheck: false }, include: ["types.ts"] }));
   execFileSync(process.execPath, [join(consumer, "node_modules", "typescript", "bin", "tsc"), "-p", "types-tsconfig.json"], { cwd: consumer, stdio: "inherit" });
@@ -594,9 +596,11 @@ void [input, brandedInput, resolvedBackground, semanticBrand, video.schemaVersio
   writeFileSync(join(consumer, "main.jsx"), `
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { VideoError, VideoPlayer, useVideoChat } from "@vanillaskyai/video/react";
+import { VideoChat, VideoError, VideoPlayer, useVideoChat } from "@vanillaskyai/video/react";
+import "@vanillaskyai/video/video-chat.css";
 import { templates } from "./vanillasky/index.ts";
 const mediaProbe = new URLSearchParams(window.location.search).has("media-probe");
+const chatProbe = new URLSearchParams(window.location.search).has("chat-probe");
 const video = {
   schemaVersion: "0.1",
   orientation: "portrait",
@@ -619,7 +623,7 @@ const error = new VideoError("Safe browser error", { code: "video_failed", cause
 const videoChatFetcher = async (input) => {
   const action = new URL(String(input), globalThis.location.href).searchParams.get("action");
   if (action === "capabilities") return Response.json({ templates: true, generatedSpeech: false, generatedVideo: false, stockMedia: false, transcription: false, modes: ["templates"] });
-  if (action === "welcome") return Response.json({ hero: null, cards: [] });
+  if (action === "welcome") return Response.json({ hero: null, cards: [{ prompt: "Invent a tiny packed story", media: null }] });
   return new Response("missing", { status: 404 });
 };
 const VideoChatHookProbe = () => {
@@ -630,6 +634,10 @@ const VideoChatHookProbe = () => {
 createRoot(document.getElementById("root")).render(mediaProbe
   ? createElement("main", { "data-case": "source-owned-media" },
       createElement(VideoPlayer, { video: mediaVideo, templates, autoPlay: true, startMuted: true, loop: true, width: 360 }))
+  : chatProbe
+    ? createElement("main", { "data-case": "default-video-chat" },
+        createElement("p", { id: "outside-video-chat" }, "Host application"),
+        createElement(VideoChat, { options: { fetcher: videoChatFetcher }, className: "packed-video-chat" }))
   : createElement("main", null,
       createElement(VideoChatHookProbe),
       createElement(VideoPlayer, {
@@ -714,6 +722,37 @@ createRoot(document.getElementById("root")).render(mediaProbe
     }
     if (generationRequests !== 0) throw new Error("Packed saved replay called the generation endpoint");
     if (browserErrors.length > 0) throw new Error(`Packed consumer browser errors:\n${browserErrors.join("\n")}`);
+
+    await page.goto("http://127.0.0.1:4387/?chat-probe=1", { waitUntil: "networkidle" });
+    try {
+      await page.getByText("in video, not text.").waitFor({ timeout: 5_000 });
+      await page.getByRole("button", { name: "Invent a tiny packed story", exact: true }).waitFor({ timeout: 5_000 });
+    } catch {
+      throw new Error("Packed VideoChat welcome did not render");
+    }
+    const packedChat = page.locator(".packed-video-chat");
+    if (await packedChat.evaluate((element) =>
+      element.ownerDocument.defaultView?.getComputedStyle(element).boxSizing,
+    ) !== "border-box") {
+      throw new Error("Packed VideoChat stylesheet did not apply");
+    }
+    if (await page.locator("#outside-video-chat").evaluate((element) =>
+      element.ownerDocument.defaultView?.getComputedStyle(element).boxSizing,
+    ) !== "content-box") {
+      throw new Error("Packed VideoChat stylesheet leaked into the host page");
+    }
+    await page.emulateMedia({ colorScheme: "light", contrast: "more" });
+    const contrastColors = await packedChat.evaluate((element) => {
+      const style = element.ownerDocument.defaultView?.getComputedStyle(element);
+      return {
+        background: style?.getPropertyValue("--vs-bg").trim(),
+        muted: style?.getPropertyValue("--vs-fg-muted").trim(),
+      };
+    });
+    if (!contrastColors.background.includes("0.974") || !contrastColors.muted.includes("0.35")) {
+      throw new Error("Packed VideoChat system light contrast drifted");
+    }
+    if (browserErrors.length > 0) throw new Error(`Packed VideoChat browser errors:\n${browserErrors.join("\n")}`);
 
     const iphonePage = await browser.newPage({
       viewport: { width: 390, height: 844 },
@@ -969,7 +1008,7 @@ createRoot(document.getElementById("root")).render(createElement("main", null,
   }
 
   verifyPackedMarkdownDocumentation({ packageRoot, repositoryRoot: root });
-  for (const relative of ["dist/index.js", "dist/server.js", "dist/react.js", "dist/templates.js", "dist/template-catalog.js", "dist/test.js", "dist/check-runtime.js", "bin/vanillasky.js", "registry/items/notification.json"]) {
+  for (const relative of ["dist/index.js", "dist/server.js", "dist/react.js", "dist/templates.js", "dist/template-catalog.js", "dist/test.js", "dist/check-runtime.js", "styles/video-chat.css", "bin/vanillasky.js", "registry/items/notification.json"]) {
     if (!existsSync(join(packageRoot, relative))) throw new Error(`Packed package is missing ${relative}`);
   }
   execFileSync(process.execPath, [join(packageRoot, "bin", "vanillasky.js"), "list"], { cwd: consumer, stdio: "ignore" });

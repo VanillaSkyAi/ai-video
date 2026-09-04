@@ -1,9 +1,10 @@
 # The video chat's design system
 
 One page, one video, and as little else as possible. Everything here exists so
-that an application adopting this experience can restyle it by overriding a
-handful of custom properties in `tokens.css` — no Tailwind config, no component
-library, no build step.
+that an application adopting this experience can restyle it by overriding the
+custom properties scoped under `.vanillasky-video-chat` in
+`styles/video-chat.css` — no Tailwind config, component library, or CSS build
+step.
 
 ## The one rule
 
@@ -71,8 +72,8 @@ icon. One blue serves both themes: 4.53:1 against the light page, 4.39:1 against
 the dark one.
 
 Three states, because that is what a theme actually is: the light palette on
-bare `:root`, `prefers-color-scheme: dark` for the OS preference, and
-`[data-theme]` winning over both. The dark block is guarded against
+the component root, `prefers-color-scheme: dark` for the OS preference, and
+the root's `[data-theme]` winning over both. The dark block is guarded against
 `[data-theme="light"]` so a viewer who chooses light on a dark OS gets light.
 
 The neutrals come from the brand's own ink rather than from a neutral grey.

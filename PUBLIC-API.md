@@ -173,6 +173,7 @@ templates and browser speech remain available.
 
 ### Values
 
+- `VideoChat(props)`
 - `useVideoChat(options?)`
 - `createVideoChatVoice(options?)`
 - `useVideo(options?)`
@@ -181,6 +182,7 @@ templates and browser speech remain available.
 
 ### Types
 
+- `VideoChatProps`
 - `UseVideoChatOptions`
 - `UseVideoChatResult`
 - `VideoChatTurn`
@@ -199,7 +201,24 @@ templates and browser speech remain available.
 - `VideoPlayerProps`
 - `VideoErrorOptions`
 
-`useVideoChat` is the opinionated client for `createVideoChatHandler`. It owns
+`VideoChat` is the complete default interface. Import its scoped stylesheet
+explicitly so the host application keeps control over CSS loading:
+
+```tsx
+import { VideoChat } from "@vanillaskyai/video/react";
+import "@vanillaskyai/video/video-chat.css";
+
+export function App() {
+  return <VideoChat />;
+}
+```
+
+Pass the same session configuration through `options`, for example
+`<VideoChat options={{ endpoint, headers, templates, brand }} />`. `className`
+and `welcomeTitle` are the only shell-level customizations. The stylesheet is
+scoped under `.vanillasky-video-chat` and does not style the host document.
+
+`useVideoChat` is the headless client for `createVideoChatHandler`. It owns
 the conversation lifecycle and returns UI-neutral state plus a spread-ready
 player binding:
 

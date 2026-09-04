@@ -4,6 +4,12 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds the complete default `VideoChat` interface and its explicitly imported,
+  fully scoped `video-chat.css`. Applications can now mount the same polished
+  voice-and-video chat in one component while retaining `useVideoChat` for
+  custom interfaces. The canonical starter no longer duplicates the UI,
+  interaction, accessibility, appearance, or voice-input code.
+
 - Adds `useVideoChat` and `createVideoChatVoice` to the React entry. The SDK
   now owns video-chat turns, conversation context, cancellation, retry,
   opening speech, narration pacing, suggestions, replay, history selection,
