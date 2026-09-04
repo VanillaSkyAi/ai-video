@@ -312,7 +312,7 @@ body {
  * what an answer looks like before one has been asked for.
  */
 .welcome { position: absolute; inset: 0; overflow: hidden; }
-.welcome-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.frame-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
 /* Dimmed towards the corner the words sit in rather than evenly: an even scrim
    flattens the picture into a texture, where this leaves the far side of the
@@ -355,7 +355,7 @@ body {
 .welcome-title em { font-style: normal; color: oklch(0.8 0.11 268); }
 
 
-.welcome-cards {
+.cards {
   display: flex;
   gap: clamp(0.5rem, 1.2cqw, 0.9rem);
   /* Pushed to the foot of the frame: the invitation sits at the top and the
@@ -373,9 +373,9 @@ body {
   overflow-y: visible;
   scrollbar-width: none;
 }
-.welcome-cards::-webkit-scrollbar { display: none; }
-.welcome-cards::-webkit-scrollbar { display: none; }
-.welcome-cards button {
+.cards::-webkit-scrollbar { display: none; }
+.cards::-webkit-scrollbar { display: none; }
+.cards button {
   position: relative;
   display: block;
   flex: 0 0 auto;
@@ -408,24 +408,24 @@ body {
  * what carries it over footage of any brightness, the same problem that made a
  * hairline border unusable here.
  */
-.welcome-cards button[data-active] {
+.cards button[data-active] {
   outline-color: oklch(0.84 0.1 268);
   box-shadow:
     0 0 0 5px oklch(0.72 0.15 268 / 22%),
     0 2px 6px -2px oklch(0 0 0 / 40%),
     0 14px 32px -10px oklch(0 0 0 / 60%);
 }
-.welcome-cards button:hover {
+.cards button:hover {
   transform: translateY(-3px);
   box-shadow: 0 4px 10px -2px oklch(0 0 0 / 45%), 0 20px 40px -12px oklch(0 0 0 / 65%);
 }
-.welcome-cards button:active { transform: translateY(-1px); }
-.welcome-card-wash {
+.cards button:active { transform: translateY(-1px); }
+.card-wash {
   position: absolute;
   inset: 0;
   background: linear-gradient(0deg, oklch(0.12 0.03 280 / 92%) 0%, oklch(0.12 0.03 280 / 30%) 45%, transparent 70%);
 }
-.welcome-card-question {
+.card-question {
   position: absolute;
   inset: auto 0 0;
   padding: 0.6rem 0.7rem;
@@ -445,8 +445,8 @@ body {
    the WCAG minimum even though the dot itself is small. */
 /* Centred across the frame: the row of cards is left-aligned with the headline,
    but the dots belong to the whole frame rather than to the row's start. */
-.welcome-dots { display: flex; gap: 0.15rem; margin-top: 0.6rem; align-self: center; }
-.welcome-dots button {
+.card-dots { display: flex; gap: 0.15rem; margin-top: 0.6rem; align-self: center; }
+.card-dots button {
   display: grid;
   place-items: center;
   width: 1.5rem;
@@ -456,7 +456,7 @@ body {
   background: none;
   cursor: pointer;
 }
-.welcome-dots button::before {
+.card-dots button::before {
   content: "";
   width: 0.45rem;
   height: 0.45rem;
@@ -464,8 +464,8 @@ body {
   background: oklch(1 0 0 / 35%);
   transition: width var(--vs-duration) var(--vs-ease), background-color var(--vs-duration) ease;
 }
-.welcome-dots button:hover::before { background: oklch(1 0 0 / 60%); }
-.welcome-dots button.on::before { width: 1.35rem; background: oklch(0.84 0.1 268); }
+.card-dots button:hover::before { background: oklch(1 0 0 / 60%); }
+.card-dots button.on::before { width: 1.35rem; background: oklch(0.84 0.1 268); }
 
 
 @media (max-width: 899px) {
@@ -473,9 +473,90 @@ body {
   .welcome-title { font-size: clamp(1.75rem, 9cqw, 2.25rem); }
   /* Wider cards, so a question reads in two or three lines rather than four
      stacked words. */
-  .welcome-cards button { width: clamp(9rem, 42cqw, 11rem); }
-  .welcome-card-question { padding: 0.7rem 0.75rem; }
+  .cards button { width: clamp(9rem, 42cqw, 11rem); }
+  .card-question { padding: 0.7rem 0.75rem; }
 }
+
+/* ---------------------------------------------------------------- ending */
+
+/*
+ * The end of an answer, on the frame it ended on.
+ *
+ * A finished lesson used to hand back a row of grey pills under the composer,
+ * which read as metadata about the page rather than as the four things it was
+ * offering to do next. The same cards the opening screen uses say it properly,
+ * and say it in the shape the next answer will arrive in.
+ *
+ * It covers the foot of the picture rather than all of it: the last scene is
+ * the conclusion, and hiding it the instant it lands takes the answer away at
+ * the moment it is finished.
+ */
+.ending {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Above the player, and only ever over its own stage. */
+  z-index: 1;
+  /* The wash and the cards each fade in on their own terms; together they read
+     as the picture settling rather than a panel arriving. */
+  animation: fade-in 420ms ease both;
+}
+/*
+ * Weighted to the foot, but reaching further up than the cards do.
+ *
+ * A closing scene sets its headline in the middle of the frame, which is where
+ * the label sits - so a wash that stopped just above the cards left two pieces
+ * of white type crossing each other. Carrying it most of the way up settles
+ * that without flattening the scene: the top third is untouched, and what is
+ * under the cards is dark enough to read anything against.
+ */
+.ending-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg,
+    oklch(0.14 0.05 265 / 94%) 0%,
+    oklch(0.14 0.05 265 / 82%) 38%,
+    oklch(0.14 0.05 265 / 40%) 72%,
+    transparent 100%);
+}
+.ending-body {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(0.5rem, 1.4cqh, 0.9rem);
+  padding: 0 clamp(1.25rem, 4cqw, 3.5rem) clamp(1.25rem, 4cqh, 2.5rem);
+  color: oklch(1 0 0);
+}
+/*
+ * Four questions over a picture are not self-evidently a question: they could
+ * as easily be part of the answer. Two words settle it.
+ */
+.ending-label {
+  margin: 0;
+  font-size: clamp(var(--vs-text-footnote), 1.1cqw, var(--vs-text-subhead));
+  line-height: var(--vs-lead-footnote);
+  letter-spacing: var(--vs-track-footnote);
+  font-weight: 600;
+  color: oklch(1 0 0 / 78%);
+  /* The wash carries it on almost every frame; this carries it on the bright
+     ones, where a closing shot can be near-white behind two small words. */
+  text-shadow: 0 1px 3px oklch(0.14 0.05 265 / 70%);
+}
+/* The rail is pushed to the foot of the welcome screen by the space above it;
+   here the layer is only as tall as its contents, so there is nothing to push
+   against and the auto margin would collapse the gap under the label. */
+.ending .cards { margin-top: 0; }
+/* Wider than the welcome's, because they are read rather than glanced at: the
+   welcome's four cards are an illustration of what the tutor does, where these
+   are four sentences someone is choosing between. */
+.ending .cards button { width: clamp(8rem, 15.5cqw, 12rem); }
+/* Under the row rather than centred on the frame. The welcome's cards fill a
+   portrait frame, so centred dots sit under them; in a 16:9 frame the row
+   stops well short of the right edge and centred dots float away from what
+   they belong to. */
+.ending .card-dots { align-self: flex-start; margin-left: -0.35rem; }
 
 /* --------------------------------------------------- history and settings */
 
@@ -560,17 +641,16 @@ body {
  *
  * The top is two steps, matching the two between the subtitle and the field,
  * so the cue sits centred in the space under the picture rather than pinned to
- * its underside. Between the rows is one
- * step, because the subtitle, the field and the chips are one group. The bottom
- * is two steps, because that edge is the window rather than a neighbour, and a
- * control resting on the frame reads as unfinished; Apple's own content margins
- * sit at 16 on a phone and 20 on a desktop, and this follows them.
+ * its underside. The bottom is two steps as well, because that edge is the
+ * window rather than a neighbour, and a control resting on the frame reads as
+ * unfinished; Apple's own content margins sit at 16 on a phone and 20 on a
+ * desktop, and this follows them.
  */
 .panel-inner {
   display: grid;
-  /* One step between the field and the chips, two between the subtitle and the
-     field: the subtitle belongs to the picture above it, not to the control
-     below, and at one step a two-line cue nearly touched the composer. */
+  /* Two steps between the subtitle and the field: the subtitle belongs to the
+     picture above it, not to the control below, and at one step a two-line cue
+     nearly touched the composer. The row's own margin supplies the other. */
   gap: 0.5rem;
   width: var(--vs-column);
   margin: 0 auto;
@@ -765,71 +845,6 @@ body {
 /* While the mic is open the bars are yours, not the tutor's, so they move
    faster and wear the accent that says "this is you". */
 .waveform.hearing span { background: var(--vs-voice); animation-duration: 420ms !important; }
-
-/* ------------------------------------------------------------------ chips */
-
-/*
- * These are questions, not tags.
- *
- * A row of solid grey pills reads as metadata - something describing the page
- * rather than something to press. An outline on the page's own ground reads as
- * a choice, which is what they are, and it lets the type sit at full strength
- * instead of the muted grey a filled pill forces on it. It is also what a
- * suggestion looks like in every product that offers them well.
- */
-/*
- * One row, always, at every width.
- *
- * Wrapping made the bar's height a function of how long the suggestions
- * happened to be - two rows for the opening questions, three for a set of
- * follow-ups - so the composer moved between answers. Reserving a fixed number
- * of rows only moves the problem to the first set that needs one more.
- *
- * A single row that scrolls cannot do that: its height is one chip, whatever
- * the words. The fade on the trailing edge is how it says there is more.
- */
-.chips {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: var(--vs-control-gap);
-  /* The negative margin lets the row bleed to the edges; the vertical padding
-     is room for the chips' shadow, which a scroll container would clip. */
-  margin: -0.35rem -1rem;
-  padding: 0.35rem 1rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 2.5rem), transparent 100%);
-}
-.chips::-webkit-scrollbar { display: none; }
-@media (min-width: 900px) { .chips { margin: -0.35rem 0; padding: 0.35rem 0; } }
-.chips.away { visibility: hidden; }
-.chips button {
-  flex: 0 0 auto;
-  min-height: 2.25rem;
-  padding: 0 0.95rem;
-  border: 1px solid var(--vs-border);
-  border-radius: var(--vs-radius-pill);
-  /* Raised off the page like the composer above them, and for the same reason:
-     these are things to press. On the grey ground a white fill lifts, where on
-     the near-white page it used to sit on it only read as a tag. */
-  background: var(--vs-surface-input);
-  box-shadow: var(--vs-shadow-raised);
-  color: var(--vs-fg);
-  font: inherit;
-  font-size: var(--vs-text-footnote);
-  line-height: var(--vs-lead-footnote);
-  letter-spacing: var(--vs-track-footnote);
-  font-weight: 500;
-  cursor: pointer;
-  transition: border-color var(--vs-duration) ease, box-shadow var(--vs-duration) ease, transform var(--vs-duration) var(--vs-ease);
-}
-.chips button:hover {
-  border-color: var(--vs-border-strong);
-  box-shadow: var(--vs-shadow-input);
-  transform: translateY(-1px);
-}
-.chips button:active { transform: translateY(0); box-shadow: var(--vs-shadow-raised); }
 
 /* ------------------------------------------------------------------ sheet */
 

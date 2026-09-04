@@ -11,6 +11,7 @@ import { defaultTheme, themeBackground, themeById, themes } from "./themes";
 import { ChevronUp, Close, Gear, Mic, Replay, Send, Sound, Stop, Muted, Play, Plus, Warning } from "./icons";
 import { useDismiss, useFocusTrap } from "./use-dismiss";
 import { Welcome, useWelcome } from "./welcome";
+import { SuggestionCards, type Suggestion } from "./suggestion-cards";
 import { useVoiceInput } from "./use-voice-input";
 import "./styles.css";
 
@@ -62,13 +63,6 @@ function useViewportOrientation(): VideoOrientation {
   }, []);
   return portrait ? "portrait" : "landscape";
 }
-
-const OPENING_QUESTIONS = [
-  "Why does the Moon always show one face?",
-  "What makes ocean waves break?",
-  "How does an atom hold itself together?",
-  "Why do some animals walk on two legs?",
-];
 
 interface Answer {
   index: number;
@@ -196,9 +190,21 @@ function App() {
   // it was - a replay button that does nothing.
   const [replayCount, setReplayCount] = useState(0);
   const [viewing, setViewing] = useState<number>();
-  const [followups, setFollowups] = useState<string[]>([]);
+  const [followups, setFollowups] = useState<Suggestion[]>([]);
   const [composing, setComposing] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  /*
+   * Whether the picture has run out, as reported by the player.
+   *
+   * This used to be a `playing` flag turned off by the narration pacing loop,
+   * which is a different thing: the loop is finished when the last line has
+   * been said, and the video keeps going for as long as its own timeline says.
+   * When the two disagreed - a scene with no measured audio, a line shorter
+   * than the shot it sits under - the session called itself over while the
+   * answer was still on screen, and the follow-ups arrived mid-lesson.
+   *
+   * The player knows when its last scene has played. Nothing else does.
+   */
+  const [pictureEnded, setPictureEnded] = useState(false);
   // The opening line is not a loading state. It is the tutor's first sentence,
   // said out loud, and the session is already running while it is said - so it
   // wears the narrating chrome and answers the stop button like any other line.
@@ -313,7 +319,7 @@ function App() {
     setAnswers((current) => [...current, { index, question, orientation, fixedShape }]);
 
     setSpokenUpTo(-1);
-    setPlaying(false);
+    setPictureEnded(false);
     const askedAt = Date.now();
     let timeline: ReturnType<typeof createSceneTimeline> | undefined;
     let pendingStyle: Video["style"] | undefined;
@@ -346,7 +352,6 @@ function App() {
         if (heldRef.current) return;
         timeline = createSceneTimeline({ style: pendingStyle, orientation });
         playbackStartedAt = Date.now();
-        setPlaying(true);
         console.log(`[tutor] ${String(playbackStartedAt - askedAt).padStart(6)}ms  playback opened on ${available} scene${available === 1 ? "" : "s"}`);
         setStream(timeline.stream);
         setComposing(false);
@@ -478,7 +483,6 @@ function App() {
       });
       if (inFlight.signal.aborted) return;
       timeline?.complete();
-      setPlaying(false);
       // The paced scenes, not the planned ones. What is stored is what gets
       // replayed, and the planner's own timing is the estimate that cuts the
       // voice off - a replay has to hold each scene for the same measured
@@ -502,7 +506,6 @@ function App() {
 
   const current = answers.at(-1);
   const shown = viewing === undefined ? current : answers.find((answer) => answer.index === viewing) ?? current;
-  const suggestions = followups.length > 0 ? followups : OPENING_QUESTIONS;
   const showing = Boolean(stream || replaying);
 
   // Held wins over everything: a stopped session is stopped, whether the voice
@@ -528,7 +531,7 @@ function App() {
   const status: Status = answers.length === 0 ? "idle"
     : held ? "paused"
     : composing ? (hookSpeaking ? "narrating" : "drawing")
-    : playing || replaying ? "narrating"
+    : showing && !pictureEnded ? "narrating"
     : "ended";
 
   /** Stop the picture and the voice together, and put the cursor in the box. */
@@ -559,6 +562,7 @@ function App() {
     setCue(shown.opening);
     setReplaying(shown.video);
     setReplayCount((count) => count + 1);
+    setPictureEnded(false);
   }, [shown, narration, voice]);
 
   const newSession = useCallback(() => {
@@ -580,7 +584,7 @@ function App() {
     setCue(undefined);
     heldRef.current = false;
     setHeld(false);
-    setPlaying(false);
+    setPictureEnded(false);
     setHookSpeaking(false);
     setComposing(false);
     setHistoryOpen(false);
@@ -670,10 +674,31 @@ function App() {
           </div>}
         </>}
         {replaying
-          ? <VideoPlayer key={`replay-${replayCount}`} video={replaying} templates={templates} orientation={playerOrientation} responsiveBreakpoint={DESKTOP_WIDTH} autoPlay paused={held} onSceneChange={onSceneChange} controls={false} ariaLabel="Replay" />
+          ? <VideoPlayer key={`replay-${replayCount}`} video={replaying} templates={templates} orientation={playerOrientation} responsiveBreakpoint={DESKTOP_WIDTH} autoPlay paused={held} onSceneChange={onSceneChange} onComplete={() => setPictureEnded(true)} controls={false} ariaLabel="Replay" />
           : stream
-            ? <VideoPlayer stream={stream as never} templates={templates} orientation={playerOrientation} responsiveBreakpoint={DESKTOP_WIDTH} autoPlay paused={held} onSceneChange={onSceneChange} onError={(cause) => setError(cause.message)} controls={false} ariaLabel="The lesson" />
+            ? <VideoPlayer stream={stream as never} templates={templates} orientation={playerOrientation} responsiveBreakpoint={DESKTOP_WIDTH} autoPlay paused={held} onSceneChange={onSceneChange} onComplete={() => setPictureEnded(true)} onError={(cause) => setError(cause.message)} controls={false} ariaLabel="The lesson" />
             : null}
+
+        {/* What to ask next, on the frame the answer ended on.
+            The same cards the opening screen offers, because they are the same
+            kind of thing - a question the tutor will answer. As pills under
+            the composer they read as tags describing the page; here they are
+            the end of the answer, in the shape the next answer arrives in.
+            The last scene stays visible above them, so the lesson does not
+            vanish the moment it finishes.
+
+            Gated on a picture that exists and has finished, rather than on the
+            ended status. Status is ended whenever nothing is composing and
+            nothing is on the stage, which is also true in the gap before the
+            first scene opens - and the cards flashed there, over an empty
+            frame, until the video started and took them away again. */}
+        {showing && pictureEnded && followups.length > 0 && <div className="ending">
+          <div className="ending-wash" aria-hidden="true" />
+          <div className="ending-body">
+            <p className="ending-label">Ask next</p>
+            <SuggestionCards suggestions={followups} label="Follow-up questions" onAsk={(question) => void ask(question)} />
+          </div>
+        </div>}
       </div>
 
       {historyOpen && <nav ref={historyRef} id="session-history" className="sheet-popover history" aria-label="Questions this session">
@@ -687,6 +712,7 @@ function App() {
             setStream(undefined);
             setReplaying(answer.video);
             setReplayCount((count) => count + 1);
+            setPictureEnded(false);
             setCue(answer.opening);
             setSpokenUpTo(-1);
             heldRef.current = false;
@@ -790,15 +816,6 @@ function App() {
           ><Mic /></button>}
           <button type="submit" className="send" aria-label="Ask" disabled={!draft.trim() || status === "drawing"}><Send /></button>
         </form>
-
-        {/* Only once an answer has finished, and hidden rather than removed so
-            the bar's height never changes under the pointer. The opening
-            screen offers its suggestions as cards on the picture itself, so a
-            second set of the same questions under the composer was the same
-            offer made twice. */}
-        <div className={`chips${status === "ended" ? "" : " away"}`}>
-          {suggestions.map((question) => <button key={question} type="button" onClick={() => void ask(question)}>{question}</button>)}
-        </div>
       </div>
     </div>
 
