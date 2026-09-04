@@ -320,7 +320,7 @@
           "type"
         ],
         "declaration": [
-          "type VideoChatMode = \"templates\" | \"some\" | \"full\";"
+          "type VideoChatMode = \"templates\" | \"full\";"
         ]
       },
       "VideoChatWelcomeOptions": {
@@ -587,7 +587,7 @@
           "type"
         ],
         "declaration": [
-          "type VideoChatMode = \"templates\" | \"some\" | \"full\";"
+          "type VideoChatMode = \"templates\" | \"full\";"
         ]
       },
       "VideoChatPreparedSpeech": {

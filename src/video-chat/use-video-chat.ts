@@ -28,6 +28,7 @@ import type {
   VideoChatSuggestion,
   VideoChatWelcome,
 } from "./types.js";
+import { sanitizeVideoChatFirstShot, type VideoChatFirstShot } from "./first-shot.js";
 import { sanitizeVideoChatMedia } from "./media.js";
 import { createVideoChatVoice, type VideoChatVoice } from "./voice.js";
 
@@ -309,10 +310,6 @@ function defaultTurnId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
-function filmedScenes(mode: VideoChatMode): number {
-  return mode === "full" ? 5 : mode === "some" ? 1 : 0;
-}
-
 function transcriptFor(turn: VideoChatTurn): string[] {
   return [
     ...(turn.opening ? [turn.opening] : []),
@@ -373,7 +370,7 @@ function pacedScene(
 
 function prepareVisualScene(scene: VideoScene, mode: VideoChatMode): VideoScene {
   const overMedia = typeof (scene.variables as { mediaUrl?: unknown }).mediaUrl === "string";
-  const filmed = filmedScenes(mode) > 0 && overMedia;
+  const filmed = mode === "full" && overMedia;
   const shown = filmed
     ? {
         ...scene,
@@ -528,7 +525,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       prompt,
       completed: false,
       orientation,
-      fixedOrientation: filmedScenes(mode) > 0,
+      fixedOrientation: mode === "full",
       suggestions: [],
       ...(openingMedia ? { openingMedia } : {}),
     };
@@ -538,6 +535,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     let style: VideoStyle | undefined;
     let openingActive = false;
     let spokenHook = "";
+    let firstShot: VideoChatFirstShot | undefined;
     let planDone = false;
     let timelineCompleted = false;
     let terminal = false;
@@ -623,11 +621,12 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       ]);
       const response = await request("opening", {
         method: "POST",
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, mode }),
       }, openingSignal);
       if (response.ok && isOpeningCurrent()) {
-        const payload = await response.json() as { line?: unknown; keyword?: unknown };
+        const payload = await response.json() as { line?: unknown; keyword?: unknown; firstShot?: unknown };
         spokenHook = typeof payload.line === "string" ? payload.line.trim() : "";
+        firstShot = mode === "full" ? sanitizeVideoChatFirstShot(payload.firstShot) : undefined;
         const keyword = typeof payload.keyword === "string" ? payload.keyword.trim() : "";
         if (!openingMedia && keyword) void resolveOpeningMedia(keyword);
         if (spokenHook) {
@@ -646,6 +645,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
         body: JSON.stringify({
           prompt,
           ...(spokenHook ? { spokenHook } : {}),
+          ...(firstShot ? { firstShot } : {}),
           mode,
           orientation,
           conversation,

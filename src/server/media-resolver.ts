@@ -277,15 +277,76 @@ export function createMediaResolvingPlanner(options: {
     // waiting on a round trip.
     let openingReady = options.isOpeningReady(context.request.input);
 
-    // Parts are resolved as they arrive but yielded in order, so a slow scene
-    // delays only itself rather than everything planned after it. The queue is
-    // bounded, so a planner that runs ahead cannot start unlimited work.
-    const pending: Array<Promise<VideoPlanPart>> = [];
-    for await (const part of options.planner(context)) {
-      pending.push(resolveOne(part, openingReady));
-      if (!openingReady && options.marksOpeningReady?.(part) === true) openingReady = true;
-      while (pending.length >= limit) yield await pending.shift()!;
+    // Pull planning and media resolution in the background so the head of the
+    // ordered queue can be yielded the moment it is ready. Filling the queue in
+    // the consumer used to withhold scene one until the planner had produced
+    // `limit` parts, which turned concurrency into a startup delay.
+    type SettledPart =
+      | { part: VideoPlanPart; cause?: never }
+      | { part?: never; cause: unknown };
+    const pending: Array<Promise<SettledPart>> = [];
+    const iterator = options.planner(context)[Symbol.asyncIterator]();
+    let producerDone = false;
+    let producerError: unknown;
+    let consumerClosed = false;
+    let wakeConsumer: (() => void) | undefined;
+    let wakeProducer: (() => void) | undefined;
+    const notifyConsumer = () => {
+      wakeConsumer?.();
+      wakeConsumer = undefined;
+    };
+    const notifyProducer = () => {
+      wakeProducer?.();
+      wakeProducer = undefined;
+    };
+    const waitForItem = () => pending.length > 0 || producerDone
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => { wakeConsumer = resolve; });
+    const waitForSpace = () => pending.length < limit || consumerClosed
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => { wakeProducer = resolve; });
+    const producer = (async () => {
+      try {
+        while (!consumerClosed) {
+          await waitForSpace();
+          if (consumerClosed) break;
+          const next = await iterator.next();
+          if (next.done || consumerClosed) break;
+          const part = next.value;
+          pending.push(resolveOne(part, openingReady).then(
+            (resolved) => ({ part: resolved }),
+            (cause) => ({ cause }),
+          ));
+          if (!openingReady && options.marksOpeningReady?.(part) === true) openingReady = true;
+          notifyConsumer();
+        }
+      } catch (cause) {
+        producerError = cause;
+      } finally {
+        producerDone = true;
+        notifyConsumer();
+      }
+    })();
+
+    try {
+      while (!producerDone || pending.length > 0) {
+        await waitForItem();
+        const task = pending[0];
+        if (!task) continue;
+        const result = await task;
+        pending.shift();
+        notifyProducer();
+        if ("cause" in result) throw result.cause;
+        yield result.part;
+      }
+      await producer;
+      if (producerError !== undefined) throw producerError;
+    } finally {
+      consumerClosed = true;
+      notifyProducer();
+      if (!producerDone) {
+        void Promise.resolve(iterator.return?.()).catch(() => undefined);
+      }
     }
-    while (pending.length > 0) yield await pending.shift()!;
   };
 }

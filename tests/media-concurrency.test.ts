@@ -78,6 +78,52 @@ describe("media resolution concurrency", () => {
     expect(elapsed).toBeLessThan(SLOW_MS * 2.5);
   });
 
+  it("emits the first resolved scene while the planner is still producing the rest", async () => {
+    const { createVideoHandler } = await import("../src/server");
+    let releaseRemainder!: () => void;
+    const remainder = new Promise<void>((resolve) => { releaseRemainder = resolve; });
+    let sawFirstScene!: () => void;
+    const firstScene = new Promise<void>((resolve) => { sawFirstScene = resolve; });
+    const handler = createVideoHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      mediaConcurrency: 5,
+      resolveMedia: async (query: string) => ({
+        url: `https://media.example.test/${encodeURIComponent(query)}.mp4`,
+        type: "video" as const,
+      }),
+      streamText: async function* () {
+        yield '{"type":"scene.add","scene":{"id":"scene-1","templateId":"media","variables":{"texts":"First beat","mediaKeyword":"first subject","mediaType":"video"},"timing":{"fixedDuration":3}}}\n';
+        await remainder;
+        yield '{"type":"scene.add","placement":"closer","scene":{"id":"closer","templateId":"media","variables":{"texts":"Final beat","mediaKeyword":"final subject","mediaType":"video"},"timing":{"fixedDuration":3}}}\n';
+        yield '{"type":"plan.complete"}\n';
+      },
+    });
+    const response = await handler(new Request("https://app.example/api/video", {
+      method: "POST",
+      body: JSON.stringify({
+        protocolVersion: "0.5",
+        requestId: "request-first-scene-streaming",
+        input: { input: "A response whose later scenes are still being planned.", opening: false },
+        capabilities: { templates: ["media"] },
+      }),
+    }));
+    const consuming = (async () => {
+      for await (const event of decodeVideoSse(response.body!)) {
+        if (event.type === "scene.add" && event.data.scene.id === "scene-1") sawFirstScene();
+      }
+    })();
+
+    const emittedBeforeRemainder = await Promise.race([
+      firstScene.then(() => true),
+      new Promise<false>((resolve) => setTimeout(() => resolve(false), 250)),
+    ]);
+    releaseRemainder();
+    await consuming;
+
+    expect(emittedBeforeRemainder).toBe(true);
+  });
+
   it("keeps scenes in the order the planner wrote them", async () => {
     const { scenes } = await run({ scenes: 5, mediaConcurrency: 5 });
     expect(scenes.map((scene) => scene.id)).toEqual([

@@ -57,7 +57,12 @@ dependencies and never enter the browser bundle.
 available: it returns the short spoken hook and stock-search keyword before the
 main planner starts. The stock lookup is a separate cancellable request, so it
 cannot delay speech or planning. The generated starter uses Haiku for this task
-and reuses clicked welcome or follow-up media without searching again.
+and reuses clicked welcome or follow-up media without searching again. For a
+full AI response, the same fast call reserves the exact first body scene. Its
+clip starts generating immediately while the main planner writes scenes two
+through five. Template responses stream their first resolved scene without
+waiting for the rest of the plan, and normal narration is written in that same
+planner call rather than through a second model round trip.
 
 The matching complete React interface is one component and one scoped style
 import:

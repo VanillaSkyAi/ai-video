@@ -13,7 +13,8 @@ providers and reports their capabilities through one endpoint.
 Packaged templates and browser voice are the base mode. A text model makes that
 mode answer, while optional provider callbacks progressively add generated
 speech, stock media, transcription, and generated video without changing the
-client.
+client. Visual responses deliberately choose between templates and fully
+generated video; there is no mixed mode.
 
 ## Video response
 
