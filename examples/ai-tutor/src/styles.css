@@ -713,12 +713,21 @@ body {
 /* Listening has to be unmistakable: it is a state the person put the page in
    deliberately, and a slightly different icon colour is not an answer to "is
    it hearing me?". */
-/* One gap between every control on the trailing edge. The send button used to
-   carry a margin of its own, so the pause sat flush against the mic while the
-   mic stood off from the send - three controls in a row on two different
-   rhythms. */
-.composer .ghost + .ghost,
-.composer .ghost + .send { margin-left: 0.35rem; }
+/*
+ * Even spacing measured in ink, not in boxes.
+ *
+ * All three controls are the same 44px square, so equal margins between them
+ * ought to look equal - and do not. The send button fills its box; a ghost
+ * paints a twelve-pixel glyph in the middle of one and leaves the sixteen
+ * pixels around it empty. Equal margins therefore put 38px of visible space
+ * between the two ghosts and 22px between the mic and the send, which is why
+ * the transport looked stranded on the left. The eye measures the gap between
+ * the marks, so the marks are what these numbers even out: the ghosts sit
+ * flush, their own padding supplying the gap, and the send is pushed off by
+ * roughly the padding it does not have.
+ */
+.composer .ghost + .ghost { margin-left: 0; }
+.composer .ghost + .send { margin-left: 0.95rem; }
 
 .ghost.listening {
   color: var(--vs-accent-fg);
