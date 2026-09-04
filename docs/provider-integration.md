@@ -53,16 +53,15 @@ browser speech. Supplying `generateSpeech`, `transcribe`, `searchMedia`, or
 structural and provider-neutral; their SDKs and credentials remain application
 dependencies and never enter the browser bundle.
 
-`generateText` receives a `task`. Route `opening` to a small fast model when
-available: it returns the short spoken hook and stock-search keyword before the
-main planner starts. The stock lookup is a separate cancellable request, so it
-cannot delay speech or planning. The generated starter uses Haiku for this task
-and reuses clicked welcome or follow-up media without searching again. For a
-full AI response, the same fast call reserves the exact first body scene. Its
-clip starts generating immediately while the main planner writes scenes two
-through five. Template responses stream their first resolved scene without
-waiting for the rest of the plan, and normal narration is written in that same
-planner call rather than through a second model round trip.
+The planner emits a 6-9 word hook first, then continues into the scenes in the
+same stream. The stock lookup is a separate cancellable request, so it cannot
+delay speech or planning. A welcome card can carry a prewritten `opening`, which
+starts immediately with its already-loaded media. For a full AI response, the
+same first streamed object reserves the exact first body scene. Its clip starts
+generating while the planner continues with scenes two through five. Template
+responses stream their first resolved scene without waiting for the rest of the
+plan, and normal narration is written in that same planner call rather than
+through a second model round trip.
 
 The matching complete React interface is one component and one scoped style
 import:
@@ -81,9 +80,9 @@ export function App() {
 For a custom interface, use `useVideoChat` and render its `turns`, `welcome`,
 `suggestions`, `caption`, and `status`; the hook owns their network and playback
 lifecycle. Pass a selected card through
-`chat.ask(card.prompt, { openingMedia: card.media })` to reuse its footage for
-the opening. For typed prompts, the hook resolves the generated keyword through
-the handler automatically.
+`chat.ask(card.prompt, { opening: card.opening, openingMedia: card.media })` to
+start its hook and reuse its footage immediately. For typed prompts, the hook
+and media keyword arrive through the response stream automatically.
 
 Use `createVideoHandler` below when the application wants the lower-level video
 composition route without the video-chat actions or default prompts.

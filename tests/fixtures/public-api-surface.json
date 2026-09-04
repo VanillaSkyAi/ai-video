@@ -90,6 +90,7 @@
       "UseVideoChatResult",
       "VideoChatAskOptions",
       "VideoChatCapabilities",
+      "VideoChatFirstFrameMetric",
       "VideoChatProps",
       "VideoChatMedia",
       "VideoChatMode",

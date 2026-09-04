@@ -4,12 +4,17 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Streams each video-chat opening and scene plan from one model call. The first
+  NDJSON object carries a bounded 6-9 word hook and stock keyword; Full AI also
+  carries its exact first shot so generation starts while the remaining scenes
+  arrive. Welcome suggestions can include a prewritten hook that speaks
+  immediately with their loaded media, and `onFirstFrame` reports the measured
+  handoff to the first real scene.
+
 - Speeds up both video-chat paths. Concurrent media resolution now releases the
   first finished scene immediately instead of waiting for its queue to fill,
   and the main planner writes narration on each scene instead of paying for a
-  second text-model round trip. In Full AI video mode the fast opening director
-  reserves the exact first body scene and starts that clip while scenes two
-  through five are planned. Breaking (pre-1.0): removes the mixed `some` mode;
+  second text-model round trip. Breaking (pre-1.0): removes the mixed `some` mode;
   use `templates` for rendered responses or `full` for generated footage.
 
 - Starts each video-chat answer with a short spoken hook over relevant stock

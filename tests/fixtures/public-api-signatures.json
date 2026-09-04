@@ -336,7 +336,7 @@
           "type"
         ],
         "declaration": [
-          "interface VideoChatWelcomePrompt {\n    prompt: string;\n    mediaQuery?: string;\n}"
+          "interface VideoChatWelcomePrompt {\n    prompt: string;\n    opening?: string;\n    mediaQuery?: string;\n}"
         ]
       },
       "VideoFinishReason": {
@@ -436,7 +436,7 @@
       "type VideoChatMediaResolver = (query: string, context: VideoChatMediaContext) => ResolvedMedia | null | Promise<ResolvedMedia | null>;",
       "type VideoChatSpeechGenerator = (context: VideoChatSpeechContext) => VideoChatSpeechResult | Promise<VideoChatSpeechResult>;",
       "type VideoChatTextGenerator = (context: VideoChatTextContext) => string | Promise<string>;",
-      "type VideoChatTextTask = \"opening\" | \"opening-continuation\" | \"narration\" | \"suggestions\";",
+      "type VideoChatTextTask = \"narration\" | \"suggestions\";",
       "type VideoChatTranscriber = (context: VideoChatTranscriptionContext) => string | Promise<string>;",
       "type VideoCoreEvent = {\n    [TType in VideoCoreEventType]: VideoEventEnvelope<TType, VideoEventDataMap[TType]>;\n}[VideoCoreEventType];",
       "type VideoCoreEventType = keyof VideoEventDataMap;",
@@ -523,7 +523,7 @@
           "type"
         ],
         "declaration": [
-          "interface UseVideoChatOptions {\n    endpoint?: string | URL;\n    templates?: TemplateRegistry;\n    mode?: VideoChatMode;\n    orientation?: VideoOrientation;\n    brand?: VideoBrandInput;\n    style?: VideoStyleOptions;\n    headers?: HeadersInit;\n    credentials?: RequestCredentials;\n    fetcher?: typeof fetch;\n    voice?: VideoChatVoice;\n    initialMuted?: boolean;\n    timeoutMs?: number;\n    createTurnId?: () => string;\n}"
+          "interface UseVideoChatOptions {\n    endpoint?: string | URL;\n    templates?: TemplateRegistry;\n    mode?: VideoChatMode;\n    orientation?: VideoOrientation;\n    brand?: VideoBrandInput;\n    style?: VideoStyleOptions;\n    headers?: HeadersInit;\n    credentials?: RequestCredentials;\n    fetcher?: typeof fetch;\n    voice?: VideoChatVoice;\n    initialMuted?: boolean;\n    timeoutMs?: number;\n    createTurnId?: () => string;\n    onFirstFrame?: (metric: VideoChatFirstFrameMetric) => unknown;\n}"
         ]
       },
       "UseVideoChatResult": {
@@ -563,7 +563,7 @@
           "type"
         ],
         "declaration": [
-          "interface VideoChatAskOptions {\n    openingMedia?: VideoChatMedia | null;\n}"
+          "interface VideoChatAskOptions {\n    openingMedia?: VideoChatMedia | null;\n    opening?: string;\n}"
         ]
       },
       "VideoChatCapabilities": {
@@ -572,6 +572,14 @@
         ],
         "declaration": [
           "interface VideoChatCapabilities {\n    templates: true;\n    generatedSpeech: boolean;\n    generatedVideo: boolean;\n    stockMedia: boolean;\n    transcription: boolean;\n    modes: VideoChatMode[];\n}"
+        ]
+      },
+      "VideoChatFirstFrameMetric": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatFirstFrameMetric {\n    turnId: string;\n    mode: VideoChatMode;\n    timeToFirstFrameMs: number;\n}"
         ]
       },
       "VideoChatMedia": {
@@ -619,7 +627,7 @@
           "type"
         ],
         "declaration": [
-          "interface VideoChatSuggestion {\n    prompt: string;\n    media: VideoChatMedia | null;\n}"
+          "interface VideoChatSuggestion {\n    prompt: string;\n    opening?: string;\n    media: VideoChatMedia | null;\n}"
         ]
       },
       "VideoChatTurn": {

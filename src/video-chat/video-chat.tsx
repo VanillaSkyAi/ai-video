@@ -126,7 +126,10 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
     setHistoryOpen(false);
     setSettingsOpen(false);
     setSheetOpen(false);
-    void chat.ask(prompt, typeof value === "string" ? undefined : { openingMedia: value.media });
+    void chat.ask(prompt, typeof value === "string" ? undefined : {
+      openingMedia: value.media,
+      opening: value.opening,
+    });
   }, [chat, listen]);
 
   const newSession = useCallback(() => {

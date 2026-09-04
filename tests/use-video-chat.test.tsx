@@ -28,7 +28,11 @@ function scene(id: string, value: string, narration?: string): VideoScene {
   };
 }
 
-function responseStream(requestId: string, scenes: VideoScene[]): Response {
+function responseStream(
+  requestId: string,
+  scenes: VideoScene[],
+  opening = { line: "Let us begin somewhere unexpected.", keyword: "unexpected story opening" },
+): Response {
   const snapshot: Video = {
     schemaVersion: "0.1",
     orientation: "landscape",
@@ -36,9 +40,10 @@ function responseStream(requestId: string, scenes: VideoScene[]): Response {
     style: TEST_VIDEO_STYLE,
   };
   const events = [
-    { protocolVersion: "0.5", type: "response.start", eventId: `${requestId}:0`, runId: requestId, sequence: 0, data: { requestId, format: { orientation: "landscape" }, style: TEST_VIDEO_STYLE, capabilities: { templates: ["metric"] } } },
-    ...scenes.map((entry, position) => ({ protocolVersion: "0.5", type: "scene.add", eventId: `${requestId}:${position + 1}`, runId: requestId, sequence: position + 1, data: { scene: entry, position } })),
-    { protocolVersion: "0.5", type: "response.complete", eventId: `${requestId}:${scenes.length + 1}`, runId: requestId, sequence: scenes.length + 1, data: { finishReason: "stop", snapshot, checksum: checksumVideo(snapshot) } },
+    { protocolVersion: "0.5", type: "response.start", eventId: `${requestId}:0`, runId: requestId, sequence: 0, data: { requestId, format: { orientation: "landscape" }, style: TEST_VIDEO_STYLE, capabilities: { templates: ["metric"], extensions: ["data.video-chat-opening"] } } },
+    { protocolVersion: "0.5", type: "data.video-chat-opening", eventId: `${requestId}:1`, runId: requestId, sequence: 1, data: opening },
+    ...scenes.map((entry, position) => ({ protocolVersion: "0.5", type: "scene.add", eventId: `${requestId}:${position + 2}`, runId: requestId, sequence: position + 2, data: { scene: entry, position } })),
+    { protocolVersion: "0.5", type: "response.complete", eventId: `${requestId}:${scenes.length + 2}`, runId: requestId, sequence: scenes.length + 2, data: { finishReason: "stop", snapshot, checksum: checksumVideo(snapshot) } },
   ];
   return new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("") + "data: [DONE]\n\n", {
     headers: { "content-type": "text/event-stream", "x-vanillasky-video-stream": "0.5" },
@@ -67,17 +72,15 @@ function videoChatFetcher(options: { requests?: Array<{ action: string | null; b
       return Response.json({ templates: true, generatedSpeech: false, generatedVideo: true, stockMedia: true, transcription: false, modes: ["templates", "full"] });
     }
     if (action === "welcome") {
-      return Response.json({ hero: null, cards: [{ prompt: "Tell me a tiny story", media: null }] });
+      return Response.json({
+        hero: null,
+        cards: [{
+          prompt: "Tell me a tiny story",
+          opening: "Tonight, one tiny story changes everything.",
+          media: null,
+        }],
+      });
     }
-    if (action === "opening") return Response.json({
-      line: "Let us begin somewhere unexpected.",
-      keyword: "unexpected story opening",
-      firstShot: {
-        text: "The mystery begins",
-        narration: "One quiet detail opens the door to something much stranger than expected.",
-        mediaKeyword: "mysterious doorway opening",
-      },
-    });
     if (action === "opening-media") {
       return Response.json({ media: { url: "https://media.example/opening.mp4", type: "video" } });
     }
@@ -114,6 +117,49 @@ describe("useVideoChat", () => {
     expect(requests.filter(({ action }) => action === "capabilities")).toHaveLength(1);
     expect(requests.filter(({ action }) => action === "welcome")).toHaveLength(1);
     expect(result.current.availableModes).toEqual(["templates", "full"]);
+  });
+
+  it("starts from the opening carried by the response stream without a separate opening request", async () => {
+    const { useVideoChat } = await import("../src/react");
+    const requests: Array<{ action: string | null; body?: unknown }> = [];
+    const voice = fakeVoice();
+    const { result } = renderHook(() => useVideoChat({
+      templates: kit,
+      fetcher: videoChatFetcher({ requests }),
+      voice,
+    }));
+
+    await act(async () => { await result.current.ask("Take me somewhere unexpected"); });
+
+    expect(requests.filter(({ action }) => action === "response")).toHaveLength(1);
+    expect(requests.some(({ action }) => action === "opening")).toBe(false);
+    expect(voice.speak).toHaveBeenCalledWith(
+      "Let us begin somewhere unexpected.",
+      expect.any(Object),
+    );
+  });
+
+  it("reports the first displayed response frame once", async () => {
+    const { useVideoChat } = await import("../src/react");
+    const onFirstFrame = vi.fn();
+    const { result } = renderHook(() => useVideoChat({
+      templates: kit,
+      fetcher: videoChatFetcher(),
+      voice: fakeVoice(),
+      createTurnId: () => "measured-turn",
+      onFirstFrame,
+    }));
+
+    await act(async () => { await result.current.ask("Measure this response"); });
+    act(() => result.current.playerProps?.onSceneChange?.(scene("one", "First"), 0));
+    act(() => result.current.playerProps?.onSceneChange?.(scene("one", "First"), 0));
+
+    expect(onFirstFrame).toHaveBeenCalledOnce();
+    expect(onFirstFrame).toHaveBeenCalledWith({
+      turnId: "measured-turn",
+      mode: "templates",
+      timeToFirstFrameMs: expect.any(Number),
+    });
   });
 
   it("owns response streaming, narration, measured pacing, suggestions, and real playback completion", async () => {
@@ -178,7 +224,7 @@ describe("useVideoChat", () => {
     });
   });
 
-  it("reuses suggestion footage for an elastic opening and hands its hook to the planner", async () => {
+  it("starts a selected suggestion's prepared hook and footage immediately", async () => {
     const { useVideoChat } = await import("../src/react");
     const requests: Array<{ action: string | null; body?: unknown }> = [];
     let finishOpening!: () => void;
@@ -194,20 +240,24 @@ describe("useVideoChat", () => {
     }));
     const suggestion = {
       prompt: "Explain the Moon's locked face",
+      opening: "The Moon turns, perfectly matching its orbit.",
       media: { url: "https://media.example/suggested-moon.mp4", type: "video" as const },
     };
 
     let pending!: Promise<Video | undefined>;
-    act(() => { pending = result.current.ask(suggestion.prompt, { openingMedia: suggestion.media }); });
+    act(() => { pending = result.current.ask(suggestion.prompt, {
+      openingMedia: suggestion.media,
+      opening: suggestion.opening,
+    }); });
 
     await waitFor(() => expect(result.current.currentTurn?.openingMedia).toEqual(suggestion.media));
     await waitFor(() => expect(voice.speak).toHaveBeenCalledWith(
-      "Let us begin somewhere unexpected.",
+      suggestion.opening,
       expect.any(Object),
     ));
     await waitFor(() => expect(requests.find(({ action }) => action === "response")?.body).toMatchObject({
       prompt: suggestion.prompt,
-      spokenHook: "Let us begin somewhere unexpected.",
+      opening: suggestion.opening,
     }));
     expect(requests.some(({ action }) => action === "opening-media")).toBe(false);
     expect(result.current.playerProps).toBeUndefined();
@@ -296,15 +346,10 @@ describe("useVideoChat", () => {
     let releaseCapabilities!: (response: Response) => void;
     const capabilities = new Promise<Response>((resolve) => { releaseCapabilities = resolve; });
     let responseBody: { mode?: string } | undefined;
-    let openingBody: { mode?: string } | undefined;
     const base = videoChatFetcher();
     const fetcher: typeof fetch = vi.fn(async (input, init) => {
       const action = new URL(String(input), "https://app.example").searchParams.get("action");
       if (action === "capabilities") return capabilities;
-      if (action === "opening") {
-        openingBody = JSON.parse(String(init?.body)) as { mode?: string };
-        return base(input, init);
-      }
       if (action === "response") {
         responseBody = JSON.parse(String(init?.body)) as { mode?: string };
         return responseStream("immediate-mode", [scene("mode", "Mode", "Mode")]);
@@ -314,15 +359,7 @@ describe("useVideoChat", () => {
     const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice(), mode: "full" }));
 
     await act(async () => { await result.current.ask("Use generated video immediately"); });
-    expect(openingBody?.mode).toBe("full");
     expect(responseBody?.mode).toBe("full");
-    expect(responseBody).toMatchObject({
-      firstShot: {
-        text: "The mystery begins",
-        narration: "One quiet detail opens the door to something much stranger than expected.",
-        mediaKeyword: "mysterious doorway opening",
-      },
-    });
     releaseCapabilities(Response.json({ templates: true, generatedSpeech: false, generatedVideo: true, stockMedia: false, transcription: false, modes: ["templates", "full"] }));
   });
 
@@ -370,7 +407,6 @@ describe("useVideoChat", () => {
         responseSignal = init?.signal ?? undefined;
         return responseReady;
       }
-      if (action === "opening") return Response.json({ line: "" });
       return base(input, init);
     });
     const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice() }));
@@ -398,7 +434,6 @@ describe("useVideoChat", () => {
         responseSignal = init?.signal ?? undefined;
         return responseReady;
       }
-      if (action === "opening") return Response.json({ line: "" });
       return base(input, init);
     });
     const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice() }));
@@ -445,70 +480,6 @@ describe("useVideoChat", () => {
     expect(firstSignal?.aborted).toBe(true);
     expect(result.current.currentTurn?.prompt).toBe("New prompt");
     expect(result.current.currentTurn?.video?.scenes[0]?.id).not.toBe("late");
-  });
-
-  it("waits for the opening hook before starting the response planner", async () => {
-    const { useVideoChat } = await import("../src/react");
-    let releaseOpening!: () => void;
-    const openingReady = new Promise<void>((resolve) => { releaseOpening = resolve; });
-    const voice = fakeVoice();
-    const base = videoChatFetcher();
-    let responseCalls = 0;
-    const fetcher: typeof fetch = vi.fn(async (input, init) => {
-      const action = new URL(String(input), "https://app.example").searchParams.get("action");
-      if (action === "opening") {
-        await openingReady;
-        return Response.json({ line: "This line leads into the answer." });
-      }
-      if (action === "response") {
-        responseCalls += 1;
-        return Response.json({ error: { code: "provider_failed", message: "Planning failed" } }, { status: 502 });
-      }
-      return base(input, init);
-    });
-    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice }));
-
-    let pending!: Promise<Video | undefined>;
-    act(() => { pending = result.current.ask("Wait for the hook"); });
-    await waitFor(() => expect(fetcher).toHaveBeenCalled());
-    expect(responseCalls).toBe(0);
-    expect(result.current.status).toBe("composing");
-    releaseOpening();
-    await act(async () => { await pending; });
-
-    expect(result.current.status).toBe("error");
-    expect(responseCalls).toBe(2);
-  });
-
-  it("aborts a pending opening hook when a new prompt starts", async () => {
-    const { useVideoChat } = await import("../src/react");
-    let firstOpeningSignal: AbortSignal | undefined;
-    let openingCount = 0;
-    const base = videoChatFetcher();
-    const fetcher: typeof fetch = vi.fn(async (input, init) => {
-      const action = new URL(String(input), "https://app.example").searchParams.get("action");
-      if (action === "opening") {
-        openingCount += 1;
-        if (openingCount === 1) {
-          firstOpeningSignal = init?.signal ?? undefined;
-          return new Promise<Response>((_resolve, reject) => {
-            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
-          });
-        }
-        return Response.json({ line: "" });
-      }
-      return base(input, init);
-    });
-    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice() }));
-
-    let first!: Promise<Video | undefined>;
-    act(() => { first = result.current.ask("Slow first hook"); });
-    await waitFor(() => expect(firstOpeningSignal).toBeDefined());
-    await act(async () => { await result.current.ask("Replace it"); });
-    await act(async () => { await first; });
-
-    expect(firstOpeningSignal?.aborted).toBe(true);
-    expect(result.current.currentTurn?.prompt).toBe("Replace it");
   });
 
   it("retries once before playback starts", async () => {

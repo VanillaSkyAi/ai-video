@@ -62,7 +62,8 @@ describe("video chat starter", () => {
     expect(server).toContain("abortSignal: signal");
     expect(server).toContain("Uint8Array.from(audio)");
     expect(server).not.toContain("JSON.stringify(detail)");
-    expect(server).toContain('const OPENING_MODEL = process.env.ANTHROPIC_OPENING_MODEL ?? "claude-haiku-4-5"');
+    expect(server).not.toContain("OPENING_MODEL");
+    expect(server).toContain('opening: "The Moon turns, perfectly matching its orbit."');
   });
 
   it("does not duplicate SDK-owned UI and session behavior", () => {

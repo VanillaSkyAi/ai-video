@@ -12,6 +12,7 @@ export type { VideoChatProps } from "./video-chat/video-chat.js";
 export type {
   UseVideoChatOptions,
   UseVideoChatResult,
+  VideoChatFirstFrameMetric,
   VideoChatStatus,
   VideoChatTurn,
 } from "./video-chat/use-video-chat.js";
