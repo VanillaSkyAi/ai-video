@@ -234,7 +234,7 @@ function App() {
 
   useEffect(() => {
     const inFlight = new AbortController();
-    void fetch("/api/capabilities", { signal: inFlight.signal })
+    void fetch("/api/video-chat?action=capabilities", { signal: inFlight.signal })
       .then((response) => (response.ok ? response.json() : undefined))
       .then((value) => {
         if (value) setCapabilities(value as VideoChatCapabilities);
@@ -388,23 +388,23 @@ function App() {
     // occupy the six seconds the planner spends writing its first scene.
     void (async () => {
       try {
-        const response = await fetch("/api/opening", {
+        const response = await fetch("/api/video-chat?action=opening", {
           method: "POST",
           headers: { "content-type": "application/json" },
           signal: inFlight.signal,
           body: JSON.stringify({ prompt }),
         });
-        if (!response.ok) return void console.warn(`[video-chat] no opening line: /api/opening returned ${response.status}`);
+        if (!response.ok) return void console.warn(`[video-chat] no opening line: endpoint returned ${response.status}`);
         const line = ((await response.json() as { line?: string }).line ?? "").trim();
         if (!line) return void console.warn("[video-chat] no opening line: the model returned an empty line");
         if (inFlight.signal.aborted) return void console.warn("[video-chat] opening line dropped: the prompt was replaced");
-        const spoken = await voice.prepare(line);
+        const spoken = await voice.prepare(line, inFlight.signal);
         // If the response got here first there is nothing to cover, and an
         // opening line over a video that is already playing is just two
         // voices. Each of these is silence the viewer cannot explain, so each
         // says which one it was - the alternative is guessing from a log that
         // records only what did happen.
-        if (!spoken) return void console.warn("[video-chat] opening line has no audio: /api/speech gave nothing back");
+        if (!spoken) return void console.warn("[video-chat] opening line has no audio: speech action gave nothing back");
         if (timeline) return void console.warn("[video-chat] opening line skipped: the response was ready first");
         if (inFlight.signal.aborted) return void console.warn("[video-chat] opening line dropped: the prompt was replaced");
         speakingOpening = true;
@@ -425,7 +425,7 @@ function App() {
         // rather than leaving the card silent. Asked for only once, and only
         // when the wait has actually outlasted the first line.
         if (timeline || inFlight.signal.aborted) return;
-        const more = await fetch("/api/opening", {
+        const more = await fetch("/api/video-chat?action=opening", {
           method: "POST",
           headers: { "content-type": "application/json" },
           signal: inFlight.signal,
@@ -435,7 +435,7 @@ function App() {
           .catch(() => "");
         const second = more.trim();
         if (!second || timeline || inFlight.signal.aborted) return;
-        if (!(await voice.prepare(second))) return;
+        if (!(await voice.prepare(second, inFlight.signal))) return;
         if (timeline || inFlight.signal.aborted) return;
         setCue(second);
         setConversationTurns((current) => current.map((turn) => (turn.index === index
@@ -471,7 +471,7 @@ function App() {
           // measured length is what the scene is held for. Every line's audio
           // is requested as that line lands, so the requests overlap instead
           // of queueing behind each other.
-          const spoken = scene.narration ? await voice.prepare(scene.narration) : undefined;
+          const spoken = scene.narration ? await voice.prepare(scene.narration, inFlight.signal) : undefined;
           ready[position] = pacedScene(scene, spoken?.seconds);
           flush();
         },

@@ -58,12 +58,16 @@ export function buildVideoUserPrompt(input: VideoInput, openingDurationSec = 0):
     "Compose a video response from the structured customer input below.",
     `Knowledge mode: ${input.knowledgeMode ?? "input-only"}.`,
     `Maximum duration: ${input.maxDurationSec ?? 30} seconds, including the supplied opening.`,
-    typeof input.opening === "string" && input.opening.trim()
+    input.opening === false
+      ? "The host owns the opening wait. Add the first grounded scene as soon as it is complete; it may use host-resolved media."
+      : typeof input.opening === "string" && input.opening.trim()
       ? `The host has already added the opening scene, which consumes ${openingDurationSec} seconds. Continue after it and do not repeat or rewrite it.`
       : "Add the first grounded scene as soon as it is complete.",
-    "The first generated body scene must be fully playable without external media. Use a content-fit text, data, comparison, list, or device-free template with no media URL or keyword.",
-    "Never use media, ctaMedia, or reaction as the first generated body template, even with mediaType=gradient. Choose a non-media template first.",
-    "Add that scene before resolving any stock or supplied asset. Resolve media as part of each complete later body scene.",
+    ...(input.opening === false ? [] : [
+      "The first generated body scene must be fully playable without external media. Use a content-fit text, data, comparison, list, or device-free template with no media URL or keyword.",
+      "Never use media, ctaMedia, or reaction as the first generated body template, even with mediaType=gradient. Choose a non-media template first.",
+      "Add that scene before resolving any stock or supplied asset. Resolve media as part of each complete later body scene.",
+    ]),
     "Use only claims supported by the factual basis permitted by the trusted system prompt.",
     "Select the most decision-relevant grounded takeaways that fit the duration; represent each selected takeaway once before completing the response.",
     "For a long source, summarize instead of attempting to represent every fact, unless the creative instructions explicitly request complete fact coverage that fits the duration.",
@@ -76,8 +80,12 @@ export function buildVideoUserPrompt(input: VideoInput, openingDurationSec = 0):
     "Use a different suitable template for each body scene when the catalog supports it.",
     "Never add filler to satisfy a count or diversity target.",
     input.suppliedMedia?.length
-      ? "Select zero or more relevant opaque supplied-media references for visible later scenes. Never invent or transform a reference. Only emit mediaKeyword when the trusted system catalog explicitly exposes it, and only on later scenes. Never invent mediaUrl or mediaPoster."
-      : "No supplied media URL is available. Use asset-free templates unless the trusted system catalog explicitly permits host-resolved media intent. Only emit mediaKeyword when the trusted system catalog explicitly exposes it, and only on later scenes. Never invent mediaUrl or mediaPoster.",
+      ? input.opening === false
+        ? "Select zero or more relevant opaque supplied-media references for visible scenes. Never invent or transform a reference. Only emit mediaKeyword when the trusted system catalog explicitly exposes it. Never invent mediaUrl or mediaPoster."
+        : "Select zero or more relevant opaque supplied-media references for visible later scenes. Never invent or transform a reference. Only emit mediaKeyword when the trusted system catalog explicitly exposes it, and only on later scenes. Never invent mediaUrl or mediaPoster."
+      : input.opening === false
+        ? "No supplied media URL is available. Use asset-free templates unless the trusted system catalog explicitly permits host-resolved media intent, which may begin on the first scene. Only emit mediaKeyword when the trusted system catalog explicitly exposes it. Never invent mediaUrl or mediaPoster."
+        : "No supplied media URL is available. Use asset-free templates unless the trusted system catalog explicitly permits host-resolved media intent. Only emit mediaKeyword when the trusted system catalog explicitly exposes it, and only on later scenes. Never invent mediaUrl or mediaPoster.",
     "",
     "RAW INPUT",
     input.input.trim(),

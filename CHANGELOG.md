@@ -4,6 +4,12 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds `createVideoChatHandler`, one provider-neutral server endpoint for the
+  general-purpose video-chat experience. The SDK now owns the response,
+  opening, narration, suggestion, speech, transcription, welcome, capability,
+  and server-held generated-video budget contracts; applications supply model
+  and media callbacks without exposing providers or keys to the browser.
+
 - Reframes the canonical interactive demo as a general-purpose video chat
   starter for explanations, stories, recommendations, and creative prompts.
   It now runs with one text-model key, falls back to browser speech, and unlocks

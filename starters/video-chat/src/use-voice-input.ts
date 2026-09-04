@@ -105,15 +105,18 @@ async function recordAndTranscribe(signal: AbortSignal, stop: (halt: () => void)
   if (signal.aborted || chunks.length === 0) return "";
 
   const clip = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-  const response = await fetch("/api/transcribe", {
+  const response = await fetch("/api/video-chat?action=transcription", {
     method: "POST",
     headers: { "content-type": clip.type },
     body: clip,
     signal,
   });
   if (!response.ok) {
-    const detail = await response.json().catch(() => ({})) as { error?: string };
-    throw new Error(detail.error ?? "The recording could not be transcribed.");
+    const detail = await response.json().catch(() => ({})) as {
+      error?: string | { message?: string };
+    };
+    const message = typeof detail.error === "string" ? detail.error : detail.error?.message;
+    throw new Error(message ?? "The recording could not be transcribed.");
   }
   return String(((await response.json()) as { text?: string }).text ?? "").trim();
 }

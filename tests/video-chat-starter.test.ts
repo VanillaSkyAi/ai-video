@@ -40,7 +40,30 @@ describe("video chat starter", () => {
 
     expect(config).toContain("loadEnv");
     expect(config).not.toContain("import.meta.env");
-    expect(config).toContain('path !== "/api/welcome"');
+    expect(config).toContain('action !== "welcome"');
+  });
+
+  it("keeps orchestration in the SDK behind one endpoint", () => {
+    const server = readFileSync(join(starterRoot, "server.ts"), "utf8");
+    const config = readFileSync(join(starterRoot, "vite.config.ts"), "utf8");
+    const client = [
+      "src/main.tsx",
+      "src/generate-response.ts",
+      "src/spoken-voice.ts",
+      "src/use-voice-input.ts",
+      "src/welcome.tsx",
+    ].map((file) => readFileSync(join(starterRoot, file), "utf8")).join("\n");
+
+    expect(server).toContain("createVideoChatHandler");
+    expect(server).not.toContain("createVideoHandler");
+    expect(config).toContain('path !== "/api/video-chat"');
+    expect(config).toContain('request.once("aborted"');
+    expect(config).toContain('includes("text/event-stream")');
+    expect(client).not.toMatch(/\/api\/(?:response|narration|suggestions|speech|opening|transcribe|welcome)/);
+    expect(client).toContain("/api/video-chat?action=response");
+    expect(server).toContain("async ({ text, signal })");
+    expect(server).toContain("abortSignal: signal");
+    expect(server).not.toContain("JSON.stringify(detail)");
   });
 });
 
@@ -64,6 +87,26 @@ describe("video chat browser voice fallback", () => {
     await voice.speak("A short spoken response.", { signal: new AbortController().signal });
     expect(speak).toHaveBeenCalledOnce();
 
+    vi.unstubAllGlobals();
+  });
+
+  it("cancels generated speech preparation with its prompt", async () => {
+    let requestSignal: AbortSignal | undefined;
+    vi.stubGlobal("fetch", vi.fn((_input: string, init?: RequestInit) => {
+      requestSignal = init?.signal as AbortSignal | undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        requestSignal?.addEventListener("abort", () => reject(requestSignal?.reason), { once: true });
+      });
+    }));
+    const { createSpokenVoice } = await import("../starters/video-chat/src/spoken-voice");
+    const voice = createSpokenVoice();
+    const controller = new AbortController();
+    const preparing = voice.prepare("A line that gets replaced.", controller.signal);
+
+    controller.abort(new DOMException("Prompt replaced", "AbortError"));
+
+    await expect(preparing).rejects.toMatchObject({ name: "AbortError" });
+    expect(requestSignal?.aborted).toBe(true);
     vi.unstubAllGlobals();
   });
 });

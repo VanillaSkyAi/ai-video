@@ -2,13 +2,13 @@
  * A whole response as text: the line said over the loading screen, then every
  * scene with what it shows and what is said over it.
  *
- * Runs the same three routes the page does, in the same order, against the
+ * Runs the same endpoint actions the page does, in the same order, against the
  * dev server - so what it prints is what a viewer would hear. Judging a prompt
  * from one scene at a time is how we ended up with an opening line that
  * sharpens the prompt and a first scene that turns it in the same breath.
  */
 const BASE = process.env.VIDEO_CHAT_BASE ?? "http://localhost:5199";
-const FILMED = process.env.VIDEO_CHAT_GENERATED_SCENES ?? "0";
+const MODE = process.env.VIDEO_CHAT_MODE ?? "templates";
 
 async function post(path, body) {
   const response = await fetch(`${BASE}${path}`, {
@@ -20,21 +20,12 @@ async function post(path, body) {
   return response;
 }
 
-async function plan(prompt, instructions, capabilities) {
-  const response = await post(`/api/response?filmed=${FILMED}`, {
-    protocolVersion: "0.5",
-    requestId: `transcript-${Date.now()}`,
-    capabilities,
-    input: {
-      input: prompt,
-      instructions,
-      knowledgeMode: "general",
-      opening: false,
-      orientation: "landscape",
-      maxDurationSec: 40,
-      brand: BRAND,
-      style: { density: "airy", motion: "calm", textArchetype: "cinematic" },
-    },
+async function plan(prompt) {
+  const response = await post("/api/video-chat?action=response", {
+    prompt,
+    mode: MODE,
+    orientation: "landscape",
+    brand: BRAND,
   });
 
   const scenes = [];
@@ -78,13 +69,13 @@ function onScreen(scene) {
   return parts.join("  ·  ");
 }
 
-export async function transcribe(prompt, { instructions, capabilities }) {
-  const opening = (await (await post("/api/opening", { prompt })).json()).line;
-  const scenes = await plan(prompt, instructions, capabilities);
+export async function transcribe(prompt) {
+  const opening = (await (await post("/api/video-chat?action=opening", { prompt })).json()).line;
+  const scenes = await plan(prompt);
 
   const lines = [];
   for (const scene of scenes) {
-    const { line } = await (await post("/api/narration", { prompt, scene, earlier: [...lines] })).json();
+    const { line } = await (await post("/api/video-chat?action=narration", { prompt, scene, earlier: [...lines] })).json();
     if (line) lines.push(line);
     scene.spoken = line;
   }

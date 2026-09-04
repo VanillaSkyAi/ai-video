@@ -9,15 +9,11 @@
  * responding the same prompt twice - a transcript shows it at a glance.
  */
 import { transcribe, render } from "./transcript.mjs";
-import { definitions } from "../vanillasky/index.ts";
 
-// The video chat's own brief, read from source so this tests what ships.
-const src = await import("../src/generate-response.ts");
 const prompts = process.argv.slice(2);
-const capabilities = { templates: definitions.map((t) => t.id) };
 for (const prompt of prompts) {
   try {
-    console.log(render(await transcribe(prompt, { instructions: src.responseInstructions(0), capabilities })));
+    console.log(render(await transcribe(prompt)));
   } catch (cause) {
     console.log(`\nQ: ${prompt}\n  FAILED: ${cause.message}`);
   }

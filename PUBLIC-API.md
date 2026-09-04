@@ -92,11 +92,14 @@ provider-neutral text-delta escape hatch.
 
 ### Values
 
+- `createVideoChatHandler(options)`
 - `createVideoHandler(options)`
 - `createServerTemplateRegistry(options)`
 
 ### Types
 
+- `VideoChatCapabilities`
+- `VideoChatHandlerOptions`
 - `VideoHandlerOptions`
 - `MediaResolver`
 - `MediaResolverContext`
@@ -110,6 +113,27 @@ provider-neutral text-delta escape hatch.
 - `VideoWarningCategory`
 
 ### Handler contract
+
+`createVideoChatHandler` is the opinionated general-purpose video-chat route.
+Mount it once and use its bounded `action` query parameter for capabilities,
+responses, openings, narration, suggestions, speech, transcription, and the
+welcome screen. It owns the general response prompts, fixed visual-mode spend
+limits, capability fallbacks, and auxiliary response shapes. The application
+supplies provider-neutral `streamText`, `generateText`, `generateSpeech`,
+`transcribe`, `searchMedia`, and `generateVideo` callbacks. Only the two text
+callbacks are required. Missing optional callbacks remove their capability;
+templates and browser speech remain available.
+
+- A response accepts `prompt`, `mode`, `orientation`, optional bounded
+  `conversation`, `brand`, and `style`. It returns the existing protocol `0.5`
+  SSE stream; video-chat-only SSE events are not introduced.
+- `templates`, `some`, and `full` map to server-owned generated-media budgets
+  of zero, one, and five. Without `generateVideo`, only `templates` is exposed
+  and forged generated-mode requests degrade to it.
+- Every action applies the same authorization, origin, request-size,
+  cancellation, safe-error, and server-only-provider boundaries.
+
+`createVideoHandler` remains the lower-level video composition route:
 
 - `authorize` is required for HTTP handlers. Use `authorize: "none"` only for
   an intentionally non-public in-process/test handler.
