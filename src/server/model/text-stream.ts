@@ -56,13 +56,24 @@ function parsePlanLine(line: string) {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const object = value as Record<string, unknown>;
     const scene = object.scene;
-    if (object.type === "scene.add" && object.timing != null &&
-      scene && typeof scene === "object" && !Array.isArray(scene) &&
-      !("timing" in scene)) {
-      const { timing, ...planPart } = object;
+    if (object.type === "scene.add" && scene && typeof scene === "object" && !Array.isArray(scene)) {
+      const planPart = { ...object };
+      const repairedScene = { ...scene as Record<string, unknown> };
+      let repaired = false;
+      if (object.timing != null && !("timing" in scene)) {
+        repairedScene.timing = object.timing;
+        delete planPart.timing;
+        repaired = true;
+      }
+      if (object.narration != null && !("narration" in scene)) {
+        repairedScene.narration = object.narration;
+        delete planPart.narration;
+        repaired = true;
+      }
+      if (!repaired) return parseVideoPlanPart(value);
       return parseVideoPlanPart({
         ...planPart,
-        scene: { ...(scene as Record<string, unknown>), timing },
+        scene: repairedScene,
       });
     }
   }

@@ -34,7 +34,9 @@ Restart the development server after changing keys. Open
 1. A fast text model writes one short spoken hook and a stock-footage keyword.
 2. A clicked welcome or follow-up card reuses its loaded footage immediately;
    a typed prompt resolves the hook keyword through the optional stock provider.
-3. The SDK speaks that hook while the main model plans five visual beats.
+3. The SDK speaks that hook while the main model plans the visual response. In
+   full AI mode, the opening director also reserves the exact first generated
+   shot so it can render while the main model plans scenes two through five.
 4. The opening footage loops or holds until the first planned scene and its
    voice are ready, then the response timeline takes over without a blank gap.
 5. The SDK holds every planned scene for its measured or estimated speech time
@@ -46,13 +48,12 @@ template response from completing.
 
 ## Visual modes
 
-The templates mode is always available. Generated modes appear only when a
+The templates mode is always available. Full AI video appears only when a
 video provider is configured.
 
 | Mode | Generated scenes | Cost profile |
 | --- | ---: | --- |
 | Templates only | 0 | Rendered locally |
-| Some AI video | 1 | One generated clip |
 | Full AI video | 5 | Every beat generated |
 
 The provider names its own model. Override the tested defaults with

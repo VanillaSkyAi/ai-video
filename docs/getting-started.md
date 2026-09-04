@@ -88,7 +88,9 @@ creative request in the same conversation. Confirm each response starts with a
 spoken hook before the full plan is complete, holds its opening until the first
 scene is ready, reaches its final frame, and leaves the composer ready for
 another turn. With stock media enabled, click a welcome or follow-up card and
-confirm its footage carries directly into that opening.
+confirm its footage carries directly into that opening. With generated video
+enabled, confirm the only choices are Templates and Full AI video and that the
+first generated shot continues the spoken hook without repeating it.
 
 The generated local authorization accepts localhost only. Replace it with your
 real session check, rate limits, and usage policy before deploying.

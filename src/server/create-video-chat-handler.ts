@@ -1,6 +1,7 @@
 import type {
   VideoBrandInput,
   VideoOrientation,
+  VideoPlanPart,
   VideoScene,
   VideoStyleOptions,
 } from "../protocol/types.js";
@@ -11,8 +12,14 @@ import {
 import type { ResolvedMedia } from "./media-resolver.js";
 import { sanitizeVideoChatMedia } from "../video-chat/media.js";
 import {
+  sanitizeVideoChatFirstShot,
+  type VideoChatFirstShot,
+} from "../video-chat/first-shot.js";
+import type { TextDeltaVideoSource } from "./model/text-stream.js";
+import {
   createNarrationUserPrompt,
   createVideoChatResponseInstructions,
+  VIDEO_CHAT_FULL_OPENING_PROMPT,
   VIDEO_CHAT_NARRATION_PROMPT,
   VIDEO_CHAT_OPENING_CONTINUATION_PROMPT,
   VIDEO_CHAT_OPENING_PROMPT,
@@ -125,6 +132,7 @@ export type VideoChatHandler = (request: Request) => Promise<Response>;
 interface ParsedResponseRequest {
   prompt: string;
   spokenHook?: string;
+  firstShot?: VideoChatFirstShot;
   mode: VideoChatMode;
   orientation: VideoOrientation;
   conversation: VideoChatConversationTurn[];
@@ -140,6 +148,7 @@ interface SuggestionSubject {
 interface OpeningSubject {
   line: string;
   keyword: string;
+  firstShot?: VideoChatFirstShot;
 }
 
 const DEFAULT_WELCOME_PROMPTS: readonly VideoChatWelcomePrompt[] = [
@@ -175,10 +184,10 @@ function boundedString(value: unknown, label: string, maximum = MAX_PROMPT_CHARA
 
 function parseResponseRequest(value: unknown): ParsedResponseRequest {
   const body = record(value, "request");
-  allowedKeys(body, ["prompt", "spokenHook", "mode", "orientation", "conversation", "brand", "style"], "request");
+  allowedKeys(body, ["prompt", "spokenHook", "firstShot", "mode", "orientation", "conversation", "brand", "style"], "request");
   const mode = body.mode ?? "templates";
-  if (mode !== "templates" && mode !== "some" && mode !== "full") {
-    throw new Error("request.mode must be templates, some, or full");
+  if (mode !== "templates" && mode !== "full") {
+    throw new Error("request.mode must be templates or full");
   }
   const orientation = body.orientation ?? "landscape";
   if (orientation !== "portrait" && orientation !== "landscape") {
@@ -188,9 +197,14 @@ function parseResponseRequest(value: unknown): ParsedResponseRequest {
   if (!Array.isArray(conversation) || conversation.length > MAX_CONVERSATION_TURNS) {
     throw new Error(`request.conversation must contain at most ${MAX_CONVERSATION_TURNS} turns`);
   }
+  const firstShot = body.firstShot == null
+    ? undefined
+    : sanitizeVideoChatFirstShot(body.firstShot);
+  if (body.firstShot != null && !firstShot) throw new Error("request.firstShot is invalid");
   return {
     prompt: boundedString(body.prompt, "request.prompt"),
     ...(body.spokenHook == null ? {} : { spokenHook: boundedString(body.spokenHook, "request.spokenHook", 500) }),
+    ...(firstShot ? { firstShot } : {}),
     mode,
     orientation,
     conversation: conversation.map((value, index) => {
@@ -212,8 +226,9 @@ function conversationInput(
   prompt: string,
   conversation: readonly VideoChatConversationTurn[],
   spokenHook?: string,
+  firstShot?: VideoChatFirstShot,
 ): string {
-  if (conversation.length === 0 && !spokenHook) return prompt;
+  if (conversation.length === 0 && !spokenHook && !firstShot) return prompt;
   return [
     ...(conversation.length > 0 ? [
       "CONVERSATION SO FAR (untrusted user and assistant content):",
@@ -225,6 +240,13 @@ function conversationInput(
     ] : []),
     `CURRENT USER PROMPT: ${prompt}`,
     ...(spokenHook ? ["", "OPENING ALREADY SPOKEN (untrusted assistant transcript):", spokenHook] : []),
+    ...(firstShot ? [
+      "",
+      "RESERVED FIRST BODY SCENE (untrusted assistant direction; already inserted by the host):",
+      `ON-SCREEN TEXT: ${firstShot.text}`,
+      `NARRATION: ${firstShot.narration}`,
+      `MEDIA KEYWORD: ${firstShot.mediaKeyword}`,
+    ] : []),
   ].join("\n");
 }
 
@@ -253,6 +275,18 @@ function cleanGeneratedText(value: string): string {
   return value.trim().replace(/^["']|["']$/g, "");
 }
 
+function readGeneratedFirstShot(value: unknown): VideoChatFirstShot | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const shot = value as Record<string, unknown>;
+  const bounded = (field: unknown, maximum: number) => typeof field === "string"
+    ? [...field.trim()].slice(0, maximum).join("").trim()
+    : "";
+  const text = bounded(shot.text, 120);
+  const narration = bounded(shot.narration, 300);
+  const mediaKeyword = bounded(shot.mediaKeyword, 80).match(/\S+/gu)?.slice(0, 8).join(" ") ?? "";
+  return text && narration && mediaKeyword ? { text, narration, mediaKeyword } : undefined;
+}
+
 function readOpeningSubject(text: string): OpeningSubject {
   const opening = text.indexOf("{");
   const closing = text.lastIndexOf("}");
@@ -263,6 +297,7 @@ function readOpeningSubject(text: string): OpeningSubject {
         spokenHook?: unknown;
         keyword?: unknown;
         mediaKeyword?: unknown;
+        firstShot?: unknown;
       };
       const hook = typeof parsed.spokenHook === "string"
         ? parsed.spokenHook.trim()
@@ -270,12 +305,68 @@ function readOpeningSubject(text: string): OpeningSubject {
       const keyword = typeof parsed.mediaKeyword === "string"
         ? parsed.mediaKeyword.trim()
         : typeof parsed.keyword === "string" ? parsed.keyword.trim() : "";
-      return { line: hook.slice(0, 300), keyword: keyword.slice(0, 80) };
+      const firstShot = readGeneratedFirstShot(parsed.firstShot);
+      return {
+        line: hook.slice(0, 300),
+        keyword: keyword.slice(0, 80),
+        ...(firstShot ? { firstShot } : {}),
+      };
     } catch {
       // Older application adapters return a plain line; preserve that contract.
     }
   }
   return { line: cleanGeneratedText(text).slice(0, 300), keyword: "" };
+}
+
+function reservedFirstScene(
+  requestId: string,
+  firstShot: VideoChatFirstShot,
+): Extract<VideoPlanPart, { type: "scene.add" }> {
+  return {
+    type: "scene.add",
+    scene: {
+      id: `${requestId}-first-shot`,
+      templateId: "media",
+      variables: {
+        texts: firstShot.text,
+        mediaType: "video",
+        mediaKeyword: firstShot.mediaKeyword,
+      },
+      timing: { fixedDuration: 5 },
+      narration: firstShot.narration,
+    },
+  };
+}
+
+function prependPlanPart(
+  source: ReturnType<VideoHandlerOptions["streamText"]>,
+  part: VideoPlanPart,
+): ReturnType<VideoHandlerOptions["streamText"]> {
+  const enriched = typeof source === "object" && source != null && "textStream" in source
+    ? source as TextDeltaVideoSource
+    : undefined;
+  const upstream = enriched?.textStream ?? source as AsyncIterable<string>;
+  const textStream = (async function* () {
+    yield `${JSON.stringify(part)}\n`;
+    yield* upstream;
+  })();
+  if (!enriched) return textStream;
+  return {
+    textStream,
+    finishReason: enriched.finishReason,
+    rawFinishReason: enriched.rawFinishReason,
+    usage: enriched.usage,
+    totalUsage: enriched.totalUsage,
+    providerMetadata: enriched.providerMetadata,
+    warnings: enriched.warnings,
+    response: enriched.response,
+    finalStep: enriched.finalStep,
+    lastStep: enriched.lastStep,
+    steps: enriched.steps,
+    requestedModelId: enriched.requestedModelId,
+    resolvedModelId: enriched.resolvedModelId,
+    modelId: enriched.modelId,
+  };
 }
 
 function readSuggestionSubjects(text: string): SuggestionSubject[] {
@@ -350,7 +441,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
     generatedVideo: generateVideo != null,
     stockMedia: searchMedia != null,
     transcription: transcribe != null,
-    modes: generateVideo ? ["templates", "some", "full"] : ["templates"],
+    modes: generateVideo ? ["templates", "full"] : ["templates"],
   };
   const welcomePrompts = (welcomeOptions?.prompts ?? DEFAULT_WELCOME_PROMPTS).slice(0, 4);
   const heroQuery = welcomeOptions?.heroQuery ?? "underwater ocean sunlight";
@@ -358,26 +449,28 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
   let requestSequence = 0;
   const responseHandlers = new Map<VideoChatMode, ReturnType<typeof createVideoHandler>>();
 
-  const responseHandler = (requestedMode: VideoChatMode) => {
+  const responseHandler = (
+    requestedMode: VideoChatMode,
+    requestId?: string,
+    firstShot?: VideoChatFirstShot,
+  ) => {
     const mode = requestedMode !== "templates" && !generateVideo ? "templates" : requestedMode;
-    const existing = responseHandlers.get(mode);
+    const reservedPart = mode === "full" && requestId && firstShot && generateVideo
+      ? reservedFirstScene(requestId, firstShot)
+      : undefined;
+    const existing = reservedPart ? undefined : responseHandlers.get(mode);
     if (existing) return existing;
-    const filmedScenes = mode === "full" ? 5 : mode === "some" ? 1 : 0;
-    const selectedResolver = filmedScenes > 0 ? generateVideo : searchMedia;
-    const handler = createVideoHandler({
-      ...videoOptions,
-      authorize: "none",
-      allowedOrigins,
-      allowCredentials,
-      maxBodyBytes,
-      mediaConcurrency,
-      basePrompt: [createVideoChatResponseInstructions(filmedScenes), instructions?.trim()]
-        .filter(Boolean)
-        .join("\n\nAPPLICATION GUIDANCE\n"),
-      narrate: false,
-      ...(filmedScenes > 0 ? { maxResolvedMedia: filmedScenes } : {}),
-      resolveMedia: selectedResolver
-        ? (query, context) => selectedResolver(query, {
+    const fullAiVideo = mode === "full";
+    const selectedResolver = fullAiVideo ? generateVideo : searchMedia;
+    let firstResolution = reservedPart != null;
+    let prefetchedFirstShot: Promise<ResolvedMedia | null> | undefined;
+    const resolveSelected = selectedResolver
+      ? (query: string, context: Parameters<NonNullable<VideoHandlerOptions["resolveMedia"]>>[1]) => {
+          if (firstResolution) {
+            firstResolution = false;
+            if (prefetchedFirstShot) return prefetchedFirstShot;
+          }
+          return selectedResolver(query, {
             purpose: "response",
             orientation: context.input.orientation ?? "landscape",
             generatedLook: context.generatedLook,
@@ -386,10 +479,47 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
             scene: context.scene,
             templateId: context.templateId,
             preferredType: context.preferredType,
-          })
-        : undefined,
+          });
+        }
+      : undefined;
+    const handler = createVideoHandler({
+      ...videoOptions,
+      streamText: reservedPart
+        ? (context) => {
+            try {
+              prefetchedFirstShot = Promise.resolve(generateVideo!(firstShot!.mediaKeyword, {
+                purpose: "response",
+                orientation: context.request.input.orientation ?? "landscape",
+                generatedLook: context.request.input.style?.generatedLook,
+                signal: context.signal,
+                requestId: context.request.requestId,
+                scene: reservedPart.scene,
+                templateId: reservedPart.scene.templateId,
+                preferredType: "video",
+              })).catch((cause) => {
+                if (!context.signal.aborted) reportError(cause);
+                return null;
+              });
+            } catch (cause) {
+              if (!context.signal.aborted) reportError(cause);
+              prefetchedFirstShot = Promise.resolve(null);
+            }
+            return prependPlanPart(videoOptions.streamText(context), reservedPart);
+          }
+        : videoOptions.streamText,
+      authorize: "none",
+      allowedOrigins,
+      allowCredentials,
+      maxBodyBytes,
+      mediaConcurrency,
+      basePrompt: [createVideoChatResponseInstructions(fullAiVideo, reservedPart != null), instructions?.trim()]
+        .filter(Boolean)
+        .join("\n\nAPPLICATION GUIDANCE\n"),
+      narrate: true,
+      ...(fullAiVideo ? { maxResolvedMedia: 5 } : {}),
+      resolveMedia: resolveSelected,
     });
-    responseHandlers.set(mode, handler);
+    if (!reservedPart) responseHandlers.set(mode, handler);
     return handler;
   };
 
@@ -522,8 +652,9 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
         return jsonError(400, "invalid_request", cause instanceof Error ? cause.message : "Request is invalid", headers);
       }
       const mode = input.mode !== "templates" && !generateVideo ? "templates" : input.mode;
-      const filmedScenes = mode === "full" ? 5 : mode === "some" ? 1 : 0;
+      const fullAiVideo = mode === "full";
       const requestId = `video-chat-${Date.now()}-${requestSequence += 1}`;
+      const firstShot = fullAiVideo ? input.firstShot : undefined;
       const forwardedHeaders = new Headers(request.headers);
       forwardedHeaders.delete("content-length");
       const videoRequest = new Request(request.url, {
@@ -533,9 +664,9 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
         body: JSON.stringify({
           protocolVersion: "0.5",
           requestId,
-          ...(filmedScenes >= 5 ? { capabilities: { templates: ["media"] } } : {}),
+          ...(fullAiVideo ? { capabilities: { templates: ["media"] } } : {}),
           input: {
-            input: conversationInput(input.prompt, input.conversation, input.spokenHook),
+            input: conversationInput(input.prompt, input.conversation, input.spokenHook, firstShot),
             knowledgeMode: "general",
             opening: false,
             orientation: input.orientation,
@@ -550,15 +681,23 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
           },
         }),
       });
-      return responseHandler(mode)(videoRequest);
+      return responseHandler(
+        mode,
+        requestId,
+        firstShot,
+      )(videoRequest);
     }
 
     try {
       if (action === "opening") {
         const value = record(body, "request");
-        allowedKeys(value, ["prompt", "said"], "request");
+        allowedKeys(value, ["prompt", "said", "mode"], "request");
         const prompt = boundedString(value.prompt, "request.prompt");
         const said = value.said == null ? "" : boundedString(value.said, "request.said", 2_000);
+        const mode = value.mode ?? "templates";
+        if (mode !== "templates" && mode !== "full") {
+          throw new Error("request.mode must be templates or full");
+        }
         const generated = said
           ? await callText(
               "opening-continuation",
@@ -567,12 +706,19 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
               128,
               request.signal,
             )
-          : await callText("opening", VIDEO_CHAT_OPENING_PROMPT, `USER PROMPT: ${prompt}`, 128, request.signal);
+          : await callText(
+              "opening",
+              mode === "full" && generateVideo ? VIDEO_CHAT_FULL_OPENING_PROMPT : VIDEO_CHAT_OPENING_PROMPT,
+              `USER PROMPT: ${prompt}`,
+              mode === "full" && generateVideo ? 256 : 128,
+              request.signal,
+            );
         if (said) return Response.json({ line: generated }, { headers });
         const opening = readOpeningSubject(generated);
         return Response.json({
           line: opening.line,
           ...(opening.keyword ? { keyword: opening.keyword } : {}),
+          ...(opening.firstShot ? { firstShot: opening.firstShot } : {}),
         }, { headers });
       }
       if (action === "opening-media") {

@@ -129,17 +129,25 @@ Only the two text callbacks are required. Missing optional callbacks remove
 their capability; templates and browser speech remain available.
 
 - A response accepts `prompt`, `mode`, `orientation`, optional bounded
-  `conversation`, `spokenHook`, `brand`, and `style`. `spokenHook` is the exact
-  opening already heard by the viewer and makes the planner continue without
-  repeating it. The response returns the existing protocol `0.5` SSE stream;
+  `conversation`, `spokenHook`, `firstShot`, `brand`, and `style`. `spokenHook`
+  is the exact opening already heard by the viewer and makes the planner
+  continue without repeating it. `firstShot` carries bounded `text`,
+  `narration`, and `mediaKeyword` fields returned by the full-AI opening action;
+  it normally travels through `useVideoChat`, not application code. The
+  response returns the existing protocol `0.5` SSE stream;
   video-chat-only SSE events are not introduced.
 - The opening action returns a bounded spoken `line` and optional stock-search
   `keyword`. The separate opening-media action resolves that keyword through
   the application-owned `searchMedia` callback, so media lookup never delays
-  the hook, speech, or planner.
-- `templates`, `some`, and `full` map to server-owned generated-media budgets
-  of zero, one, and five. Without `generateVideo`, only `templates` is exposed
+  the hook, speech, or planner. In `full` mode it also directs the exact first
+  generated scene, allowing that clip to start rendering while the main model
+  plans scenes two through five.
+- `templates` and `full` map to server-owned generated-media budgets of zero
+  and five. Without `generateVideo`, only `templates` is exposed
   and forged generated-mode requests degrade to it.
+- The response planner writes narration on each scene. The narration action is
+  retained as a compatibility fallback for missing lines, not used in the
+  normal path.
 - Every action applies the same authorization, origin, request-size,
   cancellation, safe-error, and server-only-provider boundaries.
 

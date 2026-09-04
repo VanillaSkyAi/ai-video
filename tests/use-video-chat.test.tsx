@@ -64,7 +64,7 @@ function videoChatFetcher(options: { requests?: Array<{ action: string | null; b
     const body = init?.body && typeof init.body === "string" ? JSON.parse(init.body) : undefined;
     options.requests?.push({ action, body });
     if (action === "capabilities") {
-      return Response.json({ templates: true, generatedSpeech: false, generatedVideo: true, stockMedia: true, transcription: false, modes: ["templates", "some", "full"] });
+      return Response.json({ templates: true, generatedSpeech: false, generatedVideo: true, stockMedia: true, transcription: false, modes: ["templates", "full"] });
     }
     if (action === "welcome") {
       return Response.json({ hero: null, cards: [{ prompt: "Tell me a tiny story", media: null }] });
@@ -72,6 +72,11 @@ function videoChatFetcher(options: { requests?: Array<{ action: string | null; b
     if (action === "opening") return Response.json({
       line: "Let us begin somewhere unexpected.",
       keyword: "unexpected story opening",
+      firstShot: {
+        text: "The mystery begins",
+        narration: "One quiet detail opens the door to something much stranger than expected.",
+        mediaKeyword: "mysterious doorway opening",
+      },
     });
     if (action === "opening-media") {
       return Response.json({ media: { url: "https://media.example/opening.mp4", type: "video" } });
@@ -104,11 +109,11 @@ describe("useVideoChat", () => {
     const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher: videoChatFetcher({ requests }), voice: fakeVoice() }));
 
     expectTypeOf(useVideoChat).toBeFunction();
-    await waitFor(() => expect(result.current.capabilities?.modes).toEqual(["templates", "some", "full"]));
+    await waitFor(() => expect(result.current.capabilities?.modes).toEqual(["templates", "full"]));
     await waitFor(() => expect(result.current.welcome?.cards[0]?.prompt).toBe("Tell me a tiny story"));
     expect(requests.filter(({ action }) => action === "capabilities")).toHaveLength(1);
     expect(requests.filter(({ action }) => action === "welcome")).toHaveLength(1);
-    expect(result.current.availableModes).toEqual(["templates", "some", "full"]);
+    expect(result.current.availableModes).toEqual(["templates", "full"]);
   });
 
   it("owns response streaming, narration, measured pacing, suggestions, and real playback completion", async () => {
@@ -118,7 +123,7 @@ describe("useVideoChat", () => {
       templates: kit,
       fetcher: videoChatFetcher(),
       voice,
-      mode: "some",
+      mode: "full",
       orientation: "landscape",
       brand: { colors: { primary: "#ff3366" } },
       style: { generatedLook: "paper collage" },
@@ -291,10 +296,15 @@ describe("useVideoChat", () => {
     let releaseCapabilities!: (response: Response) => void;
     const capabilities = new Promise<Response>((resolve) => { releaseCapabilities = resolve; });
     let responseBody: { mode?: string } | undefined;
+    let openingBody: { mode?: string } | undefined;
     const base = videoChatFetcher();
     const fetcher: typeof fetch = vi.fn(async (input, init) => {
       const action = new URL(String(input), "https://app.example").searchParams.get("action");
       if (action === "capabilities") return capabilities;
+      if (action === "opening") {
+        openingBody = JSON.parse(String(init?.body)) as { mode?: string };
+        return base(input, init);
+      }
       if (action === "response") {
         responseBody = JSON.parse(String(init?.body)) as { mode?: string };
         return responseStream("immediate-mode", [scene("mode", "Mode", "Mode")]);
@@ -304,8 +314,16 @@ describe("useVideoChat", () => {
     const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice(), mode: "full" }));
 
     await act(async () => { await result.current.ask("Use generated video immediately"); });
+    expect(openingBody?.mode).toBe("full");
     expect(responseBody?.mode).toBe("full");
-    releaseCapabilities(Response.json({ templates: true, generatedSpeech: false, generatedVideo: true, stockMedia: false, transcription: false, modes: ["templates", "some", "full"] }));
+    expect(responseBody).toMatchObject({
+      firstShot: {
+        text: "The mystery begins",
+        narration: "One quiet detail opens the door to something much stranger than expected.",
+        mediaKeyword: "mysterious doorway opening",
+      },
+    });
+    releaseCapabilities(Response.json({ templates: true, generatedSpeech: false, generatedVideo: true, stockMedia: false, transcription: false, modes: ["templates", "full"] }));
   });
 
   it("keeps pause, voice, replay, and history selection synchronized with the player", async () => {

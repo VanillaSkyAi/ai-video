@@ -1,4 +1,4 @@
-export type VideoChatMode = "templates" | "some" | "full";
+export type VideoChatMode = "templates" | "full";
 
 export interface VideoChatConversationTurn {
   prompt: string;
