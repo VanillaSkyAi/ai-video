@@ -4,6 +4,10 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds `VideoPlayer.onPlaybackEnd`, which fires when the visible playhead
+  actually reaches the end without changing the existing stream-composition
+  meaning of `onComplete`.
+
 - Adds `createVideoChatHandler`, one provider-neutral server endpoint for the
   general-purpose video-chat experience. The SDK now owns the response,
   opening, narration, suggestion, speech, transcription, welcome, capability,

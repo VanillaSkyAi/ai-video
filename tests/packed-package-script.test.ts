@@ -71,6 +71,8 @@ describe("packed package verification", () => {
     expect(script).toContain('data-template-id="minimal-text"');
     expect(script).toContain('data-template-id="bigNumber"');
     expect(script).toContain("new VideoError");
+    expect(script).toContain("onPlaybackEnd");
+    expect(script).toContain("Packed playback-end callback did not fire");
     expect(script).toContain("provider secret");
     expect(script).toContain('from "@vanillaskyai/video/templates/catalog"');
     expect(script).toContain("builtinTemplates.length !== 28");

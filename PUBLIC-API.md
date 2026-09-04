@@ -232,7 +232,9 @@ the internal reducer state are not public types.
 completed video from the beginning instead of showing the replay affordance;
 `onSceneChange(scene, index)` fires whenever the scene under the playhead
 changes, including when a loop wraps back to the first scene. Streaming
-playback is unaffected by either.
+playback is unaffected by either. `onComplete(video)` reports that a streamed
+response finished composing; `onPlaybackEnd(video)` reports that the visible
+playhead actually reached the end for either a stream or saved replay.
 
 `resolveVideoBrand` fills a partial brand with the documented defaults and
 preset backgrounds, producing the fully resolved `VideoBrand` that `parseVideo`

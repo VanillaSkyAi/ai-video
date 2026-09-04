@@ -61,6 +61,7 @@ export function VideoPlayerRuntime({
   controls = true,
   paused,
   loop = false,
+  onPlaybackEnd,
   onComplete,
   onError,
   onSceneChange,
@@ -101,13 +102,14 @@ export function VideoPlayerRuntime({
   const timeRef = useRef(currentTime);
   const audioRef = useRef<HTMLAudioElement>(null);
   const introStartedAtRef = useRef<number | null>(autoStartGeneration ? performance.now() : null);
-  const callbacksRef = useRef({ onComplete, onError, onSceneChange, onStateChange });
+  const callbacksRef = useRef({ onComplete, onPlaybackEnd, onError, onSceneChange, onStateChange });
   const loopRef = useRef(loop);
   const sceneIndexRef = useRef(-1);
+  const playbackEndedRef = useRef(false);
 
   stateRef.current = state;
   timeRef.current = currentTime;
-  callbacksRef.current = { onComplete, onError, onSceneChange, onStateChange };
+  callbacksRef.current = { onComplete, onPlaybackEnd, onError, onSceneChange, onStateChange };
   loopRef.current = loop;
 
   const primeSoundtrack = () => {
@@ -377,7 +379,17 @@ export function VideoPlayerRuntime({
     : config;
   const duration = config ? getVideoDuration(config) : 0;
   const terminal = state.status === "complete" || state.status === "error" || state.status === "aborted";
-  const ended = !loop && terminal && duration > 0 && currentTime >= duration - 0.001;
+  const playheadAtEnd = terminal && duration > 0 && currentTime >= duration - 0.001;
+  const ended = !loop && playheadAtEnd;
+  useEffect(() => {
+    if (!playheadAtEnd) {
+      playbackEndedRef.current = false;
+      return;
+    }
+    if (loop || playbackEndedRef.current) return;
+    playbackEndedRef.current = true;
+    callbacksRef.current.onPlaybackEnd?.(stateRef.current);
+  }, [loop, playheadAtEnd]);
   const generationIntroWaiting = Boolean(playbackMode && stream && !generationIntroComplete);
   const firstSceneRange = config ? resolveVideoTimeline(config)[0] : undefined;
   const hasSuppliedOpening = firstSceneRange?.scene.id === "supplied-opening";
@@ -563,6 +575,7 @@ export function VideoPlayer({
   templates,
   stream,
   video,
+  onPlaybackEnd,
   onComplete,
   onError,
   ...props
@@ -578,6 +591,9 @@ export function VideoPlayer({
     kit={kit}
     stream={stream}
     video={savedVideo}
+    onPlaybackEnd={(state) => {
+      if (state.config) onPlaybackEnd?.(state.config);
+    }}
     onComplete={(state) => {
       if (state.config) onComplete?.(state.config);
     }}

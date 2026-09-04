@@ -213,12 +213,48 @@ describe("VideoPlayer", () => {
       style: TEST_VIDEO_STYLE,
     };
 
-    const view = render(createElement(VideoPlayer, { video, autoPlay: true }));
+    const onPlaybackEnd = vi.fn();
+    const view = render(createElement(VideoPlayer, { video, autoPlay: true, onPlaybackEnd }));
+    expect(onPlaybackEnd).not.toHaveBeenCalled();
     act(() => nextFrame?.(performance.now() + 2_500));
     act(() => nextFrame?.(performance.now() + 5_000));
 
     await waitFor(() => expect(view.getByTestId("video-player").getAttribute("data-ended")).toBe("true"));
+    expect(onPlaybackEnd).toHaveBeenCalledOnce();
+    expect(onPlaybackEnd).toHaveBeenCalledWith(video);
     expect(view.queryByTestId("video-replay-button")).not.toBeNull();
+
+    view.rerender(createElement(VideoPlayer, { video, autoPlay: true, loop: true, onPlaybackEnd }));
+    view.rerender(createElement(VideoPlayer, { video, autoPlay: true, loop: false, onPlaybackEnd }));
+    expect(onPlaybackEnd).toHaveBeenCalledOnce();
+  });
+
+  it("reports playback end again for replacement content", async () => {
+    let nextFrame: FrameRequestCallback | undefined;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      nextFrame = callback;
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", () => undefined);
+    const { VideoPlayer } = await import("../src/react");
+    const makeVideo = (id: string): Video => ({
+      schemaVersion: "0.1",
+      orientation: "portrait",
+      scenes: [{ id, templateId: "bigNumber", variables: { value: id, label: id }, timing: { fixedDuration: 1 } }],
+      style: TEST_VIDEO_STYLE,
+    });
+    const first = makeVideo("first");
+    const second = makeVideo("second");
+    const onPlaybackEnd = vi.fn();
+    const view = render(createElement(VideoPlayer, { video: first, autoPlay: true, onPlaybackEnd }));
+
+    act(() => nextFrame?.(performance.now() + 2_000));
+    await waitFor(() => expect(onPlaybackEnd).toHaveBeenCalledWith(first));
+    view.rerender(createElement(VideoPlayer, { video: second, autoPlay: true, onPlaybackEnd }));
+    act(() => nextFrame?.(performance.now() + 4_000));
+
+    await waitFor(() => expect(onPlaybackEnd).toHaveBeenCalledWith(second));
+    expect(onPlaybackEnd).toHaveBeenCalledTimes(2);
   });
 
   it("renders no controls and no replay when controls are off", async () => {
@@ -741,18 +777,25 @@ describe("VideoPlayer", () => {
         yield { type: "plan.complete" as const };
       },
     });
+    const onComplete = vi.fn();
+    const onPlaybackEnd = vi.fn();
     const view = render(createElement(VideoPlayer, {
       templates: createRenderTemplateRegistry({ templates: [] }),
       stream: response.stream,
+      onComplete,
+      onPlaybackEnd,
     }));
     const player = view.getByTestId("video-player");
     await waitFor(() => expect(player.getAttribute("data-status")).toBe("complete"));
+    expect(onComplete).toHaveBeenCalledOnce();
+    expect(onPlaybackEnd).not.toHaveBeenCalled();
     nextFrame?.(performance.now() + 4_000);
     await waitFor(() => {
       expect(player.getAttribute("data-playing")).toBe("false");
       expect(player.getAttribute("data-ended")).toBe("true");
       expect(player.getAttribute("data-current-time")).toBe("4.000");
     });
+    expect(onPlaybackEnd).toHaveBeenCalledOnce();
 
     expect(view.getByTestId("video-ended-scrim")).toBeDefined();
     const replay = view.getByRole("button", { name: "Replay video response" });
@@ -764,6 +807,8 @@ describe("VideoPlayer", () => {
     expect(player.getAttribute("data-playing")).toBe("true");
     expect(player.getAttribute("data-ended")).toBe("false");
     expect(player.getAttribute("data-current-time")).toBe("0.000");
+    act(() => nextFrame?.(performance.now() + 8_000));
+    await waitFor(() => expect(onPlaybackEnd).toHaveBeenCalledTimes(2));
   });
 
   it("presents idle, playing, and paused controls as distinct player states", async () => {
