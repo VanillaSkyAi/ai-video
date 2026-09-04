@@ -37,7 +37,7 @@ describe("release package size budget", () => {
       INITIAL_CLIENT_GZIP_BUDGET,
       ENTRY_GZIP_HEADROOM,
     } = await import("../scripts/verify-package-size");
-    expect(INITIAL_CLIENT_GZIP_BUDGET).toBe(48_000);
+    expect(INITIAL_CLIENT_GZIP_BUDGET).toBe(72_000);
     // Derived, not hardcoded: the ceiling has to move with the budget, or a
     // deliberate budget change reads as a broken test instead of a decision.
     const ceiling = INITIAL_CLIENT_GZIP_BUDGET - ENTRY_GZIP_HEADROOM;

@@ -73,6 +73,8 @@ describe("packed package verification", () => {
     expect(script).toContain("new VideoError");
     expect(script).toContain("onPlaybackEnd");
     expect(script).toContain("Packed playback-end callback did not fire");
+    expect(script).toContain("useVideoChat");
+    expect(script).toContain("Packed video-chat hook did not initialize");
     expect(script).toContain("provider secret");
     expect(script).toContain('from "@vanillaskyai/video/templates/catalog"');
     expect(script).toContain("builtinTemplates.length !== 28");

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Frame, SuggestionCards, type CardMedia, type Suggestion } from "./suggestion-cards";
+import type { VideoChatWelcome } from "@vanillaskyai/video/react";
+import { Frame, SuggestionCards } from "./suggestion-cards";
 
 /**
  * The screen before anything has been asked.
@@ -14,27 +14,7 @@ import { Frame, SuggestionCards, type CardMedia, type Suggestion } from "./sugge
  * degrades to the brand gradient when there is no key and no network, which is
  * the state the rest of the video chat already handles.
  */
-export interface WelcomeData {
-  hero: CardMedia | null;
-  cards: Suggestion[];
-}
-
-export function useWelcome(active: boolean): WelcomeData | undefined {
-  const [data, setData] = useState<WelcomeData>();
-  useEffect(() => {
-    if (!active || data) return;
-    let live = true;
-    void fetch("/api/video-chat?action=welcome")
-      .then((response) => (response.ok ? response.json() : undefined))
-      .then((payload) => { if (live && payload) setData(payload as WelcomeData); })
-      // No footage is a plain gradient, not a broken screen.
-      .catch(() => undefined);
-    return () => { live = false; };
-  }, [active, data]);
-  return data;
-}
-
-export function Welcome({ data, onAsk }: { data?: WelcomeData; onAsk: (prompt: string) => void }) {
+export function Welcome({ data, onAsk }: { data?: VideoChatWelcome; onAsk: (prompt: string) => void }) {
   return <div className="welcome">
     <Frame media={data?.hero ?? null} poster />
     {/* The footage is a ground for type, so it is dimmed towards the corner

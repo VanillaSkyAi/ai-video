@@ -299,12 +299,44 @@
           "interface VideoChatCapabilities {\n    templates: true;\n    generatedSpeech: boolean;\n    generatedVideo: boolean;\n    stockMedia: boolean;\n    transcription: boolean;\n    modes: VideoChatMode[];\n}"
         ]
       },
+      "VideoChatConversationTurn": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatConversationTurn {\n    prompt: string;\n    response?: string;\n}"
+        ]
+      },
       "VideoChatHandlerOptions": {
         "kinds": [
           "type"
         ],
         "declaration": [
           "interface VideoChatHandlerOptions extends Omit<VideoHandlerOptions, \"allowMediaUrl\" | \"basePrompt\" | \"maxResolvedMedia\" | \"narrate\" | \"resolveMedia\"> {\n    generateText: VideoChatTextGenerator;\n    generateSpeech?: VideoChatSpeechGenerator;\n    transcribe?: VideoChatTranscriber;\n    searchMedia?: VideoChatMediaResolver;\n    generateVideo?: VideoChatMediaResolver;\n    instructions?: string;\n    welcome?: VideoChatWelcomeOptions;\n    maxAudioBytes?: number;\n}"
+        ]
+      },
+      "VideoChatMode": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "type VideoChatMode = \"templates\" | \"some\" | \"full\";"
+        ]
+      },
+      "VideoChatWelcomeOptions": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatWelcomeOptions {\n    heroQuery?: string;\n    prompts?: readonly VideoChatWelcomePrompt[];\n}"
+        ]
+      },
+      "VideoChatWelcomePrompt": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatWelcomePrompt {\n    prompt: string;\n    mediaQuery?: string;\n}"
         ]
       },
       "VideoFinishReason": {
@@ -377,8 +409,6 @@
       "interface VideoChatSpeechResult {\n    audio: Uint8Array | ArrayBuffer;\n    mediaType?: string;\n}",
       "interface VideoChatTextContext {\n    task: VideoChatTextTask;\n    systemPrompt: string;\n    userPrompt: string;\n    maxOutputTokens: number;\n    signal: AbortSignal;\n}",
       "interface VideoChatTranscriptionContext {\n    audio: Uint8Array;\n    mediaType: string;\n    signal: AbortSignal;\n}",
-      "interface VideoChatWelcomeOptions {\n    heroQuery?: string;\n    prompts?: readonly VideoChatWelcomePrompt[];\n}",
-      "interface VideoChatWelcomePrompt {\n    prompt: string;\n    mediaQuery?: string;\n}",
       "interface VideoEventDataMap {\n    \"response.start\": {\n        requestId: string;\n        format: {\n            orientation: VideoOrientation;\n        };\n        style: VideoStyle;\n        meta?: Video[\"meta\"];\n        capabilities?: VideoCapabilities;\n    };\n    \"audio.set\": {\n        audio: VideoAudio;\n    };\n    \"scene.add\": {\n        scene: VideoScene;\n        position: number;\n    };\n    \"response.warning\": {\n        warning: VideoWarning;\n    };\n    \"response.complete\": {\n        finishReason: VideoFinishReason;\n        snapshot: Video;\n        checksum: string;\n    };\n    \"response.error\": {\n        error: {\n            code: string;\n            message: string;\n            recoverable: boolean;\n        };\n        terminal: boolean;\n        snapshot?: Video;\n    };\n    \"response.abort\": {\n        reason: string;\n        snapshot?: Video;\n    };\n}",
       "interface VideoEventEnvelope<TType extends string, TData> {\n    protocolVersion: typeof VIDEO_PROTOCOL_VERSION;\n    runId: string;\n    sequence: number;\n    eventId: string;\n    type: TType;\n    data: TData;\n}",
       "interface VideoGenerationContext {\n    request: VideoRequest;\n    systemPrompt: string;\n    userPrompt: string;\n    initialConfig: Video;\n    signal: AbortSignal;\n}",
@@ -404,7 +434,6 @@
       "type VideoBackgroundPreset = \"cosmic\" | \"horizon\" | \"twilight\" | \"meadow\" | \"velvet\" | \"flamingo\" | \"peach\" | \"saffron\" | \"black\" | \"midnight\" | \"aubergine\" | \"coal\" | \"navy\";",
       "type VideoChatHandler = (request: Request) => Promise<Response>;",
       "type VideoChatMediaResolver = (query: string, context: VideoChatMediaContext) => ResolvedMedia | null | Promise<ResolvedMedia | null>;",
-      "type VideoChatMode = \"templates\" | \"some\" | \"full\";",
       "type VideoChatSpeechGenerator = (context: VideoChatSpeechContext) => VideoChatSpeechResult | Promise<VideoChatSpeechResult>;",
       "type VideoChatTextGenerator = (context: VideoChatTextContext) => string | Promise<string>;",
       "type VideoChatTextTask = \"opening\" | \"opening-continuation\" | \"narration\" | \"suggestions\";",
@@ -425,6 +454,22 @@
   },
   "@vanillaskyai/video/react": {
     "exports": {
+      "createVideoChatVoice": {
+        "kinds": [
+          "value"
+        ],
+        "declaration": [
+          "declare function createVideoChatVoice(options?: CreateVideoChatVoiceOptions): VideoChatVoice;"
+        ]
+      },
+      "CreateVideoChatVoiceOptions": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface CreateVideoChatVoiceOptions {\n    endpoint?: string | URL;\n    headers?: HeadersInit;\n    credentials?: RequestCredentials;\n    fetcher?: typeof fetch;\n    maxCachedLines?: number;\n}"
+        ]
+      },
       "Narration": {
         "kinds": [
           "type"
@@ -465,6 +510,30 @@
           "declare function useVideo(options?: UseVideoOptions): UseVideoResult;"
         ]
       },
+      "useVideoChat": {
+        "kinds": [
+          "value"
+        ],
+        "declaration": [
+          "declare function useVideoChat(options?: UseVideoChatOptions): UseVideoChatResult;"
+        ]
+      },
+      "UseVideoChatOptions": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface UseVideoChatOptions {\n    endpoint?: string | URL;\n    templates?: TemplateRegistry;\n    mode?: VideoChatMode;\n    orientation?: VideoOrientation;\n    brand?: VideoBrandInput;\n    style?: VideoStyleOptions;\n    headers?: HeadersInit;\n    credentials?: RequestCredentials;\n    fetcher?: typeof fetch;\n    voice?: VideoChatVoice;\n    initialMuted?: boolean;\n    timeoutMs?: number;\n    createTurnId?: () => string;\n}"
+        ]
+      },
+      "UseVideoChatResult": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface UseVideoChatResult {\n    ask(prompt: string): Promise<Video | undefined>;\n    cancel(reason?: string): void;\n    pause(): void;\n    resume(): void;\n    replay(): void;\n    selectTurn(id: string): void;\n    reset(): void;\n    turns: readonly VideoChatTurn[];\n    currentTurn?: VideoChatTurn;\n    shownTurn?: VideoChatTurn;\n    capabilities?: VideoChatCapabilities;\n    welcome?: VideoChatWelcome;\n    availableModes: readonly VideoChatMode[];\n    status: VideoChatStatus;\n    error?: VideoError;\n    suggestions: readonly VideoChatSuggestion[];\n    caption?: string;\n    transcript: readonly string[];\n    speaking: boolean;\n    muted: boolean;\n    setMuted(muted: boolean): void;\n    playbackEnded: boolean;\n    playerKey: number;\n    playerProps?: VideoPlayerProps;\n}"
+        ]
+      },
       "UseVideoOptions": {
         "kinds": [
           "type"
@@ -479,6 +548,78 @@
         ],
         "declaration": [
           "interface UseVideoResult {\n    generate(input: VideoInput): Promise<Video>;\n    abort(reason?: string): void;\n    video?: Video;\n    status: VideoStatus;\n    error?: VideoError;\n    warnings: readonly VideoWarning[];\n    playerProps: VideoPlayerProps & {\n        video?: never;\n    };\n}"
+        ]
+      },
+      "VideoChatCapabilities": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatCapabilities {\n    templates: true;\n    generatedSpeech: boolean;\n    generatedVideo: boolean;\n    stockMedia: boolean;\n    transcription: boolean;\n    modes: VideoChatMode[];\n}"
+        ]
+      },
+      "VideoChatMedia": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatMedia {\n    url: string;\n    type: \"image\" | \"video\";\n    posterUrl?: string;\n}"
+        ]
+      },
+      "VideoChatMode": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "type VideoChatMode = \"templates\" | \"some\" | \"full\";"
+        ]
+      },
+      "VideoChatPreparedSpeech": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatPreparedSpeech {\n    seconds: number;\n}"
+        ]
+      },
+      "VideoChatStatus": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "type VideoChatStatus = \"idle\" | \"composing\" | \"playing\" | \"paused\" | \"ended\" | \"cancelled\" | \"error\";"
+        ]
+      },
+      "VideoChatSuggestion": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatSuggestion {\n    prompt: string;\n    media: VideoChatMedia | null;\n}"
+        ]
+      },
+      "VideoChatTurn": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatTurn {\n    id: string;\n    prompt: string;\n    completed: boolean;\n    opening?: string;\n    orientation: VideoOrientation;\n    fixedOrientation: boolean;\n    video?: Video;\n    suggestions: readonly VideoChatSuggestion[];\n}"
+        ]
+      },
+      "VideoChatVoice": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatVoice extends NarrationVoice {\n    prepare(text: string, options?: {\n        signal?: AbortSignal;\n    }): Promise<VideoChatPreparedSpeech>;\n    pause(): void;\n    resume(): void;\n    setMuted(muted: boolean): void;\n    dispose?(): void;\n}"
+        ]
+      },
+      "VideoChatWelcome": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "interface VideoChatWelcome {\n    hero: VideoChatMedia | null;\n    cards: VideoChatSuggestion[];\n}"
         ]
       },
       "VideoError": {

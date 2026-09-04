@@ -4,6 +4,11 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds `useVideoChat` and `createVideoChatVoice` to the React entry. The SDK
+  now owns video-chat turns, conversation context, cancellation, retry,
+  opening speech, narration pacing, suggestions, replay, history selection,
+  and the browser-voice fallback behind one provider-neutral endpoint.
+
 - Adds `VideoPlayer.onPlaybackEnd`, which fires when the visible playhead
   actually reaches the end without changing the existing stream-composition
   meaning of `onComplete`.

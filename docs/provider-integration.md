@@ -38,6 +38,24 @@ browser speech. Supplying `generateSpeech`, `transcribe`, `searchMedia`, or
 structural and provider-neutral; their SDKs and credentials remain application
 dependencies and never enter the browser bundle.
 
+The matching React client is one hook and one player:
+
+```tsx
+import { VideoPlayer, useVideoChat } from "@vanillaskyai/video/react";
+
+export function VideoChat() {
+  const chat = useVideoChat();
+
+  return <>
+    <button onClick={() => { void chat.ask("Tell me a tiny story"); }}>Ask</button>
+    {chat.playerProps && <VideoPlayer key={chat.playerKey} {...chat.playerProps} />}
+  </>;
+}
+```
+
+Your UI renders `turns`, `welcome`, `suggestions`, `caption`, and `status`; the
+hook owns their network and playback lifecycle.
+
 Use `createVideoHandler` below when the application wants the lower-level video
 composition route without the video-chat actions or default prompts.
 
