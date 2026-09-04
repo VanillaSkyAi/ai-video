@@ -2,6 +2,21 @@
 
 # Provider integration
 
+Start from the generated chat so provider work stays confined to the
+application-owned server:
+
+```bash
+npm install @vanillaskyai/video
+npx vanillasky init
+npx vanillasky doctor
+npm run dev
+```
+
+The generated `server.ts` is the canonical provider example. It starts with one
+text key, packaged templates, and browser voice. Adding the optional generated
+speech, stock, transcription, or generated-video key enables its callback and
+advertises the capability automatically; `src/main.tsx` does not change.
+
 For the full chat experience, mount one `createVideoChatHandler` and keep every
 provider choice in its callbacks:
 
@@ -49,6 +64,8 @@ export function App() {
   return <VideoChat />;
 }
 ```
+
+## Custom interface
 
 For a custom interface, use `useVideoChat` and render its `turns`, `welcome`,
 `suggestions`, `caption`, and `status`; the hook owns their network and playback

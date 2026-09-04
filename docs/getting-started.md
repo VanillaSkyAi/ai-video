@@ -1,109 +1,106 @@
-[← Documentation home](../README.md) · [Previous: Prompt and input](prompt-and-input.md) · [Next: Next.js →](integrate-nextjs.md)
+[← Documentation home](../README.md) · [Next: Provider integration →](provider-integration.md)
 
 # Getting started
 
-Install VanillaSky:
+The fastest VanillaSky integration is the complete, general-purpose video chat.
+It starts with packaged templates and browser voice, then turns on optional
+speech, stock, transcription, and generated video when their server keys exist.
+
+## Create the app
+
+Start in an empty npm project:
 
 ```bash
 npm install @vanillaskyai/video
+npx vanillasky init
 ```
 
-VanillaSky does not select a provider or model during installation. Configure
-that separately on the server. The route below assumes your application exports
-an AI SDK `LanguageModel` as `videoModel`; if it does not, follow
-[Provider integration](provider-integration.md) first.
+Init creates a small application shell and installs its provider dependencies.
+It does not copy VanillaSky's template tree. The important generated files are:
 
-Create one authenticated server route with `createVideoHandler`. Connect the
-app-owned model through `streamText`; keep credentials, authentication, rate
-limits, and media policy on the server:
+| File | Your application owns |
+| --- | --- |
+| `src/main.tsx` | The mount point for the SDK-owned chat |
+| `server.ts` | Provider choices and callbacks |
+| `stock.ts` | Optional stock search policy |
+| `vite.config.ts` | Local UI and `/api/video-chat` endpoint |
+| `.env.local` | Ignored server-only credentials |
 
-```ts
-import { streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/video/server";
-import { videoModel } from "@/lib/video-model";
-
-const handle = createVideoHandler({
-  // Local development only. Replace with your session check before deploying.
-  authorize: (request) => {
-    if (process.env.VANILLASKY_LOCAL_DEMO !== "1") return false;
-    const hostname = new URL(request.url).hostname;
-    return hostname === "localhost" || hostname === "127.0.0.1";
-  },
-  streamText: ({ systemPrompt, userPrompt, signal }) => streamText({
-    model: videoModel,
-    system: systemPrompt,
-    prompt: userPrompt,
-    abortSignal: signal,
-  }),
-});
-
-export const POST = handle;
-export const OPTIONS = handle;
-```
-
-The local bypass is intentionally fail-closed: the packaged development command
-sets its marker only for `next dev`, and it accepts only localhost. Every
-production request is denied. Replace it with your real session validation
-before deploying. For literal files and commands,
-use the tested [`examples/nextjs-quickstart` directory](../examples/nextjs-quickstart).
-
-`videoModel` can come from any AI SDK provider, registry, gateway, compatible
-API, or custom implementation. The application can choose a cheaper, faster,
-or higher-quality model per request without changing VanillaSky.
-
-Call that route from React and render the player:
+The generated browser entry is intentionally tiny:
 
 ```tsx
-"use client";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { VideoChat } from "@vanillaskyai/video/react";
+import "@vanillaskyai/video/video-chat.css";
 
-import { VideoPlayer, useVideo } from "@vanillaskyai/video/react";
-
-export function GeneratedVideo({ input }: { input: string }) {
-  const video = useVideo();
-
-  return <>
-    <button onClick={() => { void video.generate({ input }); }}>Generate video</button>
-    {video.error && <p role="alert">Video generation failed.</p>}
-    <VideoPlayer {...video.playerProps} />
-  </>;
-}
+createRoot(document.getElementById("root")!).render(
+  <StrictMode><VideoChat /></StrictMode>,
+);
 ```
 
-No template setup is required. VanillaSky advertises the trusted built-in
-catalog to your LLM, validates its selected scenes, and lazy-loads only the
-renderers the video uses.
+The SDK owns the responsive interface, conversation state, suggestions, voice
+input, narration pacing, streaming player, and packaged templates. Your shell
+stays responsible for providers, keys, authorization, limits, storage,
+branding, and product copy.
 
-`useVideo()` uses `/api/video` by default. Pass `endpoint` to use another route.
-`generate()` returns a `Promise<Video>` if you need the completed config directly:
+## Add the one required key
 
-```ts
-const completedVideo = await video.generate({ input });
+Add the text-provider key to the generated, ignored `.env.local`:
+
+```dotenv
+ANTHROPIC_API_KEY=
 ```
 
-The promise resolves only after successful completion. It rejects on terminal
-generation errors and aborts; `video.error` contains the same typed error for
-reactive UI.
+Fill the value locally; do not expose it through a client-prefixed environment
+variable. Then inspect the setup without calling any provider:
 
-`video.status` is `idle`, `streaming`, `complete`, `error`, or `aborted`.
-`video.video` is the latest deterministic video, and `video.warnings` contains
-bounded typed diagnostics safe to show or branch on. A playable response that
-stops at a planner length limit includes a `plan_incomplete` warning because
-requested scenes or the ending may be missing. Provider finish reasons and
-content-filter details remain available to the server through the `onComplete`
-summary; surface that server-owned state separately when completeness matters
-to your product.
-
-Persist a completed `Video` as JSON and play it later without another model
-request:
-
-```tsx
-<VideoPlayer video={savedVideo} />
+```bash
+npx vanillasky doctor
 ```
 
-Built-in templates work without additional props. Pass `templates` when the
-saved video uses customer-owned templates.
+The base experience reports `templates + browser voice`. A ready text key makes
+the chat answer. Optional keys progressively add capabilities:
 
-All other input controls are optional. Continue with [input and opening
-scenes](input-and-first-scene.md), [branding and personalization](branding-and-personalization.md),
-or [media and soundtrack audio](media-and-audio.md). To edit or create visual
-building blocks, see [custom templates](custom-templates.md).
+```dotenv
+# Optional generated speech
+XAI_API_KEY=
+
+# Optional generated video and voice transcription
+FAL_KEY=
+
+# Optional stock media
+PEXELS_API_KEY=
+```
+
+Doctor reports only key names and readiness, never values. Adding or removing
+an optional key changes the available modes after a server restart; the client
+does not need to change.
+
+## Run and verify
+
+```bash
+npm run dev
+```
+
+Open the reported localhost URL. Try one explanatory question and one unrelated
+creative request in the same conversation. Confirm each response starts before
+the full plan is complete, speaks, reaches its final frame, and leaves the
+composer ready for another turn.
+
+The generated local authorization accepts localhost only. Replace it with your
+real session check, rate limits, and usage policy before deploying.
+
+If you prefer a committed Next.js example of the lower-level response APIs,
+use the tested [Next.js quickstart](../examples/nextjs-quickstart). The default
+chat path above is the shortest way to reproduce the complete experience.
+
+## Continue
+
+- Change providers or add media capabilities in [Provider integration](provider-integration.md).
+- Brand or reshape the default experience in [Customization](customization.md).
+- Use a fully custom UI with the headless chat hook described in
+  [Provider integration](provider-integration.md#custom-interface).
+- Copy and edit a visual only when needed in [Custom templates](custom-templates.md).
+- Apply production authorization and key handling from
+  [Production](production.md) and [Security](security.md).

@@ -8,7 +8,7 @@ const read = (path: string) => readFileSync(resolve(root, path), "utf8");
 describe("human and agent onboarding", () => {
   it("offers one obvious package command and one optional agent command", () => {
     const readme = read("README.md");
-    const product = readme.indexOf("VanillaSky is the open-source video response layer");
+    const product = readme.indexOf("VanillaSky is the open-source voice-and-video chat layer");
     const install = readme.indexOf("npm install @vanillaskyai/video");
     const skill = readme.indexOf("npx skills add VanillaSkyAi/video@vanillasky");
 
@@ -16,7 +16,7 @@ describe("human and agent onboarding", () => {
     expect(install).toBeGreaterThan(product);
     expect(skill).toBeGreaterThan(install);
     expect(readme).not.toMatch(/npm install @vanillaskyai\/video[^\n]*(?:\bai\b|@ai-sdk)/);
-    expect(readme).toContain("Use $vanillasky to turn this application's data into a personalized video response.");
+    expect(readme).toContain("Use $vanillasky to set up and verify a general-purpose video chat in this project.");
     expect(readme.split("\n").length).toBeLessThan(200);
   });
 
@@ -61,9 +61,11 @@ describe("human and agent onboarding", () => {
     const maintainerGuide = read("docs/maintainers/cold-start-evaluation.md");
     const agents = read("AGENTS.md");
 
-    expect(publicGuide).toContain("input");
-    expect(publicGuide).toContain("createVideoHandler");
-    expect(publicGuide).toContain("useVideo");
+    expect(publicGuide).toContain("npx vanillasky init");
+    expect(publicGuide).toContain("npx vanillasky doctor");
+    expect(publicGuide).toContain("npm run dev");
+    expect(publicGuide).toContain("VideoChat");
+    expect(publicGuide).not.toMatch(/createVideoHandler|useVideo\(|<VideoPlayer/);
     expect(publicGuide).not.toMatch(/choose.*101|proof of concept|candidate tarball|fresh consumer directory/i);
     expect(maintainerGuide).toMatch(/cold-start evaluation/i);
     expect(maintainerGuide).toContain("fresh consumer");
