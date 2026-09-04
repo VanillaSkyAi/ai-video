@@ -278,6 +278,9 @@ describe("release workflow", () => {
 
     expect(consumerGate).toContain("gate: [documented-examples, public-api, packed-package, onboarding]");
     expect(consumerGate).toContain("npm run examples:verify-documented");
+    expect(consumerGate).toMatch(
+      /- run: npm run examples:verify-documented\n\s+if: matrix\.gate == 'documented-examples'\n\s+env:\n\s+npm_config_audit: "false"/,
+    );
     expect(consumerGate).toContain("npm run verify:api");
     expect(consumerGate).toContain("npm run verify:package");
     expect(consumerGate).toContain("npm run verify:onboarding");

@@ -877,7 +877,11 @@ createRoot(document.getElementById("root")).render(createElement("main", null,
       || await transitionCase.locator("[data-layer-scene-id]").count() !== 2) {
       throw new Error("React 19 transition scene identity was duplicated or missing");
     }
-    await page.clock.fastForward(600);
+    const settledFinalSceneProgress = 0.85;
+    const probeSceneDurationMs = 600;
+    const observedPlaybackMs = outgoingProgress.raw * probeSceneDurationMs;
+    const settledPlaybackTargetMs = probeSceneDurationMs * (1 + settledFinalSceneProgress);
+    await page.clock.fastForward(Math.ceil(settledPlaybackTargetMs - observedPlaybackMs));
     for (const id of ["undefined", "unknown", "isolated"]) {
       const progress = await page.locator(`[data-case="${id}"] [data-probe]`).evaluate((element) => ({
         raw: Number(element.getAttribute("data-progress")),
