@@ -558,8 +558,9 @@ body {
 /*
  * The bar's rhythm, on an 8px grid.
  *
- * The top is the gutter, so the divider sits between two equal spaces - the
- * one under the picture and the one over the composer. Between the rows is one
+ * The top is two steps, matching the two between the subtitle and the field,
+ * so the cue sits centred in the space under the picture rather than pinned to
+ * its underside. Between the rows is one
  * step, because the subtitle, the field and the chips are one group. The bottom
  * is two steps, because that edge is the window rather than a neighbour, and a
  * control resting on the frame reads as unfinished; Apple's own content margins
@@ -573,14 +574,17 @@ body {
   gap: 0.5rem;
   width: var(--vs-column);
   margin: 0 auto;
-  /* Close to the picture at the top, because the subtitle is the picture's
-     own voice; the full margin at the bottom, because that edge is the window. */
-  padding: var(--vs-gutter) var(--vs-side) max(1rem, env(safe-area-inset-bottom));
+  /* Equal air above and below the subtitle, so it reads as centred in the
+     space between the picture and the composer rather than hanging off the
+     picture. The top used to be one step against two below, which put the
+     cue visibly nearer the video. The full margin at the bottom stays: that
+     edge is the window, not a neighbour. */
+  padding: 1rem var(--vs-side) max(1rem, env(safe-area-inset-bottom));
 }
 @media (min-width: 900px) {
   .app { --vs-side: 1.5rem; }
   .stage-area { padding: 2.5rem var(--vs-side) 0; }
-  .panel-inner { padding: var(--vs-gutter) var(--vs-side) 1.25rem; }
+  .panel-inner { padding: 1rem var(--vs-side) 1.25rem; }
 }
 
 /* Two lines' worth, always, once a session exists: most cues are one line and
