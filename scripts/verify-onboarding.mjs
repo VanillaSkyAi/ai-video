@@ -124,7 +124,7 @@ let server;
 let browser;
 
 try {
-  run("npm", ["exec", "--yes", "create-vite@9.1.2", "--", "video-demo", "--no-interactive", "--template", "react-ts"], workspace);
+  run("npm", ["exec", "--yes", "--no-audit", "create-vite@9.1.2", "--", "video-demo", "--no-interactive", "--template", "react-ts"], workspace);
   run("npm", ["install", "--no-audit", "--no-fund"], app);
   let installSpec = process.env.VANILLASKY_INSTALL_SPEC;
   let candidateArtifact;
