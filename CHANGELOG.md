@@ -4,6 +4,10 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Keeps key-only video chat clean in real browsers: planner catalogs now hide
+  templates whose required media cannot be supplied, and unavailable generated
+  speech switches to browser voice without repeated 404 responses.
+
 - Removes the obsolete source-owned template copy and transcript probes from
   the video-chat starter. The package, lower-level examples, and remaining
   documentation now consistently present voice-and-video chat as the primary

@@ -14,7 +14,10 @@ const catalogPromptKit = {
 export function createBuiltinTemplateSystemPrompt(options: {
   basePrompt?: string;
 } = {}): string {
-  return createTemplateSystemPrompt({ kit: catalogPromptKit, ...options });
+  // This catalog helper intentionally describes every built-in. Request-time
+  // handlers use createTemplateSystemPrompt directly and remove entries whose
+  // required media cannot be supplied for that request.
+  return createTemplateSystemPrompt({ kit: catalogPromptKit, suppliedMediaAvailable: true, ...options });
 }
 
 export {

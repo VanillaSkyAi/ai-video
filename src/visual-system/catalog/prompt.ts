@@ -60,6 +60,20 @@ function needsPlannerSchema(schema: TemplateJsonSchema): boolean {
   return Object.values(schema.properties).some(visit);
 }
 
+function isMediaProperty(property: TemplateJsonSchemaProperty | undefined): boolean {
+  return property?.format === "uri" ||
+    property?.format === "supplied-image" ||
+    property?.format === "stock-media-keyword";
+}
+
+function requiresAvailableMedia(template: SceneTemplateMetadata): boolean {
+  const gates = getTemplateSchemaGates(template.schema);
+  return (template.schema.required ?? []).some((name) =>
+    isMediaProperty(template.schema.properties[name])) ||
+    gates.requiredAnyOf.some((group) => group.every((name) =>
+      isMediaProperty(template.schema.properties[name])));
+}
+
 const COMMON_MEDIA_VARIABLES = {
   mediaUrl: "media",
   mediaType: "enum(auto|photo|video|gradient)",
@@ -112,6 +126,8 @@ export function createTemplateSystemPrompt(options: {
   knowledgeMode?: VideoKnowledgeMode;
   /** Expose host-resolved semantic media intent without exposing a provider. */
   mediaResolverAvailable?: boolean;
+  /** At least one app-supplied image or video can satisfy media presence gates. */
+  suppliedMediaAvailable?: boolean;
   /**
    * Whether the first scene may carry media.
    *
@@ -124,7 +140,10 @@ export function createTemplateSystemPrompt(options: {
   /** Ask the planner for each scene's spoken line, rather than a second call. */
   narrate?: boolean;
 }): string {
-  const templates = options.kit.listTemplateMetadata();
+  const templates = options.kit.listTemplateMetadata().filter((template) =>
+    !requiresAvailableMedia(template) ||
+    options.suppliedMediaAvailable === true ||
+    (options.mediaResolverAvailable === true && getStandardMediaResolverContract(template.schema) != null));
   const resolverMediaAvailable = options.mediaResolverAvailable === true &&
     templates.some(({ schema }) => getStandardMediaResolverContract(schema) != null);
   const ids = new Set(templates.map(({ id }) => id));

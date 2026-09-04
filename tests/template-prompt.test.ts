@@ -128,6 +128,7 @@ describe("template-aware open prompt", () => {
     });
     const prompt = api.createTemplateSystemPrompt({
       kit: api.createRenderTemplateRegistry({ templates: [template] }),
+      suppliedMediaAvailable: true,
     });
     const catalog = JSON.parse(prompt.trim().split("\n").at(-1) ?? "[]");
 
@@ -140,7 +141,10 @@ describe("template-aware open prompt", () => {
   it("keeps the complete bundled catalog compact enough for low-latency planning", async () => {
     const { createTemplateSystemPrompt } = await import("../src/visual-system/catalog/internal");
     const { loadAcceptanceKit } = await import("../scripts/acceptance/catalog");
-    const prompt = createTemplateSystemPrompt({ kit: loadAcceptanceKit() });
+    const prompt = createTemplateSystemPrompt({
+      kit: loadAcceptanceKit(),
+      suppliedMediaAvailable: true,
+    });
 
     expect(prompt.length).toBeLessThan(18_000);
     expect(prompt).toContain('"id":"bigNumber"');
@@ -180,6 +184,24 @@ describe("template-aware open prompt", () => {
     const bigNumber = catalog.find(({ id }: { id: string }) => id === "bigNumber");
     expect(bigNumber?.media).toBe(true);
     expect(bigNumber?.variables).not.toHaveProperty("mediaUrl");
+  });
+
+  it("hides templates whose required media cannot be supplied", async () => {
+    const { createTemplateSystemPrompt } = await import("../src/visual-system/catalog/internal");
+    const { loadAcceptanceKit } = await import("../scripts/acceptance/catalog");
+    const kit = loadAcceptanceKit(["bigNumber", "media", "reaction", "ctaMedia"]);
+
+    const withoutMedia = createTemplateSystemPrompt({ kit });
+    const withSuppliedMedia = createTemplateSystemPrompt({ kit, suppliedMediaAvailable: true });
+    const withoutCatalog = JSON.parse(withoutMedia.trim().split("\n").at(-1) ?? "[]");
+    const withCatalog = JSON.parse(withSuppliedMedia.trim().split("\n").at(-1) ?? "[]");
+
+    expect(withoutCatalog.map(({ id }: { id: string }) => id)).toEqual(["bigNumber", "media"]);
+    expect(withSuppliedMedia).not.toContain('"mediaKeyword"');
+    expect(withCatalog).toHaveLength(4);
+    expect(withCatalog.map(({ id }: { id: string }) => id)).toEqual(expect.arrayContaining([
+      "bigNumber", "media", "reaction", "ctaMedia",
+    ]));
   });
 
   it("exposes bounded media intent only when the host configures a resolver", async () => {
