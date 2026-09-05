@@ -357,6 +357,11 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
           </label>)}
         </fieldset>
         <p className="settings-note">Creation and style changes apply to your next question.</p>
+        <nav className="developer-links" aria-label="Build with VanillaSky">
+          <p className="section-label">Build with VanillaSky</p>
+          <a href="https://vanillasky.ai/docs/getting-started/" target="_blank" rel="noopener noreferrer">Get the SDK<span aria-hidden="true">↗</span></a>
+          <a href="https://github.com/VanillaSkyAi/video" target="_blank" rel="noopener noreferrer">View on GitHub<span aria-hidden="true">↗</span></a>
+        </nav>
       </div>}
     </div>
 

@@ -88,3 +88,19 @@ it.each([
   expect(screen.getByTestId("player").getAttribute("data-orientation")).toBe(expected);
   expect(container.querySelector<HTMLElement>(".player-fit")?.style.width).toContain(fixedPortrait ? "56.25" : "177.7778");
 });
+
+it("offers SDK discovery without leaving the current conversation", () => {
+  render(<VideoChat />);
+  fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  const links = [
+    ["Get the SDK", "https://vanillasky.ai/docs/getting-started/"],
+    ["View on GitHub", "https://github.com/VanillaSkyAi/video"],
+  ];
+  for (const [name, href] of links) {
+    const link = screen.getByRole("link", { name });
+    expect(link.getAttribute("href")).toBe(href);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+  }
+  expect(session.current.reset).not.toHaveBeenCalled();
+});

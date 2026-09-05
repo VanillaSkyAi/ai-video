@@ -94,3 +94,28 @@ test("plays posterless intro footage through the hook, then replaces it with the
   await expect(intro).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+  test(`keeps developer links reachable within Settings at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.route("**/api/video-chat?*", route => route.fulfill({ json: { prompts: [] } }));
+    await page.goto("http://127.0.0.1:4274/tests/browser/fixtures/video-chat.html");
+    await page.getByRole("button", { name: "Settings", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    const github = page.getByRole("link", { name: "View on GitHub" });
+    await github.focus();
+    const bounds = await github.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.height).toBeGreaterThanOrEqual(44);
+    expect(bounds!.y).toBeGreaterThanOrEqual(0);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Close settings" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeFocused();
+    await expect(page.getByRole("dialog", { name: "Settings" })).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+}
