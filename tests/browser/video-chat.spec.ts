@@ -35,7 +35,8 @@ test("plays an answer, keeps follow-up context, and recovers from optional media
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   await expect(page.locator('[data-video-frame="ready"]')).toBeVisible();
   await expect(page.getByRole("button", { name: "Full response" })).toBeVisible();
-  await expect(page.getByRole("status")).toHaveText("Some parts were simplified so the response could continue.");
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText("Some parts were simplified");
   await page.getByRole("button", { name: "Full response" }).click();
   await expect(page.getByRole("dialog")).toContainText("The Moon rotates once per orbit.");
   await expect(page.getByRole("dialog")).toContainText("One face stays toward Earth.");

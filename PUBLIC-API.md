@@ -244,8 +244,8 @@ failure that selects browser speech. Observer exceptions and rejected promises
 are isolated from playback; no provider diagnostics are passed to this callback.
 
 `chat.warnings` exposes concise notices for the displayed turn, also retained
-as optional `VideoChatTurn.warnings`. The default interface displays these as
-status messages. Optional scene, narration, speech, or stream failures preserve
+as optional `VideoChatTurn.warnings`. The default interface recovers silently; these diagnostics are
+for application developers and are not rendered to viewers. Optional scene, narration, speech, or stream failures preserve
 playable output; an error is shown only when no playable response remains.
 `ask(prompt, { opening, openingMedia })` lets a custom interface start a
 prewritten suggestion hook immediately and reuse its image or video without

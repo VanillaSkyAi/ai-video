@@ -67,6 +67,40 @@ describe("VideoChat", () => {
     expect(screen.queryByRole("tab")).toBeNull();
   });
 
+  it("keeps recoverable diagnostics out of the default UI while preserving the completed answer", async () => {
+    const { VideoChat } = await import("../src/react");
+    const { checksumVideo } = await import("../src/protocol/checksum");
+    const { TEST_VIDEO_STYLE } = await import("./semantic-brand-fixture");
+    const baseFetcher = chatFetcher();
+    const scene = { id: "recovered", templateId: "media", variables: { texts: "A playable answer", mediaType: "gradient" }, narration: "The ocean brings a new wave to the shore every moment.", timing: { fixedDuration: 4 } };
+    const snapshot = { schemaVersion: "0.1" as const, orientation: "landscape" as const, scenes: [scene], style: TEST_VIDEO_STYLE };
+    const parts = [
+      { type: "response.start", data: { requestId: "recover", format: { orientation: "landscape" }, style: TEST_VIDEO_STYLE, capabilities: { templates: ["media"] } } },
+      { type: "scene.add", data: { scene, position: 0 } },
+      { type: "response.warning", data: { warning: { code: "provider_warning", category: "provider", message: "Some visuals were replaced so your response can continue.", recoverable: true } } },
+      { type: "response.complete", data: { finishReason: "stop", snapshot, checksum: checksumVideo(snapshot) } },
+    ];
+    const response = new Response(parts.map((part, sequence) => `data: ${JSON.stringify({ protocolVersion: "0.5", eventId: `recover:${sequence}`, runId: "recover", sequence, ...part })}\n\n`).join(""), { headers: { "content-type": "text/event-stream", "x-vanillasky-video-stream": "0.5" } });
+    render(<VideoChat options={{
+      fetcher: async (input, init) => new URL(String(input), "https://app.example").searchParams.get("action") === "response"
+        ? response.clone()
+        : baseFetcher(input, init),
+      voice: { prepare: async () => ({ seconds: 1 }), speak: async () => {}, pause() {}, resume() {}, setMuted() {} },
+    }} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Invent a surreal bedtime story" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Full response" }));
+    await waitFor(() => expect(screen.getByRole("dialog").textContent).toContain("The ocean brings a new wave"));
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/simplified|private-provider-detail|Some visuals/);
+  });
+
+  it("still shows an error when no playable response can be produced", async () => {
+    const { VideoChat } = await import("../src/react");
+    render(<VideoChat options={{ fetcher: chatFetcher() }} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Invent a surreal bedtime story" }));
+    expect((await screen.findByRole("status")).textContent).toBeTruthy();
+  });
+
   it("hydrates when voice input exists only in the browser", async () => {
     const { renderToString } = await import("react-dom/server");
     const { hydrateRoot } = await import("react-dom/client");
