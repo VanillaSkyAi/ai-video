@@ -800,16 +800,31 @@ describe("useVideoChat", () => {
     expect(result.current.error).toBeUndefined();
   });
 
-  it("retains a playable opening when the response contains no scenes", async () => {
+  it("reports an error when an opening has no actual response scenes", async () => {
     const { useVideoChat } = await import("../src/react");
     const base = videoChatFetcher();
     const fetcher: typeof fetch = vi.fn(async (input, init) => String(input).includes("action=response")
       ? responseStream("empty", []) : base(input, init));
     const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice() }));
     await act(async () => { await result.current.ask("Keep the opening"); });
-    expect(result.current.currentTurn?.video?.scenes[0]?.narration).toBe("Let us begin somewhere unexpected.");
-    expect(result.current.error).toBeUndefined();
-    expect(result.current.currentTurn?.completed).toBe(true);
+    expect(result.current.currentTurn?.video).toBeUndefined();
+    expect(result.current.error?.code).toBe("empty_response");
+    expect(result.current.currentTurn?.completed).toBe(false);
+  });
+
+  it.each([429, 503])("reports HTTP %s after an optimistic suggestion instead of completing its opening", async (status) => {
+    const { useVideoChat } = await import("../src/react");
+    const base = videoChatFetcher();
+    const fetcher: typeof fetch = vi.fn(async (input, init) => String(input).includes("action=response")
+      ? new Response("private provider details", { status }) : base(input, init));
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice() }));
+    await act(async () => { await result.current.ask("Explain the Moon", { opening: "The Moon keeps one face toward us." }); });
+    expect(result.current.currentTurn?.video).toBeUndefined();
+    expect(result.current.currentTurn?.completed).toBe(false);
+    expect(result.current.status).toBe("error");
+    expect(result.current.error?.status).toBe(status);
+    expect(result.current.error?.message).not.toContain("private provider details");
+    if (status === 429) expect(result.current.error?.message).toBe("The conversation limit has been reached. Please try again later.");
   });
 
   it("warns when the default voice recovers a speech provider failure", async () => {

@@ -4,6 +4,8 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Show a clear request-limit error when a suggested opening cannot receive an answer, instead of presenting the opening as a completed video. Preserve completed scenes when a response is interrupted.
+
 ## 0.8.6
 
 - Show poster images on suggestion cards while videos are paused or autoplay is blocked, and use conversation bubbles for the Sessions button.

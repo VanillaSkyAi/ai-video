@@ -399,7 +399,9 @@ function errorFrom(cause: unknown): VideoError {
 }
 
 async function responseError(response: Response): Promise<VideoError> {
-  return new VideoError("Video chat could not produce a playable response", {
+  return new VideoError(response.status === 429
+    ? "The conversation limit has been reached. Please try again later."
+    : "Video chat could not produce a playable response", {
     code: "http_error", status: response.status, recoverable: false,
   });
 }
@@ -933,9 +935,6 @@ export function useVideoChatSession(options: UseVideoChatOptions = {}): {
       const recovered = received.flatMap((scene, index) => scene
         ? [ready[index] ?? { ...scene, timing: { fixedDuration: 5 } }]
         : []);
-      if (recovered.length === 0 && spokenHook) {
-        recovered.push({ id: `${id}-opening`, templateId: "media", variables: { texts: spokenHook, mediaType: "gradient" }, narration: spokenHook, timing: { fixedDuration: Math.max(4, spokenHook.split(/\s+/u).length / 2.5) } });
-      }
       if (recovered.length > 0) {
         style ??= { brand: resolveVideoBrand(currentOptions.brand), density: "normal", motion: "normal", defaultBackgroundEffect: "static", defaultTextArchetype: "subtle", defaultTransition: "crossfade" };
         openingController.abort(new DOMException("Continuing completed response", "AbortError"));
