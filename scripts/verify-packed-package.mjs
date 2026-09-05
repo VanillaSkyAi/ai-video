@@ -955,12 +955,12 @@ createRoot(document.getElementById("root")).render(mediaProbe
       await menu.getByRole("button", { name: "New session", exact: true }).waitFor({ state: "visible" });
       const fits = await menu.evaluate((element) => {
         const bounds = element.getBoundingClientRect();
-        return bounds.left >= 0 && bounds.right <= window.innerWidth && bounds.top >= 0 && bounds.bottom <= window.innerHeight;
+        return bounds.left >= 0 && bounds.right <= globalThis.innerWidth && bounds.top >= 0 && bounds.bottom <= globalThis.innerHeight;
       });
       if (!fits) throw new Error("Packed Sessions menu overflowed the viewport");
       if (process.env.VANILLASKY_PACKED_SCREENSHOT_DIR) {
         mkdirSync(process.env.VANILLASKY_PACKED_SCREENSHOT_DIR, { recursive: true });
-        await page.screenshot({ path: join(process.env.VANILLASKY_PACKED_SCREENSHOT_DIR, viewport.width < 600 ? "session-controls-mobile.png" : "session-controls-desktop.png") });
+        await page.screenshot({ animations: "disabled", path: join(process.env.VANILLASKY_PACKED_SCREENSHOT_DIR, viewport.width < 600 ? "session-controls-mobile.png" : "session-controls-desktop.png") });
       }
       await menu.getByRole("button", { name: "Close sessions", exact: true }).click();
       await menu.waitFor({ state: "hidden" });
