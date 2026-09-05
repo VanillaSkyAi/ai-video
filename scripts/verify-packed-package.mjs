@@ -799,6 +799,7 @@ void [brandedInput, resolvedBackground, semanticBrand, video.schemaVersion, pars
 
   writeFileSync(join(consumer, "index.html"), '<main id="root"></main><script type="module" src="/main.jsx"></script>');
   cpSync(join(root, "tests", "browser", "fixtures", "media-transition", "waterfall.mp4"), join(consumer, "first.mp4"));
+  writeFileSync(join(consumer, "card-poster.svg"), decodeURIComponent(JSON.parse(previewImageUrl).slice("data:image/svg+xml,".length)));
   cpSync(join(root, "tests", "browser", "fixtures", "media-transition", "tram.mp4"), join(consumer, "second.mp4"));
   writeFileSync(join(consumer, "main.jsx"), `
 import { createElement } from "react";
@@ -829,7 +830,7 @@ const error = new VideoError("Safe browser error", { code: "video_failed", cause
 const videoChatFetcher = async (input) => {
   const action = new URL(String(input), globalThis.location.href).searchParams.get("action");
   if (action === "capabilities") return Response.json({ templates: true, generatedSpeech: false, generatedVideo: false, stockMedia: false, transcription: false, modes: ["templates"] });
-  if (action === "welcome") return Response.json({ hero: null, cards: [{ prompt: "Invent a tiny packed story", media: null }] });
+  if (action === "welcome") return Response.json({ hero: null, cards: [{ prompt: "Invent a tiny packed story", media: { type: "video", url: new URL("/first.mp4", globalThis.location.href).href, posterUrl: new URL("/card-poster.svg", globalThis.location.href).href } }] });
   return new Response("missing", { status: 404 });
 };
 const VideoChatHookProbe = () => {
@@ -921,6 +922,20 @@ createRoot(document.getElementById("root")).render(mediaProbe
     if (generationRequests !== 0) throw new Error("Packed saved replay called the generation endpoint");
     if (browserErrors.length > 0) throw new Error(`Packed consumer browser errors:\n${browserErrors.join("\n")}`);
 
+    await page.addInitScript(() => {
+      if (!globalThis.location.search.includes("chat-probe")) return;
+      globalThis.HTMLMediaElement.prototype.play = function () {
+        return Promise.reject(new globalThis.DOMException("Autoplay blocked by test policy", "NotAllowedError"));
+      };
+      // Also block the native autoplay attribute, which bypasses play().
+      new globalThis.MutationObserver(() => {
+        for (const video of globalThis.document.querySelectorAll("video")) {
+          video.autoplay = false;
+          video.pause();
+          video.dataset.packedAutoplayBlocked = "true";
+        }
+      }).observe(globalThis.document, { childList: true, subtree: true });
+    });
     await page.goto("http://127.0.0.1:4387/?chat-probe=1", { waitUntil: "networkidle" });
     try {
       await page.getByText("in video, not text.").waitFor({ timeout: 5_000 });
@@ -942,6 +957,34 @@ createRoot(document.getElementById("root")).render(mediaProbe
     // Exercise the installed package's shared navigation on desktop and phone.
     for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);
+      const preview = packedChat.getByRole("button", { name: "Invent a tiny packed story", exact: true }).locator("video");
+      await preview.waitFor({ state: "visible" });
+      const posterState = await preview.evaluate(async (video) => {
+        const poster = video.getAttribute("poster");
+        if (!poster) return { loaded: false };
+        const image = new globalThis.Image();
+        image.src = poster;
+        await image.decode();
+        return { loaded: image.naturalWidth > 0 && image.naturalHeight > 0, blocked: video.dataset.packedAutoplayBlocked === "true", paused: video.paused, autoplay: video.autoplay };
+      });
+      if (!posterState.loaded || !posterState.blocked || !posterState.paused || posterState.autoplay) {
+        throw new Error("Packed card lost its loaded poster when autoplay was blocked: " + JSON.stringify(posterState));
+      }
+      const fallback = packedChat.getByRole("button", { name: "Invent a tiny packed story", exact: true }).locator("img.frame-poster");
+      await fallback.waitFor({ state: "visible" });
+      const fallbackState = await fallback.evaluate(async (image) => {
+        await image.decode();
+        const style = image.ownerDocument.defaultView.getComputedStyle(image);
+        const previousVideo = image.previousElementSibling;
+        return image.naturalWidth > 0 && image.naturalHeight > 0
+          && style.visibility === "visible" && Number(style.opacity) > 0
+          && previousVideo?.tagName === "VIDEO";
+      });
+      if (!fallbackState) throw new Error("Packed card did not paint its explicit poster fallback above the blocked video");
+      if (process.env.VANILLASKY_PACKED_SCREENSHOT_DIR) {
+        mkdirSync(process.env.VANILLASKY_PACKED_SCREENSHOT_DIR, { recursive: true });
+        await page.screenshot({ animations: "disabled", path: join(process.env.VANILLASKY_PACKED_SCREENSHOT_DIR, viewport.width < 600 ? "card-posters-mobile.png" : "card-posters-desktop.png") });
+      }
       const navigation = packedChat.locator(".chrome");
       if (await navigation.getByRole("button", { name: "New session", exact: true }).count()
         || await navigation.getByRole("button", { name: "History", exact: true }).count()) {
