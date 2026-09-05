@@ -90,6 +90,15 @@ errors and credentials on the server. Retry only within an explicit time and
 spend budget before output is visible. The chat does not expose a durable
 stream-reconnect contract.
 
+## Generated-video budget
+
+Set `maxGeneratedVideos` on `createVideoChatHandler` to a nonnegative safe integer
+(default `5`). This is a per-response attempt limit for full mode, including the
+reserved first shot and failures. Use `0` to keep the configured full mode on
+stock footage. Stock lookup is independent of this limit. Retries inside your
+provider callback can incur additional charges; bound those separately. Never
+copy an untrusted request value into this application-owned option.
+
 ## Application retrieval
 
 Fetch or search approved context in the application before asking the chat.

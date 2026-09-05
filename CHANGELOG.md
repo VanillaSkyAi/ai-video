@@ -4,6 +4,10 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- The default chat silently recovers from optional failures. Non-fatal diagnostics remain available to applications without appearing in the viewer interface; actionable errors remain visible.
+
+- Adds `maxGeneratedVideos` (default five attempts per response), aligns AI-video planning with that budget, and keeps stock footage available beyond it. Failed searches can reuse matching completed footage once before falling back to a readable template.
+
 - Adds local, content-free playback observations for scene presentation, actual speech onset, and waits for the next scene. Measurements ignore stale callbacks and exclude deliberate pauses from stall duration.
 
 - Runs setup checks automatically after init and supports retrying interrupted

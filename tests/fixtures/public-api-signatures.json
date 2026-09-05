@@ -219,7 +219,7 @@
           "type"
         ],
         "declaration": [
-          "interface VideoChatHandlerOptions extends Pick<VideoHandlerOptions, \"templates\" | \"streamText\" | \"includeRawProviderData\" | \"mediaConcurrency\" | \"allowedOrigins\" | \"authorize\" | \"maxBodyBytes\" | \"heartbeatMs\" | \"onError\" | \"onWarning\" | \"onComplete\" | \"invalidPartBehavior\" | \"requireCloser\" | \"allowCredentials\"> {\n    generateText: VideoChatTextGenerator;\n    generateSpeech?: VideoChatSpeechGenerator;\n    transcribe?: VideoChatTranscriber;\n    searchMedia?: VideoChatMediaResolver;\n    generateVideo?: VideoChatMediaResolver;\n    instructions?: string;\n    welcome?: VideoChatWelcomeOptions;\n    maxAudioBytes?: number;\n}"
+          "interface VideoChatHandlerOptions extends Pick<VideoHandlerOptions, \"templates\" | \"streamText\" | \"includeRawProviderData\" | \"mediaConcurrency\" | \"allowedOrigins\" | \"authorize\" | \"maxBodyBytes\" | \"heartbeatMs\" | \"onError\" | \"onWarning\" | \"onComplete\" | \"invalidPartBehavior\" | \"requireCloser\" | \"allowCredentials\"> {\n    generateText: VideoChatTextGenerator;\n    generateSpeech?: VideoChatSpeechGenerator;\n    transcribe?: VideoChatTranscriber;\n    searchMedia?: VideoChatMediaResolver;\n    generateVideo?: VideoChatMediaResolver;\n    maxGeneratedVideos?: number;\n    instructions?: string;\n    welcome?: VideoChatWelcomeOptions;\n    maxAudioBytes?: number;\n}"
         ]
       },
       "VideoChatMode": {

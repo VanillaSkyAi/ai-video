@@ -3,8 +3,7 @@
 # Errors and recovery
 
 `VideoChat` preserves the opening and accepted scenes when an optional scene,
-provider, or stream fails. It shows concise non-fatal status notices and keeps
-the answer playable. A fatal error is shown only when no playable response can
+provider, or stream fails. It recovers silently and keeps the answer playable. A fatal error is shown only when no playable response can
 be produced. Never put provider details or stack traces in the interface.
 
 ## Recovery by boundary
@@ -12,7 +11,7 @@ be produced. Never put provider details or stack traces in the interface.
 | Failure | Result |
 | --- | --- |
 | Invalid planner scene | Skip the part and accept later valid scenes |
-| Generated footage | Try stock media, then a safe template |
+| Generated footage | Try stock media, matching completed footage, then a safe template |
 | Stock lookup or candidate | Continue with another candidate or template |
 | Template renderer | Isolate the failed scene with a safe visual |
 | Missing narration | Continue with scene text |
@@ -20,9 +19,9 @@ be produced. Never put provider details or stack traces in the interface.
 | Late stream failure | Keep playable opening and completed scenes |
 | Unauthorized or invalid request without playable output | Show a safe error |
 
-For a custom interface, render `chat.warnings` as status messages and
-`chat.error` as an error. Notices are also retained on the corresponding
-`VideoChatTurn.warnings`. Keep `chat.playerProps` mounted while showing notices.
+Keep non-fatal `chat.warnings` as application diagnostics; they are also
+retained on the corresponding `VideoChatTurn.warnings`. Render `chat.error`
+when the response cannot play, and keep `chat.playerProps` mounted during recovery.
 Check `turn.completed` before persisting it as completed conversation context;
 a cancelled or partial visible turn is not automatically a completed turn.
 
