@@ -127,7 +127,7 @@ describe("VideoChat", () => {
     }} />);
     fireEvent.click(await screen.findByRole("button", { name: "Invent a surreal bedtime story" }));
     expect((await screen.findByRole("status")).textContent).toContain("The conversation limit has been reached. Please try again later.");
-    expect(screen.getByRole("textbox", { name: "Prompt" }).closest(".panel")?.getAttribute("data-input-visible")).toBe("true");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Prompt" }).closest(".panel")?.getAttribute("data-input-visible")).toBe("true"));
     expect(document.body.textContent).not.toContain("private quota details");
   });
 
