@@ -4,6 +4,8 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+## 0.8.0
+
 - The default chat silently recovers from optional failures. Non-fatal diagnostics remain available to applications without appearing in the viewer interface; actionable errors remain visible.
 
 - Adds `maxGeneratedVideos` (default five attempts per response), aligns AI-video planning with that budget, and keeps stock footage available beyond it. Failed searches can reuse matching completed footage once before falling back to a readable template.
@@ -22,7 +24,8 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
   an optional provider fails. Malformed scene lines no longer discard later
   valid scenes; generated footage can fall back to stock and safe templates.
 - Continues narration with scene text and browser voice when generated speech
-  fails, and shows concise non-fatal warnings without provider details.
+  fails, keeping non-fatal diagnostics available to applications without
+  showing recovery notices to viewers.
 - Keeps template rendering failures local to a scene, and lets stock searches
   recover from failed lookups or malformed candidates.
 
