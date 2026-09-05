@@ -1,3 +1,4 @@
+import { MEDIA_RECOVERY_NOTICE } from "./recovery";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { resolveVideoBrand } from "../protocol/background.js";
 import { createSceneTimeline } from "../protocol/scene-timeline.js";
@@ -781,7 +782,9 @@ export function useVideoChatSession(options: UseVideoChatOptions = {}): {
           if (!isCurrent() || currentAttempt !== attempt) return { video: { schemaVersion: "0.1", orientation, scenes: [], style: style! }, lines: [] };
           if (event.type === "response.start") style = event.data.style;
           if (event.type === "response.warning" || (event.type === "response.error" && !event.data.terminal)) {
-            warn("Some parts were simplified so the response could continue.");
+            warn(event.type === "response.warning" && event.data.warning.message === MEDIA_RECOVERY_NOTICE
+              ? MEDIA_RECOVERY_NOTICE
+              : "Some parts were simplified so the response could continue.");
           }
           if (event.type === "data.video-chat-opening") {
             const payload = event.data && typeof event.data === "object" && !Array.isArray(event.data)

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { createVideoChatHandler } from "../../src/server";
 
-test("plays an answer, keeps follow-up context, and recovers from optional media failures", async ({ page }) => {
+for (const recoveryNotice of [false, true]) test(`plays an answer, keeps follow-up context, and recovers from optional media failures (notice=${recoveryNotice})`, async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const requests: Array<{ prompt: string; conversation: Array<{ prompt: string; response: string }> }> = [];
@@ -30,11 +30,16 @@ test("plays an answer, keeps follow-up context, and recovers from optional media
     const response = await handler(new Request(request.url(), { method: request.method(), ...(body ? { body, headers: { "content-type": "application/json" } } : {}) }));
     await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() });
   });
-  await page.goto("http://127.0.0.1:4274/tests/browser/fixtures/video-chat.html");
+  await page.setViewportSize(recoveryNotice ? { width: 390, height: 844 } : { width: 1440, height: 900 });
+  await page.goto(`http://127.0.0.1:4274/tests/browser/fixtures/video-chat.html${recoveryNotice ? "?recovery-notice" : ""}`);
   await page.getByRole("textbox", { name: "Prompt" }).fill("Why does the Moon show one face?");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   await expect(page.locator('[data-video-frame="ready"]')).toBeVisible();
   await expect(page.getByRole("button", { name: "Expand subtitles" })).toBeVisible();
+  if (recoveryNotice) {
+    await expect(page.getByRole("status")).toContainText("Some visuals were replaced");
+    await page.getByRole("button", { name: "Dismiss notice" }).click();
+  }
   await expect(page.getByRole("status")).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText("Some parts were simplified");
   await page.locator(".line-row").hover();
@@ -56,6 +61,12 @@ test("plays an answer, keeps follow-up context, and recovers from optional media
   await expect(page.getByRole("region", { name: "Expanded subtitles" })).toContainText("Walk around a friend while facing them.");
   await expect(page.getByRole("region", { name: "Expanded subtitles" })).toContainText("You turn once during the trip.");
   expect(await page.locator("body").innerText()).not.toContain("private-provider-detail");
+  if (recoveryNotice) {
+    await expect(page.getByRole("status")).toContainText("Some visuals were replaced");
+    const dismiss = await page.getByRole("button", { name: "Dismiss notice" }).boundingBox();
+    expect(dismiss!.height).toBeGreaterThanOrEqual(44);
+    expect(dismiss!.width).toBeGreaterThanOrEqual(44);
+  }
   expect(errors).toEqual([]);
 });
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createVideoChatHandler } from "../src/server";
 import { decodeVideoSse } from "../src/protocol/sse";
 
@@ -28,6 +28,32 @@ async function run(budget: number | undefined, fail = false, queries = Array.fro
 }
 
 describe("chat generation budget", () => {
+  afterEach(() => vi.useRealTimers());
+  it.each([0, -1, 120001, Infinity, NaN, 1.5])("rejects invalid generation deadline %s", (generateVideoTimeoutMs) => {
+    expect(() => createVideoChatHandler({ authorize: "none", streamText: async function* () {}, generateText: async () => "", generateVideoTimeoutMs })).toThrow("generateVideoTimeoutMs");
+  });
+  it.each([false, true])("honors a longer deadline and settles slow media (success=%s)", async (succeeds) => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    const handler = createVideoChatHandler({
+      authorize: "none", heartbeatMs: false, generateVideoTimeoutMs: 20000,
+      generateText: async () => "unused",
+      streamText: async function* () {
+        yield JSON.stringify({ type: "video-chat.opening", spokenHook: "Watch the ocean come alive today", mediaKeyword: "ocean", firstShot: { text: "Ocean waves", narration: "The ocean moves with a rhythm all of its own today.", mediaKeyword: "ocean" } }) + "\n";
+        yield '{"type":"plan.complete"}\n';
+      },
+      generateVideo: async (_query, context) => { signal = context.signal; return new Promise<{ url: string; type: "video" }>((resolve) => { if (succeeds) setTimeout(() => resolve({ url: "https://media.example/slow.mp4", type: "video" }), 18000); }); },
+      searchMedia: async () => ({ url: "https://media.example/stock.mp4", type: "video" }),
+    });
+    const response = await handler(new Request("https://app.example/api?action=response", { method: "POST", body: JSON.stringify({ prompt: "Ocean", mode: "full" }) }));
+    const result = response.text();
+    await vi.advanceTimersByTimeAsync(16000);
+    expect(signal).toBeDefined();
+    expect(signal!.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(4000);
+    expect(signal!.aborted).toBe(true);
+    expect(await result).toContain(succeeds ? "slow.mp4" : "stock.mp4");
+  });
   it("defaults to five attempts including the reserved shot while stock continues", async () => {
     const result = await run(undefined);
     expect(result.generated).toBe(5);

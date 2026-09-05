@@ -76,6 +76,8 @@ import type { VideoGenerationContext } from "@vanillaskyai/video/test";
 import type { VideoState } from "@vanillaskyai/video/test";
 declare const chatOptions: VideoChatHandlerOptions;
 const generationBudget: number | undefined = chatOptions.maxGeneratedVideos;
+const previewOptions: VideoChatHandlerOptions = { ...chatOptions, generateVideoTimeoutMs: 120000 };
+void previewOptions;
 const stockOnlyOptions: VideoChatHandlerOptions = { ...chatOptions, maxGeneratedVideos: 0 };
 // @ts-expect-error The application budget is numeric, never a browser-supplied string.
 const invalidBudget: VideoChatHandlerOptions = { ...chatOptions, maxGeneratedVideos: "5" };
@@ -724,7 +726,7 @@ void createdChatVoice.speak("Spoken onset", { signal: new AbortController().sign
 } });
 void [metricTypeChecks, performanceOptions, metric, promptMetric, providerMetric];
 
-const videoChatProps: VideoChatProps = { options: { voice: chatVoice }, className: "customer-shell" };
+const videoChatProps: VideoChatProps = { options: { voice: chatVoice }, className: "customer-shell", generatedVideoLabel: "Video preview", generatedVideoDescription: "One generated clip", showRecoveryNotice: true };
 const packedVideoChat = createElement(VideoChat, videoChatProps);
 const PackedChatTypeProbe = () => {
   const chat = useVideoChat({ voice: chatVoice, ...performanceOptions });

@@ -99,6 +99,20 @@ stock footage. Stock lookup is independent of this limit. Retries inside your
 provider callback can incur additional charges; bound those separately. Never
 copy an untrusted request value into this application-owned option.
 
+Use `generateVideoTimeoutMs` for slower providers (integer `1`–`120000`, default
+`15000`). Poll queued jobs only until the supplied signal aborts; submit once,
+record the provider job identifier, and cancel that job best-effort on abort.
+A disconnected browser or timed-out request does not prove the job was free.
+Reserve host-owned quotas before submission and retain uncertain attempts.
+Keep the host request deadline and client `timeoutMs` longer than the provider
+deadline. The SDK does not resume a completed queued job into a finished answer.
+
+For a limited offering, `VideoChat` accepts `generatedVideoLabel` and
+`generatedVideoDescription` to explain the generated-video choice in Settings.
+Set `showRecoveryNotice` to opt into a brief dismissible message when generated
+visuals fall back. These presentation props do not enforce limits or enable
+provider capabilities; the server remains authoritative.
+
 ## Application retrieval
 
 Fetch or search approved context in the application before asking the chat.

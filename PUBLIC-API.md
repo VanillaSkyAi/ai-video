@@ -450,3 +450,16 @@ and audio `playing` events, not request completion or preparation estimates.
 `VideoPlayerProps.onFramePresented` and `onStallChange` expose the underlying
 presentation and stream-starvation signals for custom players. They do not
 measure media-decoder buffering. See [Performance](docs/performance.md).
+
+### Bounded generated-video previews
+
+`VideoChatHandlerOptions.generateVideoTimeoutMs` optionally sets the generated media
+resolver deadline (integer 1–120000 milliseconds, default 15000). The host still owns
+provider cancellation, authorization and spend limits; a timeout does not prove the
+provider avoided a charge. `maxGeneratedVideos` continues to count attempted clips.
+
+`VideoChatProps.generatedVideoLabel` and `generatedVideoDescription` customize the
+existing generated-video Settings choice without changing server capabilities.
+`showRecoveryNotice` opts into a dismissible, fixed SDK media-fallback notice. It
+never displays arbitrary provider messages. All three default to existing behavior.
+These are additive members; no new entry points or exports are introduced.
