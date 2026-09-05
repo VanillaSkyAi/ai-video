@@ -134,10 +134,11 @@ playable scenes on an interrupted plan, emitting non-fatal warnings. Explicit
   `conversation`, `opening`, `brand`, and `style`. `opening` is an optional
   prewritten hook from a selected suggestion. The response returns protocol
   `0.5` SSE and negotiates `data.video-chat-opening`, which carries the bounded
-  6-9 word hook and optional stock-search keyword before the first scene.
+  6-9 word hook and optional stock-search `keyword` and `fallbackKeyword` before the first scene.
 - The planner produces that opening as the first line of the same model stream
   that produces the scenes. The separate opening-media action resolves its
-  keyword through the application-owned `searchMedia` callback, so stock lookup
+  keyword through the application-owned `searchMedia` callback, with an optional
+  bounded `fallbackQuery` for broader opening atmosphere. Stock lookup
   never delays speech or planning. In `full` mode the first line also directs
   the exact first generated scene; the handler consumes that private direction
   and starts the clip while the model continues with scenes two through five.

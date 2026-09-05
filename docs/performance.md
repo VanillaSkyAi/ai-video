@@ -54,3 +54,16 @@ for stock media, generated speech preparation, and fallback narration. Validate
 these against an explicitly authorized, bounded live run before treating them
 as tuned provider budgets. Compare first-frame/speech times, stalled duration,
 and visual/voice quality together; faster fallback alone does not prove quality.
+
+## Opening stock footage
+
+The opening's stock lookup runs alongside narration and body generation. Ready
+footage stays behind the hook until the body starts; late results are ignored.
+Playback never waits solely for intro footage.
+
+The packaged stock adapter tries the specific and optional broader video query
+before photo recovery, within one three-second budget. The planner supplies the
+broader query only for opening atmosphere; body demonstrations retain their
+specific subject. Pexels resource-page slugs and photo descriptions can screen
+obvious mismatches, but missing metadata remains unknown and is accepted. This
+is not visual relevance verification. See the [Pexels API contract](https://www.pexels.com/api/documentation/).

@@ -31,7 +31,7 @@ function scene(id: string, value: string, narration?: string): VideoScene {
 function responseStream(
   requestId: string,
   scenes: VideoScene[],
-  opening = { line: "Let us begin somewhere unexpected.", keyword: "unexpected story opening" },
+  opening = { line: "Let us begin somewhere unexpected.", keyword: "unexpected story opening", fallbackKeyword: "night sky" },
 ): Response {
   const snapshot: Video = {
     schemaVersion: "0.1",
@@ -445,13 +445,30 @@ describe("useVideoChat", () => {
     }));
     expect(requests).toContainEqual({
       action: "opening-media",
-      body: { keyword: "unexpected story opening", orientation: "landscape" },
+      body: { keyword: "unexpected story opening", fallbackKeyword: "night sky", orientation: "landscape" },
     });
     expect(result.current.playerProps).toBeUndefined();
 
     finishOpening();
     await act(async () => { await openingFinished; await pending; });
     await waitFor(() => expect(result.current.playerProps?.stream).toBeDefined());
+  });
+
+  it("does not wait for late intro footage or attach it to a subsequent turn", async () => {
+    const { useVideoChat } = await import("../src/react");
+    let release!: (value: Response) => void;
+    const delayed = new Promise<Response>((resolve) => { release = resolve; });
+    const base = videoChatFetcher();
+    const fetcher: typeof fetch = (input, init) => String(input).includes("action=opening-media")
+      ? delayed : base(input, init);
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice() }));
+    await act(async () => { await result.current.ask("First response"); });
+    expect(result.current.playerProps?.stream).toBeDefined();
+    expect(result.current.currentTurn?.openingMedia).toBeUndefined();
+    await act(async () => { await result.current.ask("Next response"); });
+    await act(async () => { release(Response.json({ media: { url: "https://media.example/late.mp4", type: "video" } })); });
+    expect(result.current.currentTurn?.openingMedia).toBeUndefined();
+    expect(result.current.playerProps?.stream).toBeDefined();
   });
 
   it("does not send an interrupted partial response as conversation context", async () => {

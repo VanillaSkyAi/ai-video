@@ -80,6 +80,12 @@ const stockOnlyOptions: VideoChatHandlerOptions = { ...chatOptions, maxGenerated
 // @ts-expect-error The application budget is numeric, never a browser-supplied string.
 const invalidBudget: VideoChatHandlerOptions = { ...chatOptions, maxGeneratedVideos: "5" };
 void [generationBudget, stockOnlyOptions, invalidBudget];
+const stockSearch: NonNullable<VideoChatHandlerOptions["searchMedia"]> = (_query, { fallbackQuery }) => {
+  const broaderSubject: string | undefined = fallbackQuery;
+  void broaderSubject;
+  return null;
+};
+void stockSearch;
 declare const chatCapabilities: VideoChatCapabilities;
 declare const summary: VideoGenerationSummary;
 declare const usage: VideoProviderUsage;
@@ -440,6 +446,18 @@ try {
   if (error.message !== "Template duration is not supported; use preferredDuration") throw error;
 }
 let lifecycleSummary;
+const openingStock = server.createVideoChatHandler({
+  authorize: "none", generateText: async () => "", streamText: async function* () {},
+  searchMedia: (_query, context) => {
+    if (context.fallbackQuery !== "medieval castle") throw new Error("Missing packed opening fallback query");
+    return { type: "video", url: "https://media.example/castle.mp4" };
+  },
+});
+const openingStockResponse = await openingStock(new Request("https://app.example/api/video-chat?action=opening-media", {
+  method: "POST", body: JSON.stringify({ keyword: "Minecraft castle", fallbackKeyword: "medieval castle" }),
+}));
+if ((await openingStockResponse.json()).media?.url !== "https://media.example/castle.mp4") throw new Error("Packed opening fallback contract failed");
+
 const pacingHandler = server.createVideoChatHandler({
   generateText: async () => "A useful answer",
   authorize: "none",

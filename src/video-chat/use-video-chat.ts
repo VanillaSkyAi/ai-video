@@ -683,11 +683,11 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     };
     flushRef.current = flush;
 
-    const resolveOpeningMedia = async (keyword: string) => {
+    const resolveOpeningMedia = async (keyword: string, fallbackKeyword?: string) => {
       try {
         const response = await request("opening-media", {
           method: "POST",
-          body: JSON.stringify({ keyword, orientation }),
+          body: JSON.stringify({ keyword, ...(fallbackKeyword ? { fallbackKeyword } : {}), orientation }),
         }, openingController.signal);
         if (!response.ok || !isOpeningCurrent() || timeline) return;
         const payload = await response.json() as { media?: unknown };
@@ -765,11 +765,12 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
           }
           if (event.type === "data.video-chat-opening") {
             const payload = event.data && typeof event.data === "object" && !Array.isArray(event.data)
-              ? event.data as { line?: unknown; keyword?: unknown }
+              ? event.data as { line?: unknown; keyword?: unknown; fallbackKeyword?: unknown }
               : {};
             const line = typeof payload.line === "string" ? payload.line.trim().slice(0, 300) : "";
             const keyword = typeof payload.keyword === "string" ? payload.keyword.trim().slice(0, 80) : "";
-            if (!openingMedia && keyword) void resolveOpeningMedia(keyword);
+            const fallbackKeyword = typeof payload.fallbackKeyword === "string" ? payload.fallbackKeyword.trim().slice(0, 80) : undefined;
+            if (!openingMedia && keyword) void resolveOpeningMedia(keyword, fallbackKeyword);
             if (!openingRequested && line) {
               spokenHook = line;
               lines.push(line);
