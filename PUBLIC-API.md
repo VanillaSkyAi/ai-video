@@ -120,13 +120,13 @@ provider-neutral text-delta escape hatch.
 Mount it once and use its bounded `action` query parameter for capabilities,
 responses, opening media, narration, suggestions, speech,
 transcription, and the welcome screen. It owns the general response prompts,
-fixed visual-mode spend limits, capability fallbacks, and auxiliary response
+application-configured visual-mode attempt limits, capability fallbacks, and auxiliary response
 shapes. The application supplies provider-neutral `streamText`, `generateText`,
 `generateSpeech`, `transcribe`, `searchMedia`, and `generateVideo` callbacks.
 Only the two text callbacks are required. Missing optional callbacks remove
 their capability; templates and browser speech remain available. During response
 creation, failed generated footage falls back to stock when available, then to
-a safe template. The default handler skips invalid planner parts and preserves
+matching completed footage and finally a safe template. The default handler skips invalid planner parts and preserves
 playable scenes on an interrupted plan, emitting non-fatal warnings. Explicit
 `invalidPartBehavior: "fail"` retains strict generation semantics.
 
@@ -141,8 +141,14 @@ playable scenes on an interrupted plan, emitting non-fatal warnings. Explicit
   never delays speech or planning. In `full` mode the first line also directs
   the exact first generated scene; the handler consumes that private direction
   and starts the clip while the model continues with scenes two through five.
-- `templates` and `full` map to server-owned generated-media budgets of zero
-  and five. Without `generateVideo`, only `templates` is exposed
+- `templates` never generates video. `full` uses an application-owned
+  `maxGeneratedVideos` limit (default five, nonnegative safe integer). The limit
+  counts attempts including failed attempts and the reserved first shot; it is
+  neither a currency nor duration cap. Stock lookup remains available after
+  the limit. With zero, full mode uses stock only. The planner receives this
+  budget, and the server enforces it independently. If providers fail, an
+  already completed video with the identical search query and visual look may
+  be reused once in the same response before a readable template fallback. Without `generateVideo`, only `templates` is exposed
   and forged generated-mode requests degrade to it.
 - The response planner writes narration on each scene. The narration action is
   retained as a compatibility fallback for missing lines, not used in the

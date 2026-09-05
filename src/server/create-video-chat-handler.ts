@@ -120,6 +120,8 @@ export interface VideoChatHandlerOptions extends Pick<
   searchMedia?: VideoChatMediaResolver;
   /** Optional generated-video provider. Its presence enables paid visual modes. */
   generateVideo?: VideoChatMediaResolver;
+  /** Maximum generated-video attempts per response, including failures. Defaults to 5. */
+  maxGeneratedVideos?: number;
   /** Trusted application guidance appended to the general-purpose response brief. */
   instructions?: string;
   /** Application-owned prompts and visual searches shown before the first turn. */
@@ -598,6 +600,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
     allowedOrigins,
     allowCredentials,
     mediaConcurrency = 5,
+    maxGeneratedVideos = 5,
   } = options;
   // Forward only the chat contract, including for untyped JavaScript callers.
   const videoOptions = {
@@ -613,6 +616,8 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
   };
   if (!Number.isFinite(maxAudioBytes) || maxAudioBytes <= 0) throw new Error("maxAudioBytes must be positive");
   if (!Number.isFinite(maxBodyBytes) || maxBodyBytes <= 0) throw new Error("maxBodyBytes must be positive");
+
+  if (!Number.isSafeInteger(maxGeneratedVideos) || maxGeneratedVideos < 0) throw new Error("maxGeneratedVideos must be a nonnegative safe integer");
 
   const capabilities: VideoChatCapabilities = {
     templates: true,
@@ -636,8 +641,18 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
     const mode = requestedMode !== "templates" && !generateVideo ? "templates" : requestedMode;
     const fullAiVideo = mode === "full";
     let lifecycle: VideoGenerationLifecycleSink | undefined;
+    let generatedAttempts = 0;
+    // Exact bounded query + visual look only: no inferred semantic matches and
+    // no cross-response cache. One recovery reuse per completed clip URL.
+    const completedVideos = new Map<string, ResolvedMedia>();
+    const reusedUrls = new Set<string>();
     const resolveSelected: VideoHandlerOptions["resolveMedia"] = generateVideo || searchMedia
       ? async (query, context) => {
+          const reuseKey = JSON.stringify([query, context.generatedLook ?? ""]);
+          const remember = (media: ResolvedMedia | null) => {
+            if (media?.type === "video") completedVideos.set(reuseKey, media);
+            return media;
+          };
           const mediaContext: VideoChatMediaContext = {
             purpose: "response",
             orientation: context.input.orientation ?? "landscape",
@@ -666,8 +681,10 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
             }
           };
           if (fullAiVideo) {
-            const generated = await attempt(generateVideo, 15_000);
-            if (generated) return generated;
+            const generated = generatedAttempts < maxGeneratedVideos
+              ? (generatedAttempts++, await attempt(generateVideo, 15_000))
+              : null;
+            if (generated) return remember(generated);
             lifecycle?.reportWarning?.({
               code: "provider_warning",
               category: "provider",
@@ -675,7 +692,16 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
               recoverable: true,
             });
           }
-          return attempt(searchMedia, 3_000);
+          const stock = await attempt(searchMedia, 3_000);
+          if (stock) return remember(stock);
+          if (fullAiVideo) {
+            const previous = completedVideos.get(reuseKey);
+            if (previous && !reusedUrls.has(previous.url)) {
+              reusedUrls.add(previous.url);
+              return previous;
+            }
+          }
+          return null;
         }
       : undefined;
     const handler = createVideoHandler({
@@ -700,11 +726,10 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
       allowCredentials,
       maxBodyBytes,
       mediaConcurrency,
-      basePrompt: [createVideoChatResponseInstructions(fullAiVideo, openingProvided), instructions?.trim()]
+      basePrompt: [createVideoChatResponseInstructions(fullAiVideo, openingProvided, maxGeneratedVideos), instructions?.trim()]
         .filter(Boolean)
         .join("\n\nAPPLICATION GUIDANCE\n"),
       narrate: true,
-      ...(fullAiVideo ? { maxResolvedMedia: 5 } : {}),
       resolveMedia: resolveSelected,
     });
     return handler;

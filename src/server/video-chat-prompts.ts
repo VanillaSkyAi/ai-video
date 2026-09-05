@@ -5,6 +5,7 @@ const RESPONSE_SCENES = 5;
 export function createVideoChatResponseInstructions(
   fullAiVideo: boolean,
   openingAlreadyProvided = false,
+  maxGeneratedVideos = 5,
 ): string {
   return [
     "The input is a prompt from a user. Respond as a short, coherent video.",
@@ -20,6 +21,9 @@ export function createVideoChatResponseInstructions(
     fullAiVideo
       ? "The host inserts firstShot as the first body scene and begins generating it immediately. After the opening object, emit exactly four additional scenes that continue it. Never emit, repeat, paraphrase, or replace firstShot as a scene."
       : `After the opening instruction above, use exactly ${RESPONSE_SCENES} scenes and build a progression that fits the request:`,
+    fullAiVideo
+      ? `The response has a budget of ${maxGeneratedVideos} generated-video attempts, including the host-inserted firstShot. The first ${maxGeneratedVideos} media requests may generate footage; all later requests use stock footage. Plan later subjects that stock footage can honestly illustrate. Keep five total scenes even when the budget is smaller; do not request extra generated scenes.`
+      : undefined,
     fullAiVideo ? undefined : "1. Open directly on the strongest image, action, claim, or idea.",
     "2. Develop it with new information or movement.",
     "3. Deepen, complicate, or advance the response.",

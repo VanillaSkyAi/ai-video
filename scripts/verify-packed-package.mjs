@@ -75,6 +75,11 @@ import type { VideoGenerationContext } from "@vanillaskyai/video/test";
 // @ts-expect-error VideoState is internal to the test entry and must not be exported.
 import type { VideoState } from "@vanillaskyai/video/test";
 declare const chatOptions: VideoChatHandlerOptions;
+const generationBudget: number | undefined = chatOptions.maxGeneratedVideos;
+const stockOnlyOptions: VideoChatHandlerOptions = { ...chatOptions, maxGeneratedVideos: 0 };
+// @ts-expect-error The application budget is numeric, never a browser-supplied string.
+const invalidBudget: VideoChatHandlerOptions = { ...chatOptions, maxGeneratedVideos: "5" };
+void [generationBudget, stockOnlyOptions, invalidBudget];
 declare const chatCapabilities: VideoChatCapabilities;
 declare const summary: VideoGenerationSummary;
 declare const usage: VideoProviderUsage;
@@ -95,6 +100,25 @@ void [createVideoChatHandler, createServerTemplateRegistry, chatCapabilities, ch
   if (/from ["']\.\/(?:protocol|server|visual-system|test)\//.test(testDeclaration)) {
     throw new Error("Packed test declaration leaked an internal module path");
   }
+  writeFileSync(join(serverConsumer, "budget.mjs"), `
+import { createVideoChatHandler } from "@vanillaskyai/video/server";
+let generated = 0;
+let searched = 0;
+const handler = createVideoChatHandler({
+  authorize: "none", heartbeatMs: false, maxGeneratedVideos: 0,
+  generateText: async () => "unused",
+  generateVideo: async () => { generated++; throw new Error("must not spend"); },
+  searchMedia: async () => { searched++; return { type: "video", url: "https://media.example/stock.mp4" }; },
+  streamText: async function* () {
+    yield JSON.stringify({ type: "scene.add", placement: "closer", scene: { id: "stock", templateId: "media", variables: { texts: "Ocean", mediaType: "video", mediaKeyword: "ocean waves" }, timing: { fixedDuration: 4 }, narration: "The waves move across the ocean and arrive upon the shore." } }) + String.fromCharCode(10);
+    yield JSON.stringify({ type: "plan.complete" }) + String.fromCharCode(10);
+  },
+});
+const response = await handler(new Request("https://app.example/api?action=response", { method: "POST", body: JSON.stringify({ prompt: "Ocean", mode: "full", opening: "Watch the ocean" }) }));
+const events = await response.text();
+if (generated !== 0 || searched !== 1 || !events.includes("stock.mp4") || !events.includes("response.complete")) throw new Error("Packed generated-video budget did not preserve stock playback");
+`);
+  execFileSync(process.execPath, [join(serverConsumer, "budget.mjs")], { cwd: serverConsumer, stdio: "inherit" });
   writeFileSync(join(serverConsumer, "root.mjs"), `
 import { VideoValidationError, getVideoDuration, parseVideo } from "@vanillaskyai/video";
 import * as root from "@vanillaskyai/video";
@@ -584,8 +608,8 @@ const deadlineVideo = root.parseVideo(deadlineEvents.at(-1).data.snapshot);
 if (deadlineVideo.scenes.length !== 2 || deadlineVideo.scenes[0].id !== "deadline-completed"
   || deadlineVideo.scenes[0].variables.mediaUrl !== completedClip
   || deadlineVideo.scenes[1].id !== "deadline-fallback"
-  || deadlineVideo.scenes[1].variables.mediaType !== "gradient") {
-  throw new Error("Packed provider deadline lost completed scenes or safe fallback");
+  || deadlineVideo.scenes[1].variables.mediaUrl !== completedClip) {
+  throw new Error("Packed provider deadline lost completed scenes or exact-subject footage reuse");
 }
 if (!deadlineEvents.some(({ type, data }) => type === "response.warning" && data.warning.recoverable)
   || /packed-private-provider-canary|TimeoutError|Optional work exceeded/.test(deadlineBody)) {
