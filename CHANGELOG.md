@@ -4,6 +4,11 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Runs setup checks automatically after init and supports retrying interrupted
+  installation. The baseline needs one text-provider key, packaged templates,
+  and browser voice; optional speech and video packages install only through
+  `vanillasky providers add speech` or `vanillasky providers add video`.
+
 - Bounds optional video, stock, speech, and narration waits so stalled providers fall back without holding the whole answer. Completed responses no longer wait for follow-up suggestions.
 
 - Preserves playable video-chat openings and completed scenes when planning or

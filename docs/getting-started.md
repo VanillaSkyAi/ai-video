@@ -4,7 +4,8 @@
 
 The fastest VanillaSky integration is the complete, general-purpose video chat.
 It starts with packaged templates and browser voice, then turns on optional
-speech, stock, transcription, and generated video when their server keys exist.
+speech and generated video when you install their adapters and add server keys.
+Stock media needs only its server key.
 
 ## Create the app
 
@@ -15,7 +16,9 @@ npx @vanillaskyai/video init
 ```
 
 Init installs the exact SDK version that ran it, creates a small application
-shell, and installs its provider dependencies.
+shell, installs baseline dependencies, and runs doctor automatically. Optional
+speech and video packages are not installed. If installation is interrupted,
+rerun the same init command to finish setup.
 It does not copy VanillaSky's template tree. The important generated files are:
 
 | File | Your application owns |
@@ -59,23 +62,27 @@ variable. Then inspect the setup without calling any provider:
 npx vanillasky doctor
 ```
 
-The base experience reports `templates + browser voice`. A ready text key makes
-the chat answer. Optional keys progressively add capabilities:
+The base experience reports `templates + browser voice`. `ANTHROPIC_API_KEY`
+is the only required key. Doctor checks setup locally without calling providers
+and reports names and readiness, never values.
 
-```dotenv
-# Optional generated speech
-XAI_API_KEY=
+## Add optional capabilities
 
-# Optional generated video and voice transcription
-FAL_KEY=
+Install only the capability you want:
 
-# Optional stock media
-PEXELS_API_KEY=
+```bash
+# Generated speech: installs the xAI adapter
+npx vanillasky providers add speech
+
+# Generated video and transcription: installs the FAL adapter
+npx vanillasky providers add video
 ```
 
-Doctor reports only key names and readiness, never values. Adding or removing
-an optional key changes the available modes after a server restart; the client
-does not need to change.
+Add `XAI_API_KEY` for speech or `FAL_KEY` for video and transcription to
+`.env.local`, then restart the dev server. Stock media needs only
+`PEXELS_API_KEY`; no extra package or command is needed. The client stays the
+same. Rerun an interrupted provider command to finish its installation, then
+check readiness with `npx vanillasky doctor`.
 
 ## Run and verify
 

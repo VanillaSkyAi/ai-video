@@ -33,6 +33,32 @@ describe("video chat starter", () => {
     expect(environment).toContain("PEXELS_API_KEY=");
   });
 
+  it("starts without optional provider packages and keeps upgrades in separate adapters", () => {
+    const manifest = JSON.parse(readFileSync(join(starterRoot, "package.json"), "utf8"));
+    const server = readFileSync(join(starterRoot, "server.ts"), "utf8");
+    expect(manifest.dependencies).not.toHaveProperty("@ai-sdk/xai");
+    expect(manifest.dependencies).not.toHaveProperty("@fal-ai/client");
+    expect(server).not.toMatch(/@ai-sdk\/xai|@fal-ai\/client|experimental_generateSpeech/);
+    expect(server).toContain('import { providers } from "./providers"');
+    expect(server).toContain("...providers");
+    const providers = readFileSync(join(starterRoot, "providers.ts"), "utf8");
+    expect(providers).toContain("export const providers");
+    expect(providers).not.toMatch(/@ai-sdk|@fal-ai/);
+    const speech = readFileSync(join(starterRoot, "providers/speech.ts"), "utf8");
+    const video = readFileSync(join(starterRoot, "providers/video.ts"), "utf8");
+    expect(speech).toContain("export const speechProvider");
+    expect(speech).toContain("abortSignal: signal");
+    expect(video).toContain("export const videoProvider");
+    expect(video).toContain("Uint8Array.from(audio)");
+    expect(video).toContain("signal.throwIfAborted()");
+    const packaged = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")).files;
+    expect(packaged).toEqual(expect.arrayContaining([
+      "starters/video-chat/providers.ts",
+      "starters/video-chat/providers/speech.ts",
+      "starters/video-chat/providers/video.ts",
+    ]));
+  });
+
   it("loads server-only keys from the local environment file", () => {
     const config = readFileSync(join(starterRoot, "vite.config.ts"), "utf8");
 
@@ -58,9 +84,7 @@ describe("video chat starter", () => {
     expect(client).not.toContain("createSceneTimeline");
     expect(client).not.toContain("useNarration");
     expect(client).not.toContain("createSpokenVoice");
-    expect(server).toContain("async ({ text, signal })");
     expect(server).toContain("abortSignal: signal");
-    expect(server).toContain("Uint8Array.from(audio)");
     expect(server).not.toContain("JSON.stringify(detail)");
     expect(server).not.toContain("OPENING_MODEL");
     expect(server).toContain('opening: "The Moon turns, perfectly matching its orbit."');

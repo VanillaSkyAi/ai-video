@@ -36,7 +36,7 @@ validation, streaming, and player.
 | `src/visual-system/backgrounds/` | Standalone background renderers |
 | `src/visual-system/motion/` | Animation functions and timing behavior |
 | `src/visual-system/theme/` | Color and design tokens |
-| `src/cli/` | `vanillasky init` and `doctor`, plus `vanillasky templates create`, `add`, `sync`, `check`, `list`, and `describe` |
+| `src/cli/` | `vanillasky init`, `doctor`, and `providers add`, plus `vanillasky templates create`, `add`, `sync`, `check`, `list`, and `describe` |
 | `registry/items/` | Generated distributable copies installed into customer projects |
 | `src/index.ts`, `src/server.ts`, `src/react.ts`, `src/templates.ts`, `src/template-catalog.ts`, `src/test.ts`, `styles/video-chat.css` | The six small code entry points and one scoped stylesheet |
 

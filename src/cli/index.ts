@@ -17,6 +17,7 @@ import {
   type TemplateCatalogItem,
 } from "./catalog.js";
 import { initVideoChatApp } from "./init.js";
+import { addVideoChatProvider } from "./providers.js";
 import { doctorVideoChatApp } from "./doctor.js";
 
 export interface VanillaSkyCliEnvironment {
@@ -37,6 +38,7 @@ function help(): string {
     "Usage:",
     "  vanillasky init",
     "  vanillasky doctor",
+    "  vanillasky providers add <speech|video>",
     "  vanillasky templates <command>",
     "",
     "Template commands:",
@@ -121,14 +123,25 @@ export function runVanillaSkyCli(
           sdkSpec: environment.sdkSpec ?? process.env.npm_config_package,
           installDependencies: environment.installDependencies,
         });
-        if (!result.initialized) {
-          write("Video chat is already initialized.");
-          return 0;
-        }
-        write("Video chat initialized with packaged templates and browser voice.");
-        write("Add ANTHROPIC_API_KEY to .env.local.");
-        write("Then run: npm run dev");
-        write("Check setup: npx vanillasky doctor");
+        write(result.initialized ? "Video chat initialized with packaged templates and browser voice." : "Video chat is already initialized; dependencies checked.");
+        const health = doctorVideoChatApp(cwd);
+        health.lines.forEach(write);
+        write(health.ok ? "Ready. Run: npm run dev" : health.lines.some((line) => line === "MISSING  ANTHROPIC_API_KEY in .env.local")
+          ? "Add ANTHROPIC_API_KEY to .env.local. Then run: npm run dev"
+          : "Next: fix the missing setup items above, then run npm run dev.");
+        return 0;
+      } catch (error) {
+        write(error instanceof Error ? error.message : String(error));
+        return 1;
+      }
+    })();
+  }
+
+  if (rootCommand === "providers") {
+    return (async () => {
+      try {
+        if (rootArgs.length !== 2 || rootArgs[0] !== "add") throw new Error("Usage: vanillasky providers add <speech|video>");
+        write(await addVideoChatProvider(rootArgs[1], { cwd, starterRoot: environment.starterRoot, installDependencies: environment.installDependencies }));
         return 0;
       } catch (error) {
         write(error instanceof Error ? error.message : String(error));

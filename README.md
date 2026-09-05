@@ -17,7 +17,8 @@ trusted templates, validation, streaming, voice timing, and player.
 npx @vanillaskyai/video init
 ```
 
-Add `ANTHROPIC_API_KEY` to the generated, ignored `.env.local`, then run:
+Init installs the baseline dependencies and runs doctor automatically. Add
+`ANTHROPIC_API_KEY` to the generated, ignored `.env.local`, then run:
 
 ```bash
 npx vanillasky doctor
@@ -25,20 +26,21 @@ npm run dev
 ```
 
 Open the reported localhost URL. One text key gives you the complete chat with
-packaged templates and browser voice. No template setup is required.
+packaged templates and browser voice. No template setup or optional provider
+packages are required. If installation is interrupted, rerun the init command.
 
-Optional server-only keys progressively add capabilities without changing the
-client:
+Optional upgrades keep the same client:
 
-| Key | Adds |
-| --- | --- |
-| `XAI_API_KEY` | Generated speech |
-| `FAL_KEY` | Generated video and voice transcription |
-| `PEXELS_API_KEY` | Stock media, including opening backgrounds |
+| Add | Setup command | Server-only key |
+| --- | --- | --- |
+| Generated speech | `npx vanillasky providers add speech` | `XAI_API_KEY` |
+| Generated video and voice transcription | `npx vanillasky providers add video` | `FAL_KEY` |
+| Stock media, including opening backgrounds | No install needed | `PEXELS_API_KEY` |
 
-`npx vanillasky doctor` reports readiness by key name and never prints values.
-Provider SDKs remain dependencies of the generated application, not the core
-package.
+Run the selected command, add its key to `.env.local`, and restart the server.
+Only selected provider packages are installed. `npx vanillasky doctor` reports
+readiness by key name and never prints values. Provider SDKs remain application
+dependencies, outside the core package.
 
 For coding agents:
 

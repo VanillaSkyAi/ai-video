@@ -6,6 +6,7 @@ const REQUIRED_FILES = [
   ".env.local",
   "index.html",
   "server.ts",
+  "providers.ts",
   "src/main.tsx",
   "stock.ts",
   "tsconfig.json",
@@ -15,11 +16,15 @@ const REQUIRED_FILES = [
 const REQUIRED_DEPENDENCIES = [
   "@vanillaskyai/video",
   "@ai-sdk/anthropic",
-  "@ai-sdk/xai",
-  "@fal-ai/client",
   "ai",
   "react",
   "react-dom",
+  "@types/node",
+  "@types/react",
+  "@types/react-dom",
+  "@vitejs/plugin-react",
+  "typescript",
+  "vite",
 ] as const;
 
 const PROVIDER_KEYS = new Set(["ANTHROPIC_API_KEY", "XAI_API_KEY", "FAL_KEY", "PEXELS_API_KEY"]);
@@ -84,6 +89,11 @@ export function doctorVideoChatApp(cwdInput: string): VideoChatDoctorResult {
     ok = false;
     lines.push(`MISSING  dependency ${name}`);
   }
+  const installed = (name: string) => existsSync(join(cwd, "node_modules", name, "package.json"));
+  for (const name of REQUIRED_DEPENDENCIES.filter((name) => dependencies[name] && !installed(name))) {
+    ok = false;
+    lines.push(`NOT INSTALLED  ${name} — run npm install`);
+  }
   const scripts = stringMap(manifest.scripts);
   if (scripts.dev !== "vite" || scripts.build !== "tsc && vite build") {
     ok = false;
@@ -112,12 +122,25 @@ export function doctorVideoChatApp(cwdInput: string): VideoChatDoctorResult {
     ok = false;
     lines.push("MISSING  ANTHROPIC_API_KEY in .env.local");
   }
-  lines.push(environment.get("XAI_API_KEY")
-    ? "READY    generated speech"
-    : "OPTIONAL generated speech — add XAI_API_KEY");
-  lines.push(environment.get("FAL_KEY")
-    ? "READY    generated video + transcription"
-    : "OPTIONAL generated video + transcription — add FAL_KEY");
+  const configuration = isJsonObject(manifest.vanillasky) ? manifest.vanillasky : {};
+  const enabled = Array.isArray(configuration.providers) ? configuration.providers : [];
+  for (const provider of [
+    { id: "speech", label: "generated speech", dependency: "@ai-sdk/xai", key: "XAI_API_KEY" },
+    { id: "video", label: "generated video + transcription", dependency: "@fal-ai/client", key: "FAL_KEY" },
+  ]) {
+    const configured = enabled.includes(provider.id)
+      && existsSync(join(cwd, "providers.ts"))
+      && existsSync(join(cwd, "providers", `${provider.id}.ts`))
+      && dependencies[provider.dependency]
+      && installed(provider.dependency);
+    if (!configured) {
+      lines.push(`OPTIONAL ${provider.label} — run npx vanillasky providers add ${provider.id}`);
+    } else if (!environment.get(provider.key)) {
+      lines.push(`OPTIONAL ${provider.label} — add ${provider.key} to .env.local`);
+    } else {
+      lines.push(`READY    ${provider.label}`);
+    }
+  }
   lines.push(environment.get("PEXELS_API_KEY")
     ? "READY    stock media"
     : "OPTIONAL stock media — add PEXELS_API_KEY");

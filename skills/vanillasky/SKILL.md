@@ -23,15 +23,19 @@ the complete experience works.
    existing application and use a new empty npm project. Do not recreate the
    starter by copying SDK internals or the template source tree.
 
-2. Check setup through the safe, read-only interface:
+2. Init runs doctor automatically. Rerun init if installation was interrupted.
+   After adding the required key, check setup through the safe, read-only interface:
 
    ```bash
    npx vanillasky doctor
    ```
 
-   The base capability is `templates + browser voice`. A text-provider key is
-   required for answers; optional keys progressively enable generated speech,
-   generated video, transcription, and stock media without client changes.
+   The base capability is `templates + browser voice`; `ANTHROPIC_API_KEY` is
+   the only required key. No optional provider packages are installed. For a
+   requested upgrade, run `npx vanillasky providers add speech` for xAI speech
+   or `npx vanillasky providers add video` for FAL video and transcription.
+   Add `XAI_API_KEY` or `FAL_KEY` locally, then restart the server. Stock needs
+   only `PEXELS_API_KEY`. The client does not change.
 
 3. If doctor reports a missing key, tell the developer which key name to add to
    the ignored `.env.local` themselves. Never read or print a secret value, and
