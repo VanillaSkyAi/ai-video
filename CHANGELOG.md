@@ -4,6 +4,8 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+## 0.7.0
+
 - Makes blank-folder onboarding one safe scoped command:
   `npx @vanillaskyai/video init`. Init now pins registry installs to the exact
   SDK version that ran it and preserves an exact local tarball during candidate
