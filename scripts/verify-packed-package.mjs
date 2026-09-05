@@ -939,6 +939,36 @@ createRoot(document.getElementById("root")).render(mediaProbe
     ) !== "content-box") {
       throw new Error("Packed VideoChat stylesheet leaked into the host page");
     }
+    // Exercise the installed package's shared navigation on desktop and phone.
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+      await page.setViewportSize(viewport);
+      const navigation = packedChat.locator(".chrome");
+      if (await navigation.getByRole("button", { name: "New session", exact: true }).count()
+        || await navigation.getByRole("button", { name: "History", exact: true }).count()) {
+        throw new Error("Packed navigation exposed standalone session actions");
+      }
+      const sessions = packedChat.getByRole("button", { name: "Sessions", exact: true });
+      await sessions.focus();
+      await sessions.press("Enter");
+      const menu = packedChat.getByRole("dialog", { name: "Sessions", exact: true });
+      await menu.waitFor({ state: "visible" });
+      await menu.getByRole("button", { name: "New session", exact: true }).waitFor({ state: "visible" });
+      const fits = await menu.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.left >= 0 && bounds.right <= window.innerWidth && bounds.top >= 0 && bounds.bottom <= window.innerHeight;
+      });
+      if (!fits) throw new Error("Packed Sessions menu overflowed the viewport");
+      if (process.env.VANILLASKY_PACKED_SCREENSHOT_DIR) {
+        mkdirSync(process.env.VANILLASKY_PACKED_SCREENSHOT_DIR, { recursive: true });
+        await page.screenshot({ path: join(process.env.VANILLASKY_PACKED_SCREENSHOT_DIR, viewport.width < 600 ? "session-controls-mobile.png" : "session-controls-desktop.png") });
+      }
+      await menu.getByRole("button", { name: "Close sessions", exact: true }).click();
+      await menu.waitFor({ state: "hidden" });
+      if (!await sessions.evaluate((button) => button.ownerDocument.activeElement === button)) {
+        throw new Error("Packed Sessions dismissal did not restore trigger focus");
+      }
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ colorScheme: "light", contrast: "more" });
     const contrastColors = await packedChat.evaluate((element) => {
       const style = element.ownerDocument.defaultView?.getComputedStyle(element);
