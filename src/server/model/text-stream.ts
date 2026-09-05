@@ -69,8 +69,8 @@ function parsePlanLine(line: string) {
         delete planPart.timing;
         repaired = true;
       }
-      if (object.narration != null && !("narration" in scene)) {
-        repairedScene.narration = object.narration;
+      if (object.narration != null) {
+        if (!("narration" in scene)) repairedScene.narration = object.narration;
         delete planPart.narration;
         repaired = true;
       }

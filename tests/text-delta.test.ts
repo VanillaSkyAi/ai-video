@@ -145,6 +145,28 @@ describe("text-delta planner", () => {
     });
   });
 
+  it("drops redundant top-level narration when the scene already owns it", async () => {
+    const planner = createTextDeltaVideoPlanner({
+      streamText: async function* () {
+        yield '{"type":"scene.add","narration":"Redundant provider copy.","scene":{"id":"one","templateId":"media","variables":{},"timing":{"fixedDuration":4},"narration":"This canonical line stays with the scene."}}\n';
+        yield '{"type":"plan.complete"}\n';
+      },
+    });
+
+    const parts = [];
+    for await (const part of planner(context)) parts.push(part);
+    expect(parts[0]).toEqual({
+      type: "scene.add",
+      scene: {
+        id: "one",
+        templateId: "media",
+        variables: {},
+        timing: { fixedDuration: 4 },
+        narration: "This canonical line stays with the scene.",
+      },
+    });
+  });
+
   it("drops a provider's body placement label from an otherwise valid scene", async () => {
     const planner = createTextDeltaVideoPlanner({
       streamText: async function* () {
