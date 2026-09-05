@@ -385,7 +385,7 @@
           "type"
         ],
         "declaration": [
-          "interface UseVideoChatOptions {\n    endpoint?: string | URL;\n    templates?: TemplateRegistry;\n    mode?: VideoChatMode;\n    orientation?: VideoOrientation;\n    brand?: VideoBrandInput;\n    style?: VideoStyleOptions;\n    headers?: HeadersInit;\n    credentials?: RequestCredentials;\n    fetcher?: typeof fetch;\n    voice?: VideoChatVoice;\n    initialMuted?: boolean;\n    timeoutMs?: number;\n    createTurnId?: () => string;\n    onFirstFrame?: (metric: VideoChatFirstFrameMetric) => unknown;\n}"
+          "interface UseVideoChatOptions {\n    endpoint?: string | URL;\n    templates?: TemplateRegistry;\n    mode?: VideoChatMode;\n    orientation?: VideoOrientation;\n    brand?: VideoBrandInput;\n    style?: VideoStyleOptions;\n    headers?: HeadersInit;\n    credentials?: RequestCredentials;\n    fetcher?: typeof fetch;\n    voice?: VideoChatVoice;\n    initialMuted?: boolean;\n    timeoutMs?: number;\n    createTurnId?: () => string;\n    onFirstFrame?: (metric: VideoChatFirstFrameMetric) => unknown;\n    onPlaybackMetric?: (metric: VideoChatPlaybackMetric) => unknown;\n}"
         ]
       },
       "UseVideoChatResult": {
@@ -442,6 +442,14 @@
         ],
         "declaration": [
           "type VideoChatMode = \"templates\" | \"full\";"
+        ]
+      },
+      "VideoChatPlaybackMetric": {
+        "kinds": [
+          "type"
+        ],
+        "declaration": [
+          "type VideoChatPlaybackMetric = {\n    turnId: string;\n    mode: VideoChatMode;\n    elapsedMs: number;\n} & ({\n    type: \"first-frame\";\n} | {\n    type: \"first-speech\";\n    source: \"browser\" | \"generated\" | \"custom\";\n} | {\n    type: \"stall\";\n    durationMs: number;\n    reason: \"scene-generation\";\n});"
         ]
       },
       "VideoChatPreparedSpeech": {
@@ -545,7 +553,7 @@
     "support": [
       "declare const VIDEO_PROTOCOL_VERSION: \"0.5\";",
       "declare const VIDEO_SCHEMA_VERSION: \"0.1\";",
-      "interface NarrationVoice {\n    speak(text: string, options: {\n        signal: AbortSignal;\n    }): void | Promise<void>;\n}",
+      "interface NarrationVoice {\n    speak(text: string, options: {\n        signal: AbortSignal;\n        onStart?: (source?: \"browser\" | \"generated\") => void;\n    }): void | Promise<void>;\n}",
       "interface NativeMediaAudioOptions {\n    volume?: number;\n}",
       "interface SceneTemplate<Variables extends Record<string, unknown> = Record<string, unknown>> extends SceneTemplateMetadata {\n    component: ComponentType<SceneTemplateProps<Variables>>;\n}",
       "interface SceneTemplateMetadata {\n    id: string;\n    label?: string;\n    description?: string;\n    category?: string | null;\n    family?: TemplateFamily;\n    jobs?: TemplateJob[];\n    register?: TemplateRegister;\n    useWhen?: string;\n    avoidWhen?: string;\n    usesGlobalTextEffect: boolean;\n    usesGlobalTransition: boolean;\n    transitionTiming?: TemplateTransitionTiming;\n    usesGlobalBackgroundEffect: boolean;\n    textCanvas?: \"tight\" | \"open\";\n    schema: TemplateJsonSchema;\n    minDuration?: number;\n    preferredDuration?: number;\n    timing?: TemplateTimingMetadata;\n}",
@@ -564,7 +572,7 @@
       "interface VideoCapabilities {\n    templates?: string[];\n    extensions?: string[];\n}",
       "interface VideoEventDataMap {\n    \"response.start\": {\n        requestId: string;\n        format: {\n            orientation: VideoOrientation;\n        };\n        style: VideoStyle;\n        meta?: Video[\"meta\"];\n        capabilities?: VideoCapabilities;\n    };\n    \"audio.set\": {\n        audio: VideoAudio;\n    };\n    \"scene.add\": {\n        scene: VideoScene;\n        position: number;\n    };\n    \"response.warning\": {\n        warning: VideoWarning;\n    };\n    \"response.complete\": {\n        finishReason: VideoFinishReason;\n        snapshot: Video;\n        checksum: string;\n    };\n    \"response.error\": {\n        error: {\n            code: string;\n            message: string;\n            recoverable: boolean;\n        };\n        terminal: boolean;\n        snapshot?: Video;\n    };\n    \"response.abort\": {\n        reason: string;\n        snapshot?: Video;\n    };\n}",
       "interface VideoEventEnvelope<TType extends string, TData> {\n    protocolVersion: typeof VIDEO_PROTOCOL_VERSION;\n    runId: string;\n    sequence: number;\n    eventId: string;\n    type: TType;\n    data: TData;\n}",
-      "interface VideoPlayerSharedProps {\n    playbackMode?: VideoPlaybackMode;\n    autoPlay?: boolean;\n    startMuted?: boolean;\n    nativeMediaAudio?: NativeMediaAudioOptions;\n    width?: number;\n    orientation?: VideoOrientation | \"auto\";\n    responsiveBreakpoint?: number;\n    className?: string;\n    style?: CSSProperties;\n    ariaLabel?: string;\n    controls?: boolean;\n    paused?: boolean;\n    loop?: boolean;\n    onPlaybackEnd?: (video: Video) => void;\n    onComplete?: (video: Video) => void;\n    onError?: (error: Error) => void;\n    onSceneChange?: (scene: VideoScene, index: number) => void;\n}",
+      "interface VideoPlayerSharedProps {\n    playbackMode?: VideoPlaybackMode;\n    autoPlay?: boolean;\n    startMuted?: boolean;\n    nativeMediaAudio?: NativeMediaAudioOptions;\n    width?: number;\n    orientation?: VideoOrientation | \"auto\";\n    responsiveBreakpoint?: number;\n    className?: string;\n    style?: CSSProperties;\n    ariaLabel?: string;\n    controls?: boolean;\n    paused?: boolean;\n    loop?: boolean;\n    onPlaybackEnd?: (video: Video) => void;\n    onComplete?: (video: Video) => void;\n    onError?: (error: Error) => void;\n    onFramePresented?: () => unknown;\n    onStallChange?: (stalled: boolean) => unknown;\n    onSceneChange?: (scene: VideoScene, index: number) => void;\n}",
       "interface VideoScene {\n    id: string;\n    templateId: string;\n    variables: Record<string, unknown>;\n    textArchetype?: string;\n    backgroundEffect?: string;\n    timing: VideoTiming;\n    narration?: string;\n}",
       "interface VideoStyle {\n    brand: VideoBrand;\n    preset?: string;\n    defaultBackgroundEffect?: string;\n    defaultTextArchetype?: string;\n    defaultTransition?: string;\n    density?: string;\n    motion?: string;\n    generatedLook?: string;\n}",
       "interface VideoStyleOptions {\n    generatedLook?: string;\n    density?: \"airy\" | \"normal\" | \"packed\";\n    motion?: \"calm\" | \"normal\" | \"punchy\";\n    textArchetype?: \"subtle\" | \"typewriter\" | \"wordStagger\" | \"slam\" | \"cinematic\" | \"heroWord\";\n    backgroundEffect?: \"static\" | \"slow-zoom-in\" | \"slow-zoom-out\" | \"ken-burns\" | \"drift\" | \"pulse\" | \"breathe\" | \"slow-tilt\" | \"camera-shake\";\n}",

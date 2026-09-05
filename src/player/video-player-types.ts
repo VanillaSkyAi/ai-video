@@ -60,6 +60,10 @@ interface VideoPlayerSharedProps {
   /** Fires when a streamed response has finished composing. */
   onComplete?: (video: Video) => void;
   onError?: (error: Error) => void;
+  /** First active scene committed, observed at the next animation frame; excludes idle posters. */
+  onFramePresented?: () => unknown;
+  /** Stream playback has reached its available scenes; excludes initial waiting and deliberate pauses. */
+  onStallChange?: (stalled: boolean) => unknown;
   /** Fires when the scene under the playhead changes, including on a loop wrap. */
   onSceneChange?: (scene: VideoScene, index: number) => void;
 }

@@ -247,8 +247,9 @@ another model or media lookup. The hook otherwise reads the opening from the
 response stream, resolves its media keyword, holds that media while it is
 spoken, and starts the planned timeline only when both speech and the first
 scene are ready. `UseVideoChatOptions.onFirstFrame` receives a
-`VideoChatFirstFrameMetric` once when a fresh response displays its first real
-scene. Each `VideoChatTurn` exposes `openingMedia` and `completed`, so
+`VideoChatFirstFrameMetric` once after its first active scene commits and reaches
+an animation-frame opportunity. This measures presentation readiness, not physical
+screen paint or media decoding. Each `VideoChatTurn` exposes `openingMedia` and `completed`, so
 custom interfaces can render the same handoff while partial or cancelled
 responses remain visible without being mistaken for conversation context.
 
@@ -414,3 +415,31 @@ from `/server` without crossing a React type boundary.
 - Automatic factual verification or scene repair.
 - Standalone video generation hooks, handlers, narration, and timeline factories.
 - Undocumented API aliases.
+
+
+## Playback measurements
+
+`UseVideoChatOptions.onPlaybackMetric` receives the exported
+`VideoChatPlaybackMetric` union. Every event contains an opaque `turnId`, `mode`,
+and nonnegative `elapsedMs` since the prompt was submitted:
+
+- `first-frame`: first committed active scene at an animation-frame opportunity;
+- `first-speech`: actual speech playback onset, with `source` equal to `browser`,
+  `generated`, or `custom`;
+- `stall`: a finished wait for the next prepared scene, with `durationMs` and
+  `reason: "scene-generation"`.
+
+Metrics contain no prompt, narration, scene, URL, or provider diagnostics. There
+is no automatic network reporting. Use opaque identifiers when supplying
+`createTurnId`. Observer throws and rejected promises cannot affect playback.
+Replay and stale/cancelled callbacks do not create fresh response measurements.
+Pauses end a stall interval; paused time is excluded from stall duration.
+
+Custom `VideoChatVoice.speak` implementations can call their optional
+`onStart()` argument when audio actually begins. Without that signal, speech
+onset is unavailable, not zero. Built-in voices use browser utterance `start`
+and audio `playing` events, not request completion or preparation estimates.
+
+`VideoPlayerProps.onFramePresented` and `onStallChange` expose the underlying
+presentation and stream-starvation signals for custom players. They do not
+measure media-decoder buffering. See [Performance](docs/performance.md).

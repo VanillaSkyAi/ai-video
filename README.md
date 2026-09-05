@@ -107,7 +107,7 @@ MP4/WebM export remains application-owned.
 | Customize the interface | [Customization](docs/customization.md) |
 | Understand prompts and grounding | [Prompt and input](docs/prompt-and-input.md) |
 | Add media or voice | [Media and voice](docs/media-and-audio.md) |
-| Persist and replay results | [Persistence and replay](docs/persistence.md) |
+| Persist and replay results | [Performance measurements](docs/performance.md) · [Persistence and replay](docs/persistence.md) |
 | Test routes and streams | [Test integrations](docs/testing.md) |
 | Deploy securely | [Production](docs/production.md) · [Security](docs/security.md) |
 | Inspect the API contract | [Public API](PUBLIC-API.md) · [Protocol](docs/reference/protocol.md) |

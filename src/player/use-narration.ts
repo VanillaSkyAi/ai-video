@@ -23,15 +23,18 @@ export interface NarrationVoice {
    *
    * The signal aborts when the scene changes, when the viewer interrupts, or
    * when the player goes away. Stop speaking promptly: talking over the next
-   * scene is worse than being cut off.
+   * scene is worse than being cut off. Report onStart only when speech actually
+   * begins playing; leave it uncalled when onset cannot be observed.
    */
-  speak(text: string, options: { signal: AbortSignal }): void | Promise<void>;
+  speak(text: string, options: { signal: AbortSignal; onStart?: (source?: "browser" | "generated") => void }): void | Promise<void>;
 }
 
 export interface NarrationOptions {
   voice: NarrationVoice;
   /** Say nothing at all while false. Defaults to true. */
   enabled?: boolean;
+  /** Observes actual speech onset when the voice supports it. */
+  onSpeechStart?: (source?: "browser" | "generated") => void;
 }
 
 export interface Narration {
@@ -87,7 +90,17 @@ export function useNarration(options: NarrationOptions): Narration {
     setSpeaking(true);
     void (async () => {
       try {
-        await voice.speak(line, { signal: controller.signal });
+        let started = false;
+        await voice.speak(line, {
+          signal: controller.signal,
+          onStart: (source) => {
+            if (started || controller.signal.aborted || currentRef.current !== controller
+              || spokenIndexRef.current !== index || optionsRef.current.enabled === false) return;
+            started = true;
+            try { void Promise.resolve(optionsRef.current.onSpeechStart?.(source)).catch(() => undefined); }
+            catch { /* Observer failures do not affect narration. */ }
+          },
+        });
       } catch {
         // A voice that fails is a video without narration, not a broken video.
         // The application hears about it through its own provider.

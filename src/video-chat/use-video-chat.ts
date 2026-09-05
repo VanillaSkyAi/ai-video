@@ -72,6 +72,22 @@ export interface UseVideoChatOptions {
   createTurnId?: () => string;
   /** Observe how long a fresh response takes to display its first actual scene. */
   onFirstFrame?: (metric: VideoChatFirstFrameMetric) => unknown;
+  /** Local observations only; no automatic telemetry or prompt/provider data. */
+  onPlaybackMetric?: (metric: VideoChatPlaybackMetric) => unknown;
+}
+
+export type VideoChatPlaybackMetric = {
+  turnId: string;
+  mode: VideoChatMode;
+  elapsedMs: number;
+} & (
+  | { type: "first-frame" }
+  | { type: "first-speech"; source: "browser" | "generated" | "custom" }
+  | { type: "stall"; durationMs: number; reason: "scene-generation" }
+);
+
+function observe(callback: (() => unknown) | undefined): void {
+  try { void Promise.resolve(callback?.()).catch(() => undefined); } catch { /* Observers cannot affect playback. */ }
 }
 
 export interface VideoChatFirstFrameMetric {
@@ -185,6 +201,7 @@ function reducer(state: SessionState, action: SessionAction): SessionState {
     case "start": return {
       ...state,
       turns: [...state.turns, action.turn],
+      playerKey: state.playerKey + 1,
       shownTurnId: action.turn.id,
       status: "composing",
       resumeStatus: "composing",
@@ -429,7 +446,8 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
   const voiceRef = useRef(voice);
   voiceRef.current = voice;
   const unavailableVoiceLines = useRef(new Set<string>());
-  const narration = useNarration({ voice: {
+  const speechStartRef = useRef<(source?: "browser" | "generated") => void>(() => undefined);
+  const narration = useNarration({ onSpeechStart: (source) => speechStartRef.current(source), voice: {
     speak: (text, options) => unavailableVoiceLines.current.has(text) ? undefined : voice.speak(text, options),
   } });
   const narrationRef = useRef(narration);
@@ -451,7 +469,36 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     mode: VideoChatMode;
     startedAt: number;
     reported: boolean;
+    speechReported: boolean;
+    active: boolean;
+    stallStartedAt?: number;
   } | undefined>(undefined);
+
+  const reportMetric = useCallback((metric: VideoChatPlaybackMetric) => {
+    observe(() => optionsRef.current.onPlaybackMetric?.(metric));
+  }, []);
+  const finishStall = useCallback(() => {
+    const timing = firstFrameRef.current;
+    if (!timing?.active || timing.stallStartedAt == null) return;
+    const now = monotonicNow();
+    const started = timing.stallStartedAt;
+    timing.stallStartedAt = undefined;
+    reportMetric({ type: "stall", turnId: timing.turnId, mode: timing.mode,
+      elapsedMs: Math.max(0, Math.round(now - timing.startedAt)),
+      durationMs: Math.max(0, Math.round(now - started)), reason: "scene-generation" });
+  }, [reportMetric]);
+  const endTiming = useCallback(() => {
+    finishStall();
+    if (firstFrameRef.current) firstFrameRef.current.active = false;
+  }, [finishStall]);
+  speechStartRef.current = (source) => {
+    const timing = firstFrameRef.current;
+    if (!mountedRef.current || !timing?.active || timing.speechReported || heldRef.current || stateRef.current.muted) return;
+    timing.speechReported = true;
+    reportMetric({ type: "first-speech", turnId: timing.turnId, mode: timing.mode,
+      elapsedMs: Math.max(0, Math.round(monotonicNow() - timing.startedAt)),
+      source: optionsRef.current.voice ? "custom" : source === "generated" ? "generated" : "browser" });
+  };
 
   const request = useCallback(async (
     action: string,
@@ -490,6 +537,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       .then((value) => { if (mountedRef.current) dispatch({ type: "welcome", value }); })
       .catch(() => undefined);
     return () => {
+      endTiming();
       mountedRef.current = false;
       controller.abort();
       runRef.current += 1;
@@ -503,11 +551,12 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
         if (!mountedRef.current) ownedVoiceRef.current?.dispose?.();
       });
     };
-  }, [request]);
+  }, [request, endTiming]);
 
   useEffect(() => voice.setMuted(state.muted), [state.muted, voice]);
 
   const cancel = useCallback((reason = "Video chat was cancelled") => {
+    endTiming();
     runRef.current += 1;
     inFlightRef.current?.abort(new DOMException(reason, "AbortError"));
     openingRef.current?.abort(new DOMException(reason, "AbortError"));
@@ -519,7 +568,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     flushRef.current = undefined;
     narrationRef.current.interrupt();
     dispatch({ type: "cancelled" });
-  }, []);
+  }, [endTiming]);
 
   const ask = useCallback(async (
     value: string,
@@ -527,6 +576,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
   ): Promise<Video | undefined> => {
     const prompt = value.trim();
     if (!prompt) return undefined;
+    endTiming();
 
     inFlightRef.current?.abort(new DOMException("Replaced by a new prompt", "AbortError"));
     openingRef.current?.abort(new DOMException("Replaced by a new prompt", "AbortError"));
@@ -572,7 +622,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       suggestions: [],
       ...(openingMedia ? { openingMedia } : {}),
     };
-    firstFrameRef.current = { turnId: id, mode, startedAt: monotonicNow(), reported: false };
+    firstFrameRef.current = { turnId: id, mode, startedAt: monotonicNow(), reported: false, speechReported: false, active: true };
     dispatch({ type: "start", turn });
 
     let timeline: ReturnType<typeof createSceneTimeline> | undefined;
@@ -665,7 +715,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
         dispatch({ type: "opening-start", id, line: text });
         await prepareSpeech(text, openingController.signal);
         if (!isOpeningCurrent()) return;
-        await voiceRef.current.speak(text, { signal: openingController.signal });
+        await voiceRef.current.speak(text, { signal: openingController.signal, onStart: (source) => { if (isOpeningCurrent()) speechStartRef.current(source); } });
       } catch {
         if (isOpeningCurrent()) warn("Some narration is unavailable; the response will continue.");
       } finally {
@@ -887,13 +937,14 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       clearTimeout(timeout);
       if (runRef.current === run) inFlightRef.current = undefined;
     }
-  }, [request]);
+  }, [request, endTiming]);
 
   const pause = useCallback(() => {
+    finishStall();
     heldRef.current = true;
     voiceRef.current.pause();
     dispatch({ type: "pause" });
-  }, []);
+  }, [finishStall]);
 
   const resume = useCallback(() => {
     heldRef.current = false;
@@ -905,6 +956,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
   const replay = useCallback(() => {
     const turn = stateRef.current.turns.find((entry) => entry.id === stateRef.current.shownTurnId);
     if (!turn?.completed || !turn.video) return;
+    endTiming();
     if (inFlightRef.current) {
       runRef.current += 1;
       inFlightRef.current.abort(new DOMException("Replaying a saved response", "AbortError"));
@@ -918,11 +970,12 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     heldRef.current = false;
     voiceRef.current.resume();
     dispatch({ type: "replay" });
-  }, []);
+  }, [endTiming]);
 
   const selectTurn = useCallback((id: string) => {
     const turn = stateRef.current.turns.find((entry) => entry.id === id);
     if (!turn?.completed || !turn.video) return;
+    endTiming();
     if (inFlightRef.current) {
       runRef.current += 1;
       inFlightRef.current.abort(new DOMException("Viewing a saved response", "AbortError"));
@@ -936,7 +989,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     heldRef.current = false;
     voiceRef.current.resume();
     dispatch({ type: "select", id });
-  }, []);
+  }, [endTiming]);
 
   const reset = useCallback(() => {
     cancel("Session reset");
@@ -965,26 +1018,33 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     paused: state.status === "paused",
     controls: false,
     orientation: shownTurn?.fixedOrientation ? shownTurn.orientation : "auto" as const,
+    onFramePresented: () => {
+      const timing = firstFrameRef.current;
+      if (stateRef.current.playerKey !== playbackKey || state.playback?.kind !== "stream" || !timing?.active || timing.reported) return;
+      timing.reported = true;
+      const elapsedMs = Math.max(0, Math.round(monotonicNow() - timing.startedAt));
+      observe(() => optionsRef.current.onFirstFrame?.({ turnId: timing.turnId, mode: timing.mode, timeToFirstFrameMs: elapsedMs }));
+      reportMetric({ type: "first-frame", turnId: timing.turnId, mode: timing.mode, elapsedMs });
+    },
+    onStallChange: (stalled: boolean) => {
+      if (stateRef.current.playerKey !== playbackKey || state.playback?.kind !== "stream") return;
+      const timing = firstFrameRef.current;
+      if (!timing?.active || !timing.reported) return;
+      if (!stalled) finishStall();
+      else if (!heldRef.current && timing.stallStartedAt == null) timing.stallStartedAt = monotonicNow();
+    },
     onSceneChange: (scene: VideoScene, index: number) => {
       if (stateRef.current.playerKey !== playbackKey) return;
-      const firstFrame = firstFrameRef.current;
-      if (index === 0 && firstFrame && !firstFrame.reported && state.playback?.kind === "stream") {
-        firstFrame.reported = true;
-        try {
-          void optionsRef.current.onFirstFrame?.({
-            turnId: firstFrame.turnId,
-            mode: firstFrame.mode,
-            timeToFirstFrameMs: Math.max(0, Math.round(monotonicNow() - firstFrame.startedAt)),
-          });
-        } catch {
-          // App-owned metrics must never interrupt playback.
-        }
-      }
       dispatch({ type: "scene", key: playbackKey, scene, index });
       narrationRef.current.onSceneChange(scene, index);
     },
-    onPlaybackEnd: () => dispatch({ type: "playback-end", key: playbackKey }),
+    onPlaybackEnd: () => {
+      if (stateRef.current.playerKey !== playbackKey) return;
+      endTiming();
+      dispatch({ type: "playback-end", key: playbackKey });
+    },
     onError: (cause: Error) => {
+      if (stateRef.current.playerKey !== playbackKey) return;
       const id = stateRef.current.turns.at(-1)?.id;
       if (id) dispatch({ type: "error", id, error: errorFrom(cause) });
     },
