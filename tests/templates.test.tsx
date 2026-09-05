@@ -61,7 +61,7 @@ const EXPECTED_GLOBAL_TRANSITION_IDS = [
 ].sort();
 
 const EXPECTED_POST_HOLD_MOTION_IDS = EXPECTED_GLOBAL_TRANSITION_IDS
-  .filter((id) => id !== "tweet" && id !== "notification");
+  .filter((id) => id !== "tweet" && id !== "notification" && id !== "barChart");
 
 describe("open source template registry", () => {
   it("renders unsuffixed three-message chats as incoming, outgoing, incoming", async () => {
@@ -156,6 +156,9 @@ describe("open source template registry", () => {
             rendered.get("terminal"),
             `${template.id} ${width}x${height} should run motion after its readable hold`,
           ).not.toBe(rendered.get("hold"));
+        } else if (template.id === "barChart") {
+          // Exact comparisons stay still through the final hold.
+          expect(rendered.get("terminal")).toBe(rendered.get("hold"));
         }
       }
     }

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { createElement, type ComponentType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -92,6 +93,44 @@ describe("bar chart", () => {
     expect(renderPrimitive({ ...props, progress: 0.75 }))
       .toBe(renderPrimitive({ ...props, progress: 1 }));
   });
+
+  it("keeps exact values and proportional horizontal bars stable across beats", () => {
+    const props = {
+      data: [{ label: "Before", value: 0.25 }, { label: "After", value: 0.5 }],
+      width: 1080, height: 1920, progress: 0.6,
+    };
+    const markup = renderPrimitive({ ...props, beatIntensity: 0 });
+    expect(markup).toBe(renderPrimitive({ ...props, beatIntensity: 1 }));
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    const bars = [...document.querySelectorAll<HTMLElement>("[data-bar-chart-fill]")];
+    expect(bars).toHaveLength(2);
+    expect(bars.map((bar) => parseFloat(bar.style.width))).toEqual([50, 100]);
+    expect(document.querySelectorAll("[data-bar-chart-value]")[0].textContent).toBe("0.25");
+    expect(markup).not.toMatch(/gradient|box-shadow|scaleY/);
+  });
+
+  it.each([[1080, 1920], [1920, 1080], [390, 844]])(
+    "keeps six comparison rows above captions within asymmetric safe bounds at %sx%s",
+    (width, height) => {
+      const safeZone = { top: height * 0.09, right: width * 0.13, bottom: height * 0.23, left: width * 0.07 };
+      const markup = renderPrimitive({
+        data: Array.from({ length: 6 }, (_, i) => ({ label: `Category ${i}`, value: i * 10 })),
+        width, height, progress: 1, safeZone,
+      });
+      const document = new DOMParser().parseFromString(markup, "text/html");
+      const chart = document.querySelector<HTMLElement>('[data-bar-chart="true"]');
+      expect(chart).not.toBeNull();
+      const bounds = chart!.style;
+      expect(parseFloat(bounds.left)).toBeGreaterThanOrEqual(safeZone.left);
+      expect(parseFloat(bounds.left) + parseFloat(bounds.width)).toBeLessThanOrEqual(width - safeZone.right + 0.01);
+      expect(parseFloat(bounds.top)).toBeGreaterThanOrEqual(safeZone.top);
+      expect(parseFloat(bounds.top) + parseFloat(bounds.height)).toBeLessThanOrEqual(height - safeZone.bottom + 0.01);
+      const rows = [...document.querySelectorAll<HTMLElement>("[data-bar-chart-item]")];
+      const gap = parseFloat(bounds.gap);
+      expect(rows.reduce((total, row) => total + parseFloat(row.style.height), 0) + gap * 5)
+        .toBeLessThanOrEqual(parseFloat(bounds.height) + 0.01);
+    },
+  );
 
   it("uses grounded labeled data as the schema-owned visible default", () => {
     const template = getTemplate("barChart");

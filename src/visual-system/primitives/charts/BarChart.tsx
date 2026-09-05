@@ -1,10 +1,5 @@
-/**
- * BarChart
- *
- * Animated labeled bars for exact value comparisons.
- */
-
-import { interpolate, spring, SPRING_SNAPPY } from "../../motion";
+/** A quiet, zero-baseline comparison. Values are exact throughout the reveal. */
+import type { SafeZone } from "../../template-context";
 import { withOpacity } from "../../theme";
 
 export interface BarChartDatum {
@@ -18,18 +13,18 @@ export interface BarChartProps {
   height: number;
   /** Labeled values. At most six are rendered to preserve readability. */
   data: readonly BarChartDatum[];
-  /** Bar fill, border, and ambient glow color. */
+  /** Solid bar fill. */
   chartColor?: string;
   /** Value and category label color. */
   textColor?: string;
+  /** Retained for callers; beats never change data geometry. */
   beatIntensity?: number;
+  safeZone?: SafeZone;
+  /** Short topic above the comparison, distinct from narration and captions. */
+  topic?: string;
 }
 
 const MAX_BAR_ITEMS = 6;
-
-function exactValue(value: number): string {
-  return String(value);
-}
 
 export const BarChart: React.FC<BarChartProps> = ({
   progress,
@@ -38,144 +33,114 @@ export const BarChart: React.FC<BarChartProps> = ({
   height,
   chartColor = "#ffffff",
   textColor = "#ffffff",
-  beatIntensity = 0,
+  safeZone = { top: 0, right: 0, bottom: 0, left: 0 },
+  topic,
 }) => {
-  const values = data
-    .filter(({ value }) => Number.isFinite(value))
-    .slice(0, MAX_BAR_ITEMS);
+  const values = data.filter(({ value }) => Number.isFinite(value)).slice(0, MAX_BAR_ITEMS);
   const s = Math.min(width, height) / 1080;
-  const portrait = height > width;
-  const chartWidth = width * (portrait ? 0.88 : 0.84);
-  const chartHeight = height * (portrait ? 0.56 : 0.52);
-  const bottom = (portrait ? 112 : 60) * s;
-  const labelHeight = (portrait ? 94 : 66) * s;
-  const valueReserve = (portrait ? 52 : 44) * s;
-  const maxBarHeight = chartHeight - labelHeight - valueReserve;
-  const gap = (portrait ? 14 : 20) * s;
-  const barCount = Math.max(values.length, 1);
-  const itemWidth = (chartWidth - gap * (barCount - 1)) / barCount;
-  const barWidth = Math.max(itemWidth * 0.68, 2 * s);
-  const maxValue = Math.max(1, ...values.map(({ value }) => Math.max(0, value)));
-  const beatScale = 1 + beatIntensity * 0.03;
+  const left = Math.max(safeZone.left, 80 * s);
+  const right = Math.max(safeZone.right, 80 * s);
+  const chartWidth = Math.max(0, Math.min(width - left - right, 1260 * s));
+  // The topic has its own top band; captions have a separate bottom band.
+  const contentTop = Math.max(safeZone.top, 64 * s) + 156 * s;
+  const contentBottom = height - Math.max(safeZone.bottom, height * 0.18) - 48 * s;
+  const availableHeight = Math.max(0, contentBottom - contentTop);
+  const count = Math.max(values.length, 1);
+  const gap = Math.min((count <= 2 ? 64 : 30) * s, availableHeight / (count * 4));
+  const rowHeight = Math.max(0, Math.min((count <= 2 ? 160 : 120) * s, (availableHeight - gap * (count - 1)) / count));
+  const chartHeight = rowHeight * count + gap * (count - 1);
+  const barHeight = Math.min((count <= 2 ? 20 : 14) * s, rowHeight * 0.15);
+  const labelSize = Math.min(40 * s, rowHeight * 0.42);
+  const numberSize = Math.min((count <= 2 ? 84 : 54) * s, rowHeight * 0.56);
+  const maxValue = Math.max(0, ...values.map(({ value }) => value)) || 1;
+  // All bars share one clock: even during entrance, their ratios stay true.
+  const reveal = Math.min(1, Math.max(0, (progress - 0.04) / 0.28));
+  const easedReveal = 1 - Math.pow(1 - reveal, 3);
 
   return (
-    <>
-      <div
-        role="img"
-        aria-label={values.map(({ label, value }) => `${label || "Value"}: ${exactValue(value)}`).join(", ")}
-        style={{
-          position: "absolute",
-          bottom,
-          left: (width - chartWidth) / 2,
-          width: chartWidth,
-          height: chartHeight,
-          display: "flex",
-          alignItems: "flex-end",
-          gap,
-        }}
-      >
-        {values.map(({ label, value }, index) => {
-          // All bars settle by 65% progress, leaving a useful final hold.
-          const barStart = 0.06 + index * 0.05;
-          const barProgress = interpolate(progress, [barStart, barStart + 0.34], [0, 1], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          });
-          const springValue = spring(barProgress, SPRING_SNAPPY);
-          const targetHeight = (Math.max(0, value) / maxValue) * maxBarHeight;
-
-          return (
-            <div
-              key={`${label}-${index}`}
-              data-bar-chart-item="true"
-              style={{
-                width: itemWidth,
-                height: chartHeight,
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "flex-end",
-                alignItems: "center",
-                minWidth: 0,
-              }}
-            >
-              <div
-                style={{
-                  width: "100%",
-                  height: maxBarHeight + valueReserve,
-                  display: "flex",
-                  alignItems: "flex-end",
-                  justifyContent: "center",
-                }}
-              >
-                <div
-                  style={{
-                    position: "relative",
-                    width: barWidth,
-                    height: springValue * targetHeight,
-                    background: `linear-gradient(to top, ${withOpacity(chartColor, 0.82)}, ${withOpacity(chartColor, 0.42)})`,
-                    border: `1px solid ${withOpacity(chartColor, 0.7)}`,
-                    borderRadius: `${10 * s}px ${10 * s}px 0 0`,
-                    boxShadow: `0 0 ${24 * s}px ${withOpacity(chartColor, 0.18)}`,
-                    transform: `scaleY(${beatScale})`,
-                    transformOrigin: "bottom",
-                  }}
-                >
-                  <div
-                    data-bar-chart-value="true"
-                    style={{
-                      position: "absolute",
-                      bottom: "100%",
-                      left: "50%",
-                      transform: `translate(-50%, ${-10 * s}px)`,
-                      color: textColor,
-                      fontSize: (portrait ? 34 : 30) * s,
-                      lineHeight: 1,
-                      fontWeight: 750,
-                      fontVariantNumeric: "tabular-nums",
-                      whiteSpace: "nowrap",
-                      opacity: barProgress,
-                      textShadow: `0 ${2 * s}px ${8 * s}px rgba(0,0,0,0.55)`,
-                    }}
-                  >
-                    {exactValue(value)}
-                  </div>
-                </div>
-              </div>
+    <div
+      role="img"
+      aria-label={values.map(({ label, value }) => `${label || "Value"}: ${String(value)}`).join(", ")}
+      data-bar-chart="true"
+      style={{
+        position: "absolute",
+        left: left + Math.max(0, (width - left - right - chartWidth) / 2),
+        top: contentTop + (availableHeight - chartHeight) / 2,
+        width: chartWidth,
+        height: chartHeight,
+        display: "flex",
+        flexDirection: "column",
+        gap,
+      }}
+    >
+      {topic && (
+        <div
+          data-bar-chart-topic="true"
+          style={{
+            position: "absolute", top: -120 * s, left: 0, width: "100%",
+            color: textColor, fontSize: 40 * s, fontWeight: 500, lineHeight: 1.3,
+            overflowWrap: "anywhere", opacity: 1,
+          }}
+        >
+          {topic}
+        </div>
+      )}
+      {values.map(({ label, value }, index) => {
+        const exactValue = String(value);
+        // Reserve enough horizontal room for long exact numbers; never round data.
+        const valueFontSize = Math.min(numberSize, chartWidth * 0.42 / Math.max(1, exactValue.length * 0.64));
+        return (
+          <div
+            key={`${label}-${index}`}
+            data-bar-chart-item="true"
+            style={{ height: rowHeight, flexShrink: 0, minWidth: 0, position: "relative" }}
+          >
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 24 * s, opacity: easedReveal }}>
               <div
                 data-bar-chart-label="true"
                 style={{
-                  width: "100%",
-                  height: labelHeight,
-                  paddingTop: 14 * s,
-                  boxSizing: "border-box",
-                  color: withOpacity(textColor, 0.9),
-                  fontSize: (portrait ? 24 : 22) * s,
-                  lineHeight: 1.15,
-                  fontWeight: 650,
-                  textAlign: "center",
-                  overflow: "hidden",
+                  color: textColor,
+                  fontSize: labelSize,
+                  lineHeight: 1.25,
+                  fontWeight: 500,
+                  maxWidth: "55%",
                   overflowWrap: "anywhere",
-                  opacity: barProgress,
                 }}
               >
                 {label}
               </div>
+              <div
+                data-bar-chart-value="true"
+                style={{
+                  color: textColor,
+                  fontSize: valueFontSize,
+                  fontWeight: 600,
+                  lineHeight: 1,
+                  letterSpacing: "-0.045em",
+                  fontVariantNumeric: "tabular-nums",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                {exactValue}
+              </div>
             </div>
-          );
-        })}
-      </div>
-
-      <div
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: chartHeight * 0.7,
-          background: `linear-gradient(to top, ${withOpacity(chartColor, 0.07)}, transparent)`,
-          pointerEvents: "none",
-        }}
-      />
-    </>
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: barHeight, backgroundColor: withOpacity(textColor, 0.08), borderRadius: 3 * s }}>
+              <div
+                data-bar-chart-fill="true"
+                style={{
+                  width: `${Math.max(0, value) / maxValue * 100}%`,
+                  height: "100%",
+                  backgroundColor: chartColor,
+                  borderRadius: 3 * s,
+                  transform: `scaleX(${easedReveal})`,
+                  transformOrigin: "left center",
+                }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 };
