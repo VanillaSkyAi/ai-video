@@ -171,7 +171,8 @@ type SessionAction =
   | { type: "mute"; value: boolean }
   | { type: "select"; id: string }
   | { type: "replay" }
-  | { type: "reset" };
+  | { type: "reset" }
+  | { type: "restore"; turns: VideoChatTurn[] };
 
 function initialState(muted: boolean): SessionState {
   return {
@@ -332,6 +333,17 @@ function reducer(state: SessionState, action: SessionAction): SessionState {
         error: undefined,
       };
     }
+    case "restore": {
+      const restored = {
+        ...initialState(state.muted),
+        capabilities: state.capabilities,
+        welcome: state.welcome,
+        turns: action.turns,
+        playerKey: state.playerKey,
+      };
+      const latest = action.turns.at(-1);
+      return latest ? reducer(restored, { type: "select", id: latest.id }) : restored;
+    }
     case "reset": return { ...initialState(state.muted), capabilities: state.capabilities, welcome: state.welcome };
   }
 }
@@ -429,6 +441,14 @@ function prepareVisualScene(scene: VideoScene, mode: VideoChatMode): VideoScene 
 
 /** Own a complete video conversation while the application owns its UI. */
 export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatResult {
+  return useVideoChatSession(options).chat;
+}
+
+/** Internal shell access to in-memory history; not exported by the SDK entry. */
+export function useVideoChatSession(options: UseVideoChatOptions = {}): {
+  chat: UseVideoChatResult;
+  restoreSession(turns: readonly VideoChatTurn[]): void;
+} {
   const optionsRef = useRef(options);
   optionsRef.current = options;
   const voiceWarningRef = useRef<() => void>(() => undefined);
@@ -999,6 +1019,15 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     dispatch({ type: "reset" });
   }, [cancel]);
 
+  const restoreSession = useCallback((turns: readonly VideoChatTurn[]) => {
+    cancel("Restoring session");
+    heldRef.current = false;
+    voiceRef.current.resume();
+    // These are completed turns previously produced by this mounted shell.
+    // Limit retained history even when a session has run for a long time.
+    dispatch({ type: "restore", turns: turns.filter((turn) => turn.completed && turn.video).slice(-100) });
+  }, [cancel]);
+
   const setMuted = useCallback((muted: boolean) => dispatch({ type: "mute", value: muted }), []);
 
   const currentTurn = state.turns.at(-1);
@@ -1051,7 +1080,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     },
   } satisfies VideoPlayerProps : undefined;
 
-  return {
+  const chat: UseVideoChatResult = {
     ask,
     cancel,
     pause,
@@ -1078,4 +1107,5 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     playerKey: state.playerKey,
     playerProps,
   };
+  return { chat, restoreSession };
 }

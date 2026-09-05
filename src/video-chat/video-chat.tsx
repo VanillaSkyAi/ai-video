@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { VideoOrientation } from "../protocol/types.js";
 import { VideoPlayer } from "../player/video-player.js";
-import { useVideoChat, type UseVideoChatOptions } from "./use-video-chat.js";
+import { useVideoChatSession, type UseVideoChatOptions, type VideoChatTurn } from "./use-video-chat.js";
 import type { VideoChatMode, VideoChatSuggestion } from "./types.js";
 import { defaultMode, modeById, visualModes } from "./modes";
 import { defaultTheme, themeBackground, themeById, themes } from "./themes";
@@ -10,19 +10,20 @@ import { useDismiss, useFocusTrap } from "./use-dismiss";
 import { Welcome } from "./welcome";
 import { Frame, SuggestionCards } from "./suggestion-cards";
 import { useVoiceInput } from "./use-voice-input";
+import { useImmersiveControls } from "./use-immersive-controls";
+import { Logo } from "./logo";
 const DESKTOP_WIDTH = 900;
 
-type ThemeChoice = "system" | "light" | "dark";
 type Status = "idle" | "drawing" | "narrating" | "paused" | "ended";
 
 function useViewportOrientation(): VideoOrientation {
   const [portrait, setPortrait] = useState(() =>
     typeof window !== "undefined" && typeof window.matchMedia === "function"
-      ? window.matchMedia(`(max-width: ${DESKTOP_WIDTH - 1}px)`).matches
+      ? window.matchMedia(`(max-width: ${DESKTOP_WIDTH - 1}px) and (orientation: portrait)`).matches
       : false);
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
-    const query = window.matchMedia(`(max-width: ${DESKTOP_WIDTH - 1}px)`);
+    const query = window.matchMedia(`(max-width: ${DESKTOP_WIDTH - 1}px) and (orientation: portrait)`);
     const update = () => setPortrait(query.matches);
     update();
     query.addEventListener("change", update);
@@ -67,18 +68,24 @@ export interface VideoChatProps {
 /** A complete voice-and-video chat interface backed by createVideoChatHandler. */
 export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatProps) {
   const [draft, setDraft] = useState("");
+  const [savedSessions, setSavedSessions] = useState<Array<{ id: string; turns: readonly VideoChatTurn[] }>>([]);
   const [themeId, setThemeId] = useState(defaultTheme.id);
   const [modeId, setModeId] = useState<VideoChatMode>(options.mode ?? defaultMode.id);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [captionsOn, setCaptionsOn] = useState(true);
+  const [captionsExpanded, setCaptionsExpanded] = useState(false);
+  const [alwaysShowControls, setAlwaysShowControls] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const resumeAfterInput = useRef(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
   const viewportOrientation = useViewportOrientation();
-  const [themeChoice, setThemeChoice] = useState<ThemeChoice>("system");
   const theme = themeById(themeId);
   const sessionOrientation = options.orientation ?? viewportOrientation;
   const { brand: configuredBrand, style: configuredStyle, ...sessionOptions } = options;
   const presentationBrand = configuredBrand ?? theme.brand;
-  const chat = useVideoChat({
+  const { chat, restoreSession } = useVideoChatSession({
     ...sessionOptions,
     mode: modeId,
     orientation: sessionOrientation,
@@ -90,8 +97,6 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
   const historyId = `${instanceId}-history`;
   const settingsId = `${instanceId}-settings`;
   const promptId = `${instanceId}-prompt`;
-  const responseTitleId = `${instanceId}-response-title`;
-  const appearanceName = `${instanceId}-appearance`;
   const visualsName = `${instanceId}-visuals`;
   const styleName = `${instanceId}-style`;
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -99,7 +104,6 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
   const historyButtonRef = useRef<HTMLButtonElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
-  const sheetRef = useRef<HTMLElement>(null);
   const listen = useVoiceInput(setDraft, chat.capabilities?.transcription ?? false, {
     endpoint: options.endpoint,
     headers: options.headers,
@@ -109,14 +113,12 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
 
   const historySurfaces = useMemo(() => [historyRef, historyButtonRef], []);
   const settingsSurfaces = useMemo(() => [settingsRef, settingsButtonRef], []);
-  const noSurfaces = useMemo(() => [], []);
   const closeHistory = useCallback(() => setHistoryOpen(false), []);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
-  const closeSheet = useCallback(() => setSheetOpen(false), []);
   useDismiss(historyOpen, closeHistory, historySurfaces);
   useDismiss(settingsOpen, closeSettings, settingsSurfaces);
-  useDismiss(sheetOpen, closeSheet, noSurfaces);
-  useFocusTrap(sheetOpen, sheetRef);
+  useFocusTrap(settingsOpen, settingsRef);
+  useFocusTrap(historyOpen, historyRef);
 
   const ask = useCallback((value: string | VideoChatSuggestion) => {
     const prompt = (typeof value === "string" ? value : value.prompt).trim();
@@ -125,7 +127,10 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
     listen.stop();
     setHistoryOpen(false);
     setSettingsOpen(false);
-    setSheetOpen(false);
+    setCaptionsExpanded(false);
+    setEditing(false);
+    resumeAfterInput.current = false;
+    inputRef.current?.blur();
     void chat.ask(prompt, typeof value === "string" ? undefined : {
       openingMedia: value.media,
       opening: value.opening,
@@ -137,15 +142,23 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
       inputRef.current?.focus();
       return;
     }
+    listen.stop();
+    setDraft("");
+    const completed = chat.turns.filter((turn) => turn.completed && turn.video);
+    if (completed.length) setSavedSessions((sessions) => [{ id: completed[0]!.id, turns: completed }, ...sessions].slice(0, 10));
     chat.reset();
     setHistoryOpen(false);
     setSettingsOpen(false);
-    setSheetOpen(false);
-  }, [chat]);
+    setCaptionsExpanded(false);
+    setEditing(false);
+    resumeAfterInput.current = false;
+    inputRef.current?.blur();
+  }, [chat, listen]);
 
   const current = chat.currentTurn;
   const shown = chat.shownTurn;
   const showing = chat.playerProps != null;
+  const ambientPoster = shown?.openingMedia?.type === "image" ? shown.openingMedia.url : shown?.openingMedia?.posterUrl;
   const waitingForPicture = chat.turns.length > 0 && !showing
     && (chat.status === "composing" || chat.status === "playing" || chat.status === "paused");
   const filmingStep = useFilmingStep(waitingForPicture, current?.id);
@@ -160,6 +173,7 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
   const availableModes = visualModes.filter((option) => chat.availableModes.includes(option.id));
   const selectedMode = modeById(modeId);
   const line = chat.caption ?? "";
+  const fullTranscript = shown?.video ? [shown.opening, ...shown.video.scenes.map((scene) => scene.narration)].filter((entry): entry is string => Boolean(entry)) : chat.transcript;
   const transport = status === "narrating"
     ? { label: "Pause", action: chat.pause, icon: <Stop /> }
     : status === "paused"
@@ -168,28 +182,75 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
         ? { label: "Play again", action: chat.replay, icon: <Replay /> }
         : undefined;
 
+  const cancelInput = useCallback(() => {
+    listen.stop();
+    setDraft("");
+    setEditing(false);
+    inputRef.current?.blur();
+    if (resumeAfterInput.current) chat.resume();
+    resumeAfterInput.current = false;
+  }, [listen, chat]);
+  const beginInput = (speak = false) => {
+    if (!editing) {
+      resumeAfterInput.current = chat.status === "playing" || chat.status === "composing";
+      if (resumeAfterInput.current) chat.pause();
+    }
+    setEditing(true);
+    setSettingsOpen(false);
+    setHistoryOpen(false);
+    if (speak) listen.toggle();
+  };
+  const controls = useImmersiveControls(
+    status === "narrating" || (Boolean(line) && status !== "paused"),
+    alwaysShowControls || captionsExpanded || editing || historyOpen || settingsOpen || listen.listening || listen.thinking || Boolean(chat.error || listen.error),
+    captionsOn && Boolean(line),
+  );
+  const captionControls = useImmersiveControls(Boolean(line), captionsExpanded, false);
+  const controlEvents = {
+    onPointerEnter: controls.onPointerEnter, onPointerLeave: controls.onPointerLeave,
+    onFocusCapture: controls.onFocusCapture, onBlurCapture: controls.onBlurCapture,
+  };
+  useLayoutEffect(() => {
+    const composer = composerRef.current;
+    if (!composer) return;
+    const measure = () => panelRef.current?.style.setProperty("--composer-height", `${composer.getBoundingClientRect().height}px`);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(composer);
+    return () => observer.disconnect();
+  }, []);
+
   return <div
     className={`vanillasky-video-chat${className ? ` ${className}` : ""}`}
     data-orientation={stageOrientation}
-    data-theme={themeChoice}
+    data-controls-visible={controls.visible}
+    tabIndex={0}
+    aria-label="Video conversation"
+    onPointerMove={controls.reveal}
+    onPointerDown={controls.reveal}
+    onKeyDownCapture={controls.reveal}
   >
-    <header className="chrome">
+    <header className="chrome" {...controlEvents}>
+      <div className="session-brand"><Logo /></div>
       <div className="group">
         <button
           type="button"
           className="round"
-          aria-label={chat.turns.length === 0 ? "Ask a prompt" : "New session"}
+          aria-label="New session"
           onClick={newSession}
-        ><Plus /></button>
-        {chat.turns.length > 0 && <button
+        ><Plus /><span className="nav-label">New session</span></button>
+        {<button
           ref={historyButtonRef}
           type="button"
           className="pill"
           aria-expanded={historyOpen}
+          aria-label="History"
+          aria-haspopup="dialog"
           aria-controls={historyId}
           onClick={() => { setHistoryOpen((open) => !open); setSettingsOpen(false); }}
         >
-          {chat.turns.length} asked
+          <Replay /><span className="nav-label">History</span>
         </button>}
       </div>
       <div className="group">
@@ -215,6 +276,7 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
 
     <div className="stage-area">
       <div className="stage" style={{ background: themeBackground(presentationBrand) }}>
+        {showing && <div className="ambient-media" aria-hidden="true">{ambientPoster && <img className="frame-media" src={ambientPoster} alt="" />}</div>}
         {!showing && <>
           <div className="ground" aria-hidden="true" />
           {shown?.openingMedia && <>
@@ -227,13 +289,14 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
             {waitingForPicture && <p className="asked-step" aria-live="polite">{filmingStep}</p>}
           </div>}
         </>}
-        {chat.playerProps && <VideoPlayer
+        {chat.playerProps && <div className="player-fit" style={{ width: stageOrientation === "portrait" ? "min(100cqw, 56.25cqh)" : "min(100cqw, 177.7778cqh)" }}><VideoPlayer
           key={chat.playerKey}
           {...chat.playerProps}
           templates={options.templates}
+          orientation={stageOrientation}
           responsiveBreakpoint={DESKTOP_WIDTH}
           ariaLabel={chat.playerProps.video ? "Replay" : "The response"}
-        />}
+        /></div>}
 
         {showing && chat.playbackEnded && chat.suggestions.length > 0 && <div className="ending">
           <div className="ending-wash" aria-hidden="true" />
@@ -244,20 +307,26 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
         </div>}
       </div>
 
-      {historyOpen && <nav ref={historyRef} id={historyId} className="sheet-popover history" aria-label="Prompts this session">
-        {chat.turns.map((turn, index) => <button
-          key={turn.id}
-          type="button"
-          className={turn.id === shown?.id ? "current" : undefined}
+      {historyOpen && <nav ref={historyRef} id={historyId} className="sheet-popover history" role="dialog" aria-modal="true" aria-label="History">
+        <div className="popover-heading"><h2>History</h2><button type="button" className="round" aria-label="Close history" onClick={closeHistory}><Close /></button></div>
+        <h3 className="section-label">Current session</h3>
+        {chat.turns.length === 0 && <p className="history-empty">Your questions will appear here.</p>}
+        {chat.turns.map((turn, index) => <button key={turn.id} type="button"
+          className={`history-row${turn.id === shown?.id ? " current" : ""}`}
+          aria-current={turn.id === shown?.id ? true : undefined}
           disabled={!turn.completed || !turn.video}
-          onClick={() => {
-            chat.selectTurn(turn.id);
-            setHistoryOpen(false);
-          }}
-        >
+          onClick={() => { listen.stop(); setDraft(""); setEditing(false); resumeAfterInput.current = false; chat.selectTurn(turn.id); setHistoryOpen(false); }}>
           <span className="index">{String(index + 1).padStart(2, "0")}</span>
-          <span className="prompt">{turn.prompt}</span>
+          <span className="prompt">{turn.prompt}<small>{turn.id === shown?.id ? "Now showing" : turn.completed ? "Play answer" : "Unfinished answer"}</small></span>
         </button>)}
+        {savedSessions.length > 0 && <><h3 className="section-label">Earlier sessions</h3>
+          {savedSessions.map((session) => <button type="button" className="history-row" key={session.id} onClick={() => {
+            listen.stop(); setDraft(""); setEditing(false); resumeAfterInput.current = false;
+            const completed = chat.turns.filter((turn) => turn.completed && turn.video);
+            setSavedSessions((sessions) => [...(completed.length ? [{ id: completed[0]!.id, turns: completed }] : []), ...sessions.filter((entry) => entry.id !== session.id)].slice(0, 10));
+            restoreSession(session.turns); setHistoryOpen(false); setCaptionsExpanded(false);
+          }}><Replay /><span className="prompt">{session.turns[0]?.prompt}<small>{session.turns.length} {session.turns.length === 1 ? "answer" : "answers"}</small></span></button>)}
+        </>}
       </nav>}
 
       {settingsOpen && <div
@@ -266,90 +335,70 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
         className="sheet-popover settings"
         role="dialog"
         aria-label="Settings"
+        aria-modal="true"
       >
-        <fieldset>
-          <legend>Appearance</legend>
-          {([["system", "Match system"], ["light", "Light"], ["dark", "Dark"]] as const).map(([value, label]) => <label key={value}>
-            <input type="radio" name={appearanceName} checked={value === themeChoice} onChange={() => setThemeChoice(value)} />
-            <span><strong>{label}</strong></span>
-          </label>)}
+        <div className="popover-heading"><h2>Settings</h2><button type="button" className="round" aria-label="Close settings" onClick={closeSettings}><Close /></button></div>
+        <fieldset className="playback-options"><legend>Watching</legend>
+          <label className="switch-row"><span><strong>Subtitles</strong><small>Read along with the answer</small></span><input type="checkbox" role="switch" checked={captionsOn} onChange={(event) => { setCaptionsOn(event.target.checked); setCaptionsExpanded(false); }} /></label>
+          <label className="switch-row"><span><strong>Keep controls visible</strong><small>Keep the input bar on screen</small></span><input type="checkbox" role="switch" checked={alwaysShowControls} onChange={(event) => setAlwaysShowControls(event.target.checked)} /></label>
         </fieldset>
-        <p className="settings-note">Visuals and style apply to your next prompt.</p>
-        <fieldset>
-          <legend>Visuals</legend>
-          {availableModes.map((option) => <label key={option.id}>
+        <fieldset className="visual-options">
+          <legend>Video creation</legend>
+          {availableModes.map((option) => <label className="choice-row" key={option.id}>
             <input type="radio" name={visualsName} checked={option.id === selectedMode.id} onChange={() => setModeId(option.id)} />
-            <span><strong>{option.label}</strong>{option.note}</span>
+            <span><strong>{option.label}</strong><small>{option.note}</small></span>
           </label>)}
         </fieldset>
-        <fieldset>
-          <legend>Style</legend>
+        <fieldset className="style-options">
+          <legend>Video style</legend>
           {themes.map((option) => <label key={option.id}>
             <input type="radio" name={styleName} checked={option.id === themeId} onChange={() => setThemeId(option.id)} />
             <span><strong>{option.label}</strong></span>
           </label>)}
         </fieldset>
+        <p className="settings-note">Creation and style changes apply to your next question.</p>
       </div>}
     </div>
 
-    <div className="panel">
+    <div ref={panelRef} className="panel" data-input-visible={controls.visible || !captionsOn || !line}>
       <div className="panel-inner">
-        <div className="line-row">
-          <p className="line" aria-live="polite">{line}</p>
-          {shown?.video && <button type="button" className="full-response" onClick={() => setSheetOpen(true)}>
-            Full response <ChevronUp />
-          </button>}
+        <div className="caption-slot" data-captions={captionsOn && Boolean(line)} aria-hidden={!captionsOn || !line}>
+          <div className="caption-clip">
+            <div className="line-row" data-expanded={captionsExpanded} data-actions-visible={captionControls.visible}
+              onPointerMove={captionControls.onPointerEnter} onPointerLeave={captionControls.onPointerLeave}
+              onPointerDown={captionControls.reveal} onFocusCapture={captionControls.onFocusCapture} onBlurCapture={captionControls.onBlurCapture}>
+              {captionsOn && line && <div className="caption-actions">
+                <button type="button" className="caption-action" aria-label={captionsExpanded ? "Collapse subtitles" : "Expand subtitles"} aria-expanded={captionsExpanded} onClick={() => setCaptionsExpanded((open) => !open)}>{captionsExpanded ? "Collapse" : "Expand"}<ChevronUp /></button>
+                <button type="button" className="caption-action" aria-label="Hide subtitles" onClick={() => { setCaptionsOn(false); setCaptionsExpanded(false); }}><Close /></button>
+              </div>}
+              {captionsExpanded ? <div className="expanded-captions" role="region" tabIndex={0} aria-label="Expanded subtitles">
+                {fullTranscript.map((entry, index) => <p key={index}>{entry}</p>)}
+              </div> : <p className="line" aria-live="polite">{line}</p>}
+            </div>
+          </div>
         </div>
-
-        {(chat.error || listen.error) && <p className="error" role="status">
-          <Warning /><span>{chat.error?.message ?? listen.error}</span>
-        </p>}
-
-        <form className="composer" onSubmit={(event) => { event.preventDefault(); ask(draft); }}>
-          <Waveform active={listen.listening || (chat.speaking && !chat.muted && status !== "paused")} listening={listen.listening} />
-          <label className="sr-only" htmlFor={promptId}>Prompt</label>
-          <textarea
-            id={promptId}
-            ref={inputRef}
-            rows={1}
-            value={draft}
-            placeholder={listen.listening ? "Listening…"
-              : listen.thinking ? "Working out what you said…"
-              : status === "narrating" ? "Talking — type to jump in…"
-              : chat.turns.length > 0 ? "Ask a follow-up…" : "Ask anything…"}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                ask(draft);
-              }
-            }}
-          />
-          {transport && <button type="button" className="ghost transport" aria-label={transport.label} onClick={transport.action}>{transport.icon}</button>}
-          {listen.supported && <button
-            type="button"
-            className={`ghost${listen.listening ? " listening" : ""}`}
-            aria-label={listen.listening ? "Stop listening" : "Ask by voice"}
-            aria-pressed={listen.listening}
-            disabled={listen.thinking}
-            onClick={listen.toggle}
-          ><Mic /></button>}
-          <button type="submit" className="send" aria-label="Ask" disabled={!draft.trim() || status === "drawing"}><Send /></button>
-        </form>
+        {(chat.error || listen.error) && <p className="error" role="status"><Warning /><span>{chat.error?.message ?? listen.error}</span></p>}
+        <div ref={composerRef} className="conversation-composer" data-editing={editing} {...controlEvents}>
+          {(listen.listening || listen.thinking) && <div className="composer-meta"><span role="status">{listen.listening ? "Listening… Tap the mic to finish, then review and send." : "Turning your words into a draft…"}</span></div>}
+          <form className="composer" aria-label="Ask a question" onSubmit={(event) => { event.preventDefault(); ask(draft); }}>
+            {transport && <button type="button" className="ghost transport" aria-label={transport.label} onClick={() => { listen.stop(); setEditing(false); resumeAfterInput.current = false; inputRef.current?.blur(); transport.action(); }}>{transport.icon}</button>}
+            <Waveform active={listen.listening || (chat.speaking && !chat.muted && status !== "paused")} listening={listen.listening} />
+            <label className="sr-only" htmlFor={promptId}>Prompt</label>
+            <textarea id={promptId} ref={inputRef} rows={1} value={draft}
+              placeholder={listen.listening ? "Listening…" : chat.turns.length ? "Ask a follow-up…" : "Ask anything…"}
+              onFocus={() => { if (!editing) beginInput(); }}
+              onChange={(event) => { setDraft(event.target.value); event.target.style.height = "auto"; event.target.style.height = `${Math.min(event.target.scrollHeight, 120)}px`; }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") { event.stopPropagation(); cancelInput(); }
+                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); ask(draft); }
+              }} />
+            {listen.supported && <button type="button" className={`ghost${listen.listening ? " listening" : ""}`} aria-label={listen.listening ? "Stop listening" : "Ask by voice"} aria-pressed={listen.listening} disabled={listen.thinking} onClick={() => beginInput(true)}><Mic /></button>}
+            <button type="submit" className="send" aria-label="Ask" disabled={!draft.trim() || listen.thinking}><Send /></button>
+            {editing && <button type="button" className="ghost" aria-label="Cancel question" onClick={cancelInput}><Close /></button>}
+          </form>
+        </div>
+        {!showing && chat.turns.length === 0 && <p className="dock-hint">Speak or type. See where it takes you.</p>}
       </div>
     </div>
-
-    {sheetOpen && shown && <div className="sheet-layer">
-      <button type="button" className="scrim" tabIndex={-1} aria-hidden="true" onClick={() => setSheetOpen(false)} />
-      <article ref={sheetRef} className="sheet" role="dialog" aria-modal="true" aria-labelledby={responseTitleId}>
-        <header>
-          <h1 id={responseTitleId}>{shown.prompt}</h1>
-          <button type="button" className="round" aria-label="Close the full response" onClick={() => setSheetOpen(false)}><Close /></button>
-        </header>
-        <div className="sheet-body">
-          {chat.transcript.map((entry, index) => <p key={`${index}-${entry}`}>{entry}</p>)}
-        </div>
-      </article>
-    </div>}
   </div>;
 }

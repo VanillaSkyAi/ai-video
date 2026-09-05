@@ -8,8 +8,9 @@ describe("published video chat stylesheet", () => {
     expect(css).toContain(".vanillasky-video-chat");
     expect(css).not.toMatch(/(^|[},]\s*)(?::root|html|body|\*)(?=[\s,{])/m);
     expect(css).not.toContain("document.documentElement");
-    expect(css).toContain('@media (prefers-color-scheme: dark) and (prefers-contrast: more)');
-    expect(css.match(/\.vanillasky-video-chat:not\(\[data-theme="light"\]\)/g)).toHaveLength(2);
+    expect(css).toContain("@media (prefers-contrast: more)");
+    expect(css).not.toContain("prefers-color-scheme");
+    expect(css).not.toContain("data-theme");
     const selectorLines = css.split("\n").filter((line) =>
       line.includes("{")
       && !line.trimStart().startsWith("@")
@@ -18,5 +19,15 @@ describe("published video chat stylesheet", () => {
     for (const selector of selectorLines) {
       expect(selector).toContain(".vanillasky-video-chat");
     }
+  });
+
+  it("keeps spoken captions complete rather than line-clamped", () => {
+    const css = readFileSync(new URL("../styles/video-chat.css", import.meta.url), "utf8");
+    expect(css).not.toMatch(/(?:-webkit-)?line-clamp\s*:/);
+    const captionRules = [...css.matchAll(/\.vanillasky-video-chat \.line\s*\{([^}]+)\}/g)]
+      .map((match) => match[1]);
+    expect(captionRules.length).toBeGreaterThan(0);
+    expect(captionRules.join("\n")).not.toMatch(/overflow\s*:\s*(?:hidden|clip)/);
+    expect(captionRules.join("\n")).toContain("overflow-wrap: anywhere");
   });
 });

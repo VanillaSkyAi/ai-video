@@ -4,9 +4,11 @@
 
 ## Video chat interface
 
-The default `VideoChat` interface is already responsive and accessible. Pass a
-custom welcome heading and a root class when the application needs its own copy
-or chrome colors:
+The default `VideoChat` uses an immersive video canvas with a floating
+conversation field, on-video subtitles, and a single dark settings/history
+treatment. See [interface behavior](immersive-interface.md) and the
+[component reference](reference/design-system.html). Pass a custom welcome
+heading and a root class when the application needs its own copy or chrome colors:
 
 ```tsx
 <VideoChat
@@ -22,13 +24,16 @@ that instance:
 
 ```css
 .acme-chat {
-  --vs-accent: #0057ff;
-  --vs-accent-deep: #003fb8;
+  --vs-media-glass: rgb(18 24 40 / 80%);
+  --vs-media-text: #f8f8fc;
   --vs-voice: #e11d74;
   --vs-font: "Inter", sans-serif;
-  --vs-radius-lg: 1rem;
 }
 ```
+
+The built-in navigation carries the VanillaSky logo. `welcomeTitle` changes
+the welcome heading; it does not replace the navigation logo. `options.brand`
+styles generated video content independently of the surrounding controls.
 
 Use `options` for the endpoint, templates, orientation, visual brand, request
 headers, and an optional custom voice. Provider capabilities are discovered

@@ -261,6 +261,7 @@ try {
   await welcomePage.getByPlaceholder("Ask anything…").fill("Why does the Moon show one face?");
   await welcomePage.getByRole("button", { name: "Ask", exact: true }).click();
   await welcomePage.getByText("The Moon rotates once per orbit.", { exact: true }).first().waitFor();
+  await welcomePage.locator(".vanillasky-video-chat").hover();
   await welcomePage.locator("textarea").fill("Give me an analogy");
   await welcomePage.getByRole("button", { name: "Ask", exact: true }).click();
   await welcomePage.getByText("Walk around a friend while facing them.", { exact: true }).first().waitFor();
