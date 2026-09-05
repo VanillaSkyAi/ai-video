@@ -195,8 +195,12 @@ describe("documented examples", () => {
     const onboarding = readFileSync(resolve(root, "scripts/verify-onboarding.mjs"), "utf8");
     expect(onboarding).toContain('"pack", "--silent", "--json"');
     expect(onboarding).toContain("installSpec = candidateArtifact.path");
-    expect(onboarding).toContain('run("npx", ["--yes", "--package", installSpec, "vanillasky", "init"], app)');
-    expect(onboarding).not.toContain('runCli(["init"])');
+    expect(onboarding).toContain('runCapture("npx", ["--yes", "--package", installSpec, "vanillasky", "init"], app)');
+    expect(onboarding).toContain('initialization.output.includes("MISSING  ANTHROPIC_API_KEY")');
+    expect(onboarding).toContain('initialization.output.includes("READY    templates + browser voice")');
+    expect(onboarding.indexOf('runCapture("npx", ["--yes", "--package", installSpec, "vanillasky", "init"], app)'))
+      .toBeLessThan(onboarding.indexOf('const repeatedInit = runCli(["init"])'));
+    expect(onboarding).toContain("Repeated init failed to repair installation while preserving environment and providers");
     expect(onboarding).toContain('responds in video, not text');
   });
 });

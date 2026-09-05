@@ -20,11 +20,23 @@ ANTHROPIC_API_KEY=...
 ```
 
 That is enough for rendered templates and the browser's built-in voice. The
-optional keys progressively improve the same experience:
+starter installs only the text provider. Enable optional adapters when needed:
 
-- `XAI_API_KEY` replaces the browser voice with generated speech.
-- `FAL_KEY` enables generated-video modes and server transcription.
-- `PEXELS_API_KEY` adds stock footage to rendered responses and suggestion cards.
+```bash
+npx vanillasky providers add speech
+npx vanillasky providers add video
+```
+
+Each command installs its provider package and connects the adapter through
+`providers.ts`. Run both commands to enable both upgrades.
+
+- Speech: add `XAI_API_KEY` to replace browser voice with generated speech.
+- Video: add `FAL_KEY` for generated video and server transcription.
+- Stock: add `PEXELS_API_KEY` for footage and suggestion images; no installation
+  is needed.
+
+The adapters live in `providers/` and remain application-owned. Running an
+upgrade again can finish an interrupted dependency installation.
 
 Restart the development server after changing keys. Open
 <http://localhost:5173> and prompt anything.
@@ -42,7 +54,7 @@ Restart the development server after changing keys. Open
 4. The opening footage loops or holds until the first planned scene and its
    voice are ready, then the response timeline takes over without a blank gap.
 5. The SDK holds every planned scene for its measured or estimated speech time
-   and prepares four possible next prompts while playback continues.
+   and loads possible next prompts independently after the response completes.
 
 The text model is the only required provider. Generated speech, transcription,
 stock media, and generated video are independent upgrades and never prevent a

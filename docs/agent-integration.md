@@ -22,13 +22,19 @@ npm run dev
 ```
 
 Init generates the thin application-owned shell around the SDK's complete
-`VideoChat` experience. The default uses packaged templates + browser voice.
-One text-provider key makes it answer; optional keys enable generated speech,
-stock media, transcription, and generated video without client changes.
+`VideoChat` experience and runs doctor automatically. The default uses packaged
+templates + browser voice and installs no optional provider packages.
+`ANTHROPIC_API_KEY` is the only required key. Rerun init after an interrupted
+installation.
 
 If doctor reports a missing key, add the named key to the ignored `.env.local`
 yourself. Never read or print a secret value, and never paste one into the chat.
 Doctor is the safe capability interface: it reports names and readiness only.
+
+For requested upgrades, run `npx vanillasky providers add speech` for xAI speech
+or `npx vanillasky providers add video` for FAL video and transcription. Have the
+developer add `XAI_API_KEY` or `FAL_KEY` locally, then restart the server. Stock
+media needs only `PEXELS_API_KEY`. The client does not change.
 
 ## Verify, do not merely scaffold
 

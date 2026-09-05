@@ -38,10 +38,19 @@ function blankProject(): string {
   return cwd;
 }
 
+function markInstalled(cwd: string): void {
+  const manifest = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+  for (const name of Object.keys({ ...manifest.dependencies, ...manifest.devDependencies })) {
+    const directory = join(cwd, "node_modules", name);
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, "package.json"), JSON.stringify({ name, version: "1.0.0" }));
+  }
+}
+
 async function run(
   cwd: string,
   argv: string[],
-  installDependencies = vi.fn(async () => undefined),
+  installDependencies = vi.fn(async () => { markInstalled(cwd); }),
 ): Promise<{ code: number; output: string; installDependencies: typeof installDependencies }> {
   const output: string[] = [];
   const code = await Promise.resolve(runVanillaSkyCli(argv, {
@@ -66,7 +75,7 @@ describe("vanillasky init", () => {
       .toBe("file:/private/tmp/vanillaskyai-video-candidate.tgz");
   });
 
-  it("creates a runnable thin video-chat app and installs app-owned providers", async () => {
+  it("creates a runnable thin video-chat app with only baseline dependencies", async () => {
     const cwd = project();
 
     const result = await run(cwd, ["init"]);
@@ -74,7 +83,8 @@ describe("vanillasky init", () => {
     expect(result.code, result.output).toBe(0);
     expect(result.installDependencies).toHaveBeenCalledOnce();
     expect(result.installDependencies).toHaveBeenCalledWith(cwd);
-    expect(result.output).toContain("Add ANTHROPIC_API_KEY to .env.local");
+    expect(result.output).toContain("MISSING  ANTHROPIC_API_KEY in .env.local");
+    expect(result.output).toContain("READY    templates + browser voice");
     expect(result.output).toContain("npm run dev");
 
     for (const path of [
@@ -108,12 +118,13 @@ describe("vanillasky init", () => {
     expect(manifest.dependencies["@vanillaskyai/video"]).toBe("^0.6.0");
     expect(manifest.dependencies).toMatchObject({
       "@ai-sdk/anthropic": expect.any(String),
-      "@ai-sdk/xai": expect.any(String),
-      "@fal-ai/client": expect.any(String),
       ai: expect.any(String),
       react: expect.any(String),
       "react-dom": expect.any(String),
     });
+    expect(manifest.dependencies).not.toHaveProperty("@ai-sdk/xai");
+    expect(manifest.dependencies).not.toHaveProperty("@fal-ai/client");
+    expect(existsSync(join(cwd, "providers.ts"))).toBe(true);
     expect(manifest.devDependencies).toMatchObject({
       "@types/node": expect.any(String),
       "@types/react": expect.any(String),
@@ -197,7 +208,7 @@ describe("vanillasky init", () => {
 
     expect(result.code, result.output).toBe(0);
     expect(result.output).toContain("already initialized");
-    expect(installDependencies).not.toHaveBeenCalled();
+    expect(installDependencies).toHaveBeenCalledOnce();
     expect(readFileSync(join(cwd, ".env.local"), "utf8")).toBe("ANTHROPIC_API_KEY=kept-private\n");
   });
 
@@ -212,6 +223,19 @@ describe("vanillasky init", () => {
     expect(result.output).toContain("run npm install to finish setup");
     expect(existsSync(join(cwd, "src/main.tsx"))).toBe(true);
     expect(existsSync(join(cwd, ".env.local"))).toBe(true);
+  });
+
+  it("retries installation after failure without replacing local settings or provider registration", async () => {
+    const cwd = project();
+    await run(cwd, ["init"], vi.fn(async () => { throw new Error("interrupted"); }));
+    writeFileSync(join(cwd, ".env.local"), "ANTHROPIC_API_KEY=private-value\n");
+    writeFileSync(join(cwd, "providers.ts"), "export const providers = { custom: true };\n");
+    const result = await run(cwd, ["init"]);
+    expect(result.code, result.output).toBe(0);
+    expect(result.installDependencies).toHaveBeenCalledOnce();
+    expect(readFileSync(join(cwd, "providers.ts"), "utf8")).toContain("custom: true");
+    expect(readFileSync(join(cwd, ".env.local"), "utf8")).toContain("private-value");
+    expect(result.output).not.toContain("private-value");
   });
 
   it("rejects symbolic-link traversal before writing the scaffold", async () => {
@@ -292,9 +316,40 @@ describe("vanillasky doctor", () => {
     const ready = await run(cwd, ["doctor"]);
     expect(ready.code, ready.output).toBe(0);
     expect(ready.output).toContain("READY    ANTHROPIC_API_KEY");
-    expect(ready.output).toContain("READY    generated video + transcription");
+    expect(ready.output).toContain("npx vanillasky providers add video");
+    expect(ready.output).not.toContain("READY    generated video");
     expect(ready.output).not.toContain("kept-private");
     expect(ready.output).not.toContain("also-private");
+  });
+
+  it("detects declared dependencies whose installation was interrupted", async () => {
+    const cwd = project();
+    await run(cwd, ["init"], vi.fn(async () => undefined));
+    writeFileSync(join(cwd, ".env.local"), "ANTHROPIC_API_KEY=private-value\n");
+    const result = await run(cwd, ["doctor"]);
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("NOT INSTALLED  @ai-sdk/anthropic");
+    expect(result.output).toContain("npm install");
+    expect(result.output).not.toContain("private-value");
+  });
+
+  it("requires registration, adapter, installed dependency, and key for optional readiness", async () => {
+    const cwd = project();
+    await run(cwd, ["init"]);
+    writeFileSync(join(cwd, ".env.local"), "ANTHROPIC_API_KEY=private\nXAI_API_KEY=private-speech\n");
+    const manifest = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+    manifest.vanillasky = { providers: ["speech"] };
+    manifest.dependencies["@ai-sdk/xai"] = "^3.0.0";
+    writeFileSync(join(cwd, "package.json"), JSON.stringify(manifest));
+    mkdirSync(join(cwd, "providers"));
+    writeFileSync(join(cwd, "providers/speech.ts"), "export const speech = {};\n");
+    const missing = await run(cwd, ["doctor"]);
+    expect(missing.output).not.toContain("READY    generated speech");
+    markInstalled(cwd);
+    const ready = await run(cwd, ["doctor"]);
+    expect(ready.code, ready.output).toBe(0);
+    expect(ready.output).toContain("READY    generated speech");
+    expect(ready.output).not.toContain("private-speech");
   });
 
   it("detects client-exposed provider keys", async () => {

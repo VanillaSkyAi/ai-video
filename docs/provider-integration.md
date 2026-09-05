@@ -11,10 +11,16 @@ npx vanillasky doctor
 npm run dev
 ```
 
-The generated `server.ts` is the canonical provider example. It starts with one
-text key, packaged templates, and browser voice. Adding the optional generated
-speech, stock, transcription, or generated-video key enables its callback and
-advertises the capability automatically; `src/main.tsx` does not change.
+Init runs doctor automatically. The generated `server.ts` starts with one
+`ANTHROPIC_API_KEY`, packaged templates, and browser voice; it installs no
+optional speech or video packages.
+
+Use `npx vanillasky providers add speech` to install xAI speech, or
+`npx vanillasky providers add video` to install FAL video and transcription.
+Add `XAI_API_KEY` or `FAL_KEY` to `.env.local` and restart the server. Stock media
+needs only `PEXELS_API_KEY`, with no extra installation. These app-owned
+adapters advertise their capabilities automatically; `src/main.tsx` does not
+change. Rerun an interrupted setup command to finish installation.
 
 For the full chat experience, mount one `createVideoChatHandler` and keep every
 provider choice in its callbacks:

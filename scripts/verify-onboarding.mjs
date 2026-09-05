@@ -146,7 +146,12 @@ try {
     });
     installSpec = candidateArtifact.path;
   }
-  run("npx", ["--yes", "--package", installSpec, "vanillasky", "init"], app);
+  const initialization = runCapture("npx", ["--yes", "--package", installSpec, "vanillasky", "init"], app);
+  console.log(initialization.output);
+  if (!initialization.output.includes("MISSING  ANTHROPIC_API_KEY")
+    || !initialization.output.includes("READY    templates + browser voice")) {
+    throw new Error("Packed init did not run doctor automatically with one required key");
+  }
   cli = join(app, "node_modules", "@vanillaskyai", "video", "bin", "vanillasky.js");
   if (!existsSync(cli)) throw new Error("Scoped npx init did not install the VanillaSky CLI in the generated app");
   const initializedManifest = JSON.parse(readFileSync(join(app, "package.json"), "utf8"));
@@ -154,6 +159,14 @@ try {
     throw new Error("Scoped npx init did not preserve the exact packed candidate dependency");
   }
   if (existsSync(join(app, "vanillasky"))) throw new Error("Default onboarding unexpectedly copied templates");
+  for (const dependency of ["@ai-sdk/xai", "@fal-ai/client"]) {
+    if (initializedManifest.dependencies?.[dependency] || existsSync(join(app, "node_modules", dependency))) {
+      throw new Error(`Baseline init unexpectedly installed optional provider ${dependency}`);
+    }
+  }
+  if (!existsSync(join(app, "providers.ts")) || existsSync(join(app, "providers"))) {
+    throw new Error("Baseline init must copy only the empty provider registry");
+  }
   const generatedClient = readFileSync(join(app, "src", "main.tsx"), "utf8");
   const generatedServer = readFileSync(join(app, "server.ts"), "utf8");
   if (!generatedClient.includes("<VideoChat") || generatedClient.includes("../vanillasky")) {
@@ -268,6 +281,61 @@ try {
   for (const setting of ['"noEmit": true', '"noUnusedLocals": true', '"noUnusedParameters": true']) {
     if (!strictSettings.includes(setting)) throw new Error(`Current Vite React TypeScript scaffold is missing ${setting}`);
   }
+
+  // Upgrade the same exact installed starter only after the initial browser
+  // session stops. These checks compile adapters; they never call providers.
+  const speechAdapter = join(app, "providers", "speech.ts");
+  const registryPath = join(app, "providers.ts");
+  const environmentPath = join(app, ".env.local");
+  runCli(["providers", "add", "speech"]);
+  if (!existsSync(join(app, "node_modules", "@ai-sdk/xai", "package.json"))
+    || existsSync(join(app, "node_modules", "@fal-ai/client"))) {
+    throw new Error("Speech upgrade did not install only its selected provider");
+  }
+  run("npm", ["run", "build"], app);
+  const editedSpeech = `${readFileSync(speechAdapter, "utf8")}\n// Customer-owned speech adapter customization.\n`;
+  writeFileSync(speechAdapter, editedSpeech);
+  rmSync(join(app, "node_modules", "@ai-sdk/xai"), { recursive: true, force: true });
+  runCli(["providers", "add", "speech"]);
+  if (readFileSync(speechAdapter, "utf8") !== editedSpeech
+    || !existsSync(join(app, "node_modules", "@ai-sdk/xai", "package.json"))) {
+    throw new Error("Repeated speech upgrade lost customer source or failed to repair installation");
+  }
+  runCli(["providers", "add", "video"]);
+  if (!existsSync(join(app, "node_modules", "@fal-ai/client", "package.json"))
+    || readFileSync(speechAdapter, "utf8") !== editedSpeech) {
+    throw new Error("Video upgrade lost the speech customization or failed to install");
+  }
+  run("npm", ["run", "build"], app);
+  const optionalCanaries = ["server-only-speech-canary", "server-only-video-canary"];
+  const upgradedEnvironment = `ANTHROPIC_API_KEY=${textKeyCanary}\nXAI_API_KEY=${optionalCanaries[0]}\nFAL_KEY=${optionalCanaries[1]}\n`;
+  writeFileSync(environmentPath, upgradedEnvironment);
+  const upgradedDoctor = runCli(["doctor"]);
+  if (!upgradedDoctor.output.includes("READY    generated speech")
+    || !upgradedDoctor.output.includes("READY    generated video + transcription")
+    || [textKeyCanary, ...optionalCanaries].some((key) => upgradedDoctor.output.includes(key))) {
+    throw new Error("Doctor did not recognize the installed upgrades without exposing keys");
+  }
+  const upgradedRegistry = readFileSync(registryPath, "utf8");
+  rmSync(join(app, "node_modules", "@ai-sdk/anthropic"), { recursive: true, force: true });
+  const repeatedInit = runCli(["init"]);
+  if (!repeatedInit.output.includes("READY    ANTHROPIC_API_KEY")
+    || !existsSync(join(app, "node_modules", "@ai-sdk/anthropic", "package.json"))
+    || readFileSync(environmentPath, "utf8") !== upgradedEnvironment
+    || readFileSync(registryPath, "utf8") !== upgradedRegistry
+    || readFileSync(speechAdapter, "utf8") !== editedSpeech) {
+    throw new Error("Repeated init failed to repair installation while preserving environment and providers");
+  }
+  run("npm", ["run", "build"], app);
+  const upgradedClient = readdirSync(join(app, "dist"), { recursive: true })
+    .map((path) => join(app, "dist", path))
+    .filter((path) => !statSync(path).isDirectory())
+    .map((path) => readFileSync(path, "utf8")).join("\n");
+  if ([textKeyCanary, ...optionalCanaries].some((key) => upgradedClient.includes(key))) {
+    throw new Error("Optional provider setup exposed server keys in the browser bundle");
+  }
+  // Keep subsequent local template previews on the zero-provider baseline.
+  writeFileSync(environmentPath, `ANTHROPIC_API_KEY=${textKeyCanary}\n`);
 
   run("npm", ["install", "--no-audit", "--no-fund", "--save-dev", "tsx@4.23.12"], app);
   const builtinList = runCli(["templates", "list", "--builtin", "--json"]).output;
@@ -483,7 +551,7 @@ export { templates as serverTemplates } from "../vanillasky/server";
       finalStatus: await page.getByTestId("status").textContent(),
     }, null, 2)}\n`);
   }
-  console.log("Fresh Vite onboarding passed exact packed CLI ownership, strict generated-source compilation, chat defaults, follow-up context, lazy playback, custom-template setup, and browser error checks.");
+  console.log("Fresh Vite onboarding passed exact packed CLI ownership, strict generated-source compilation, automatic doctor, optional provider upgrades, installation recovery, chat defaults, follow-up context, lazy playback, custom-template setup, and browser error checks.");
 } finally {
   if (welcomeBrowser) await welcomeBrowser.close();
   if (welcomeServer) {

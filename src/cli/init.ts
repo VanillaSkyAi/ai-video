@@ -40,7 +40,7 @@ export interface InitVideoChatResult {
   installed: boolean;
 }
 
-function locateStarterRoot(): string {
+export function locateStarterRoot(): string {
   const moduleDirectory = dirname(fileURLToPath(import.meta.url));
   const candidates = [
     resolve(moduleDirectory, "../../starters/video-chat"),
@@ -144,7 +144,7 @@ function atomicWrite(path: string, contents: string): void {
   }
 }
 
-function defaultInstall(cwd: string): Promise<void> {
+export function defaultInstall(cwd: string): Promise<void> {
   return new Promise((resolvePromise, reject) => {
     const child = spawn("npm", ["install", "--no-audit", "--no-fund"], {
       cwd,
@@ -166,6 +166,11 @@ export async function initVideoChatApp(options: InitVideoChatOptions): Promise<I
   const planned = new Map<string, string>();
   for (const path of SCAFFOLD_FILES) {
     planned.set(path, readFileSync(join(starterRoot, path), "utf8"));
+  }
+  // Application-owned registry is extended by providers add and may be edited.
+  const providersPath = safeProjectPath(cwd, "providers.ts");
+  if (!existsSync(providersPath)) {
+    planned.set("providers.ts", readFileSync(join(starterRoot, "providers.ts"), "utf8"));
   }
   planned.set("package.json", mergedManifest(cwd, starterRoot, options.sdkSpec));
   planned.set(".gitignore", mergeGitignore(
@@ -191,7 +196,6 @@ export async function initVideoChatApp(options: InitVideoChatOptions): Promise<I
     throw new Error(`${path} already exists with different content. Run init in a new npm project.`);
   }
 
-  if (!changed) return { initialized: false, installed: false };
   for (const [path, contents] of planned) {
     const destination = safeProjectPath(cwd, path);
     if (!existsSync(destination) || readFileSync(destination, "utf8") !== contents) atomicWrite(destination, contents);
@@ -203,5 +207,5 @@ export async function initVideoChatApp(options: InitVideoChatOptions): Promise<I
     const detail = cause instanceof Error ? cause.message : String(cause);
     throw new Error(`${detail}. The app files are ready; run npm install to finish setup.`);
   }
-  return { initialized: true, installed: true };
+  return { initialized: changed, installed: true };
 }
