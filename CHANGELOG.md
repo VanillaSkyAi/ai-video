@@ -4,6 +4,8 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Adds local, content-free playback observations for scene presentation, actual speech onset, and waits for the next scene. Measurements ignore stale callbacks and exclude deliberate pauses from stall duration.
+
 - Runs setup checks automatically after init and supports retrying interrupted
   installation. The baseline needs one text-provider key, packaged templates,
   and browser voice; optional speech and video packages install only through

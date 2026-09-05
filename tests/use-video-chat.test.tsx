@@ -167,6 +167,99 @@ describe("useVideoChat", () => {
     } finally { act(() => result.current.cancel()); vi.useRealTimers(); }
   });
 
+  it("reports presentation, actual speech onset, and starvation without content", async () => {
+    const { useVideoChat } = await import("../src/react");
+    let now = 100;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const metrics: unknown[] = [];
+    const firstFrame = vi.fn();
+    let speechStarted: (() => void) | undefined;
+    const voice = { ...fakeVoice(), speak: vi.fn((text: string, options: { onStart?: () => void }) => {
+      if (text.startsWith("Let us begin")) return Promise.resolve();
+      return new Promise<void>((resolve) => { speechStarted = () => { options.onStart?.(); resolve(); }; });
+    }) };
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher: videoChatFetcher(), voice,
+      createTurnId: () => "opaque-turn", onFirstFrame: firstFrame, onPlaybackMetric: (metric) => { metrics.push(metric); },
+    }));
+    await act(async () => { await result.current.ask("private prompt"); });
+    expect(metrics).toEqual([]);
+    act(() => result.current.playerProps?.onSceneChange?.(scene("one", "private scene", "private narration"), 0));
+    expect(metrics).toEqual([]);
+    now = 150;
+    act(() => result.current.playerProps?.onFramePresented?.());
+    now = 200;
+    act(() => speechStarted?.());
+    act(() => speechStarted?.());
+    now = 300;
+    act(() => result.current.playerProps?.onStallChange?.(true));
+    now = 550;
+    act(() => result.current.playerProps?.onStallChange?.(false));
+    expect(metrics).toEqual([
+      { type: "first-frame", turnId: "opaque-turn", mode: "templates", elapsedMs: 50 },
+      { type: "first-speech", turnId: "opaque-turn", mode: "templates", elapsedMs: 100, source: "custom" },
+      { type: "stall", turnId: "opaque-turn", mode: "templates", elapsedMs: 450, durationMs: 250, reason: "scene-generation" },
+    ]);
+    expect(firstFrame).toHaveBeenCalledOnce();
+    expect(JSON.stringify(metrics)).not.toMatch(/private|https|sceneId/);
+    act(() => result.current.cancel());
+    act(() => result.current.playerProps?.onFramePresented?.());
+    act(() => speechStarted?.());
+    expect(metrics).toHaveLength(3);
+  });
+
+  it("excludes pauses from starvation and isolates rejected metric observers", async () => {
+    const { useVideoChat } = await import("../src/react");
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const observer = vi.fn(() => Promise.reject(new Error("observer failure")));
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher: videoChatFetcher(), voice: fakeVoice(),
+      onPlaybackMetric: observer, onFirstFrame: () => { throw new Error("frame observer failure"); },
+    }));
+    await act(async () => { await result.current.ask("A response"); });
+    act(() => result.current.playerProps?.onFramePresented?.());
+    now = 100;
+    act(() => result.current.playerProps?.onStallChange?.(true));
+    now = 200;
+    act(() => result.current.pause());
+    act(() => result.current.playerProps?.onStallChange?.(true));
+    now = 1_000;
+    act(() => result.current.resume());
+    act(() => result.current.playerProps?.onStallChange?.(true));
+    now = 1_200;
+    act(() => result.current.playerProps?.onStallChange?.(false));
+    await act(async () => { await Promise.resolve(); });
+    expect(observer.mock.calls.map((call) => (call as unknown[])[0]).filter((metric) => (metric as { type: string }).type === "stall"))
+      .toEqual([expect.objectContaining({ durationMs: 100 }), expect.objectContaining({ durationMs: 200 })]);
+    expect(result.current.error).toBeUndefined();
+    expect(result.current.currentTurn?.completed).toBe(true);
+  });
+
+  it("ignores retained player callbacks while the next turn is waiting for its stream", async () => {
+    const { useVideoChat } = await import("../src/react");
+    const base = videoChatFetcher();
+    let count = 0;
+    let release!: (response: Response) => void;
+    let turn = 0;
+    const metrics: unknown[] = [];
+    const fetcher: typeof fetch = (input, init) => {
+      if (String(input).includes("action=response") && ++count === 2) return new Promise((resolve) => { release = resolve; });
+      return base(input, init);
+    };
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice(),
+      createTurnId: () => `turn-${++turn}`, onPlaybackMetric: (metric) => { metrics.push(metric); },
+    }));
+    await act(async () => { await result.current.ask("First"); });
+    const old = result.current.playerProps;
+    let next!: Promise<Video | undefined>;
+    act(() => { next = result.current.ask("Second"); });
+    act(() => { old?.onFramePresented?.(); old?.onStallChange?.(true); old?.onPlaybackEnd?.(result.current.turns[0].video!); });
+    expect(result.current.status).toBe("composing");
+    expect(metrics).toEqual([]);
+    await act(async () => { release(responseStream("second", [scene("second", "Second", "Second narration")])); await next; });
+    act(() => result.current.playerProps?.onFramePresented?.());
+    expect(metrics).toEqual([expect.objectContaining({ type: "first-frame", turnId: "turn-2" })]);
+  });
+
   it("loads capabilities and welcome content from the one default endpoint", async () => {
     const { useVideoChat } = await import("../src/react");
     const requests: Array<{ action: string | null; body?: unknown }> = [];
@@ -212,8 +305,8 @@ describe("useVideoChat", () => {
     }));
 
     await act(async () => { await result.current.ask("Measure this response"); });
-    act(() => result.current.playerProps?.onSceneChange?.(scene("one", "First"), 0));
-    act(() => result.current.playerProps?.onSceneChange?.(scene("one", "First"), 0));
+    act(() => result.current.playerProps?.onFramePresented?.());
+    act(() => result.current.playerProps?.onFramePresented?.());
 
     expect(onFirstFrame).toHaveBeenCalledOnce();
     expect(onFirstFrame).toHaveBeenCalledWith({

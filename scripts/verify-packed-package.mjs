@@ -601,7 +601,7 @@ import type { Video, VideoBackground, VideoBrand, VideoBrandInput, VideoValidati
 // @ts-expect-error VideoState is internal and must not be exported from the root.
 import type { VideoState } from "@vanillaskyai/video";
 import { createVideoChatVoice, VideoChat, VideoError, VideoPlayer, useVideoChat } from "@vanillaskyai/video/react";
-import type { UseVideoChatResult, VideoChatProps, VideoChatTurn, VideoChatVoice } from "@vanillaskyai/video/react";
+import type { UseVideoChatOptions, UseVideoChatResult, VideoChatPlaybackMetric, VideoChatProps, VideoChatTurn, VideoChatVoice } from "@vanillaskyai/video/react";
 // @ts-expect-error VideoPlayerBinding is internal and must not be exported from React.
 import type { VideoPlayerBinding } from "@vanillaskyai/video/react";
 import type { VideoChatCapabilities, VideoChatHandlerOptions, VideoGenerationSummary, VideoProviderUsage, VideoWarning } from "@vanillaskyai/video/server";
@@ -644,12 +644,48 @@ const savedPlayer = createElement(VideoPlayer, {
   video,
   autoPlay: false,
   onPlaybackEnd: (completed) => { void completed.schemaVersion; },
+  onFramePresented: () => undefined,
+  onStallChange: (stalled) => { const waiting: boolean = stalled; void waiting; },
 });
 const createdChatVoice = createVideoChatVoice({ fetcher: fetch, onFallback: () => undefined });
+type Assert<T extends true> = T;
+type Same<Left, Right> = (<Value>() => Value extends Left ? 1 : 2) extends (<Value>() => Value extends Right ? 1 : 2) ? true : false;
+type FrameFields = Assert<Same<keyof Extract<VideoChatPlaybackMetric, { type: "first-frame" }>, "type" | "turnId" | "mode" | "elapsedMs">>;
+type SpeechFields = Assert<Same<keyof Extract<VideoChatPlaybackMetric, { type: "first-speech" }>, "type" | "turnId" | "mode" | "elapsedMs" | "source">>;
+type StallFields = Assert<Same<keyof Extract<VideoChatPlaybackMetric, { type: "stall" }>, "type" | "turnId" | "mode" | "elapsedMs" | "durationMs" | "reason">>;
+const metricTypeChecks: [FrameFields, SpeechFields, StallFields] = [true, true, true];
+const performanceOptions: UseVideoChatOptions = {
+  onPlaybackMetric: (metric) => {
+    const elapsed: number = metric.elapsedMs;
+    if (metric.type === "first-speech") {
+      const source: "browser" | "generated" | "custom" = metric.source;
+      return [elapsed, source];
+    }
+    if (metric.type === "stall") {
+      const duration: number = metric.durationMs;
+      const reason: "scene-generation" = metric.reason;
+      return [elapsed, duration, reason];
+    }
+    // @ts-expect-error Frame observations contain no provider diagnostics.
+    metric.source;
+    return elapsed;
+  },
+};
+const metric: VideoChatPlaybackMetric = { type: "first-frame", turnId: "turn", mode: "templates", elapsedMs: 10 };
+// @ts-expect-error Performance events contain no prompt text.
+const promptMetric: VideoChatPlaybackMetric = { type: "first-frame", turnId: "turn", mode: "templates", elapsedMs: 10, prompt: "private" };
+// @ts-expect-error Speech source is a bounded category, never a provider name.
+const providerMetric: VideoChatPlaybackMetric = { type: "first-speech", turnId: "turn", mode: "templates", elapsedMs: 10, source: "provider" };
+void createdChatVoice.speak("Spoken onset", { signal: new AbortController().signal, onStart: (source) => {
+  const kind: "browser" | "generated" | undefined = source;
+  void kind;
+} });
+void [metricTypeChecks, performanceOptions, metric, promptMetric, providerMetric];
+
 const videoChatProps: VideoChatProps = { options: { voice: chatVoice }, className: "customer-shell" };
 const packedVideoChat = createElement(VideoChat, videoChatProps);
 const PackedChatTypeProbe = () => {
-  const chat = useVideoChat({ voice: chatVoice });
+  const chat = useVideoChat({ voice: chatVoice, ...performanceOptions });
   return createElement("output", null, chat.status, chatTurn.completed ? "complete" : "pending");
 };
 const builtinId: BuiltinTemplateId = "bigNumber";
@@ -768,6 +804,7 @@ createRoot(document.getElementById("root")).render(mediaProbe
         autoPlay: false,
         width: 360,
         onPlaybackEnd: () => { globalThis.document.documentElement.dataset.playbackEnded = "true"; },
+        onFramePresented: () => { const data = globalThis.document.documentElement.dataset; data.presentedFrames = String(Number(data.presentedFrames ?? 0) + 1); },
       }),
       createElement("output", {
         id: "typed-error",
@@ -829,6 +866,9 @@ createRoot(document.getElementById("root")).render(mediaProbe
       await page.waitForFunction(() => globalThis.document.documentElement.dataset.playbackEnded === "true", undefined, { timeout: 5_000 });
     } catch {
       throw new Error("Packed playback-end callback did not fire");
+    }
+    if (await page.evaluate(() => globalThis.document.documentElement.dataset.presentedFrames) !== "1") {
+      throw new Error("Packed frame-presentation observer did not report the actual rendered response once");
     }
     if (generationRequests !== 0) throw new Error("Packed saved replay called the generation endpoint");
     if (browserErrors.length > 0) throw new Error(`Packed consumer browser errors:\n${browserErrors.join("\n")}`);

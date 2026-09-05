@@ -65,6 +65,8 @@ export function VideoPlayerRuntime({
   onComplete,
   onError,
   onSceneChange,
+  onFramePresented,
+  onStallChange,
   onStateChange,
 }: VideoPlayerRuntimeProps): ReactElement {
   const nativeMediaVolume = Math.max(0, Math.min(1,
@@ -102,15 +104,25 @@ export function VideoPlayerRuntime({
   const timeRef = useRef(currentTime);
   const audioRef = useRef<HTMLAudioElement>(null);
   const introStartedAtRef = useRef<number | null>(autoStartGeneration ? performance.now() : null);
-  const callbacksRef = useRef({ onComplete, onPlaybackEnd, onError, onSceneChange, onStateChange });
+  const callbacksRef = useRef({ onComplete, onPlaybackEnd, onError, onSceneChange, onFramePresented, onStallChange, onStateChange });
   const loopRef = useRef(loop);
   const sceneIndexRef = useRef(-1);
   const playbackEndedRef = useRef(false);
 
   stateRef.current = state;
   timeRef.current = currentTime;
-  callbacksRef.current = { onComplete, onPlaybackEnd, onError, onSceneChange, onStateChange };
+  callbacksRef.current = { onComplete, onPlaybackEnd, onError, onSceneChange, onFramePresented, onStallChange, onStateChange };
   loopRef.current = loop;
+
+  const reportFramePresented = useMemo(() => {
+    let reported = false;
+    return () => {
+      if (reported) return;
+      reported = true;
+      try { void Promise.resolve(callbacksRef.current.onFramePresented?.()).catch(() => undefined); }
+      catch { /* Observers cannot stop playback. */ }
+    };
+  }, [stream, video]);
 
   const primeSoundtrack = () => {
     const audio = audioRef.current;
@@ -517,6 +529,7 @@ export function VideoPlayerRuntime({
       {!generationCoverVisible && config?.scenes.length ? (
         <VideoFrame
           kit={kit}
+          onFramePresented={!showStartPoster && onFramePresented ? reportFramePresented : undefined}
           config={displayConfig!}
           time={showStartPoster ? posterTime : currentTime}
           width={dimensions.width}

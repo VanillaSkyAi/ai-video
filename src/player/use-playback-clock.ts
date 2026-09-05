@@ -12,6 +12,7 @@ interface PlaybackClockOptions {
   sceneIndexRef: { current: number };
   callbacksRef: {
     current: {
+      onStallChange?: (stalled: boolean) => unknown;
       onSceneChange?: (scene: VideoScene, index: number) => void;
     };
   };
@@ -32,6 +33,12 @@ export function usePlaybackClock({
 }: PlaybackClockOptions): void {
   useEffect(() => {
     if (!isPlaying) return;
+    let stalled = false;
+    const reportStall = (next: boolean) => {
+      if (stalled === next) return;
+      stalled = next;
+      try { void Promise.resolve(callbacksRef.current.onStallChange?.(next)).catch(() => undefined); } catch { /* Observers cannot stop playback. */ }
+    };
     let frame = 0;
     let previous = performance.now();
     const tick = (now: number) => {
@@ -83,10 +90,11 @@ export function usePlaybackClock({
         }
       }
       const duration = current.config ? getVideoDuration(current.config) : 0;
+      reportStall(!settled && Boolean(current.config?.scenes.length) && duration > 0 && timeRef.current >= duration);
       if (!settled || looping || timeRef.current < duration) frame = requestAnimationFrame(tick);
       else setIsPlaying(false);
     };
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    return () => { cancelAnimationFrame(frame); reportStall(false); };
   }, [isPlaying]);
 }

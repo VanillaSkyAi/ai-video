@@ -44,6 +44,50 @@ function fakeVoice() {
 }
 
 describe("useNarration", () => {
+  it("forwards actual onset once for the active scene and ignores late custom voice events", async () => {
+    const { useNarration } = await import("../src/player/use-narration");
+    const starts: Array<((source?: "browser" | "generated") => void) | undefined> = [];
+    const finishes: Array<() => void> = [];
+    const voice = { speak: (_text: string, options: { signal: AbortSignal; onStart?: (source?: "browser" | "generated") => void }) => {
+      starts.push(options.onStart);
+      return new Promise<void>((resolve) => finishes.push(resolve));
+    } };
+    const onSpeechStart = vi.fn();
+    const { result, unmount } = renderHook(() => useNarration({ voice, onSpeechStart }));
+    act(() => result.current.onSceneChange(scene("first", "First line."), 0));
+    expect(onSpeechStart).not.toHaveBeenCalled();
+    act(() => result.current.onSceneChange(scene("second", "Second line."), 1));
+    starts[0]?.("browser");
+    expect(onSpeechStart).not.toHaveBeenCalled();
+    starts[1]?.("generated");
+    starts[1]?.("generated");
+    expect(onSpeechStart).toHaveBeenCalledExactlyOnceWith("generated");
+    act(() => result.current.interrupt());
+    act(() => result.current.onSceneChange(scene("third", "Third line."), 2));
+    unmount();
+    starts[2]?.("browser");
+    expect(onSpeechStart).toHaveBeenCalledOnce();
+    for (const finish of finishes) finish();
+  });
+
+  it("isolates custom speech observers and suppresses events after completion", async () => {
+    const { useNarration } = await import("../src/player/use-narration");
+    let start: ((source?: "browser" | "generated") => void) | undefined;
+    let finish!: () => void;
+    const voice = { speak: (_text: string, options: { onStart?: (source?: "browser" | "generated") => void }) => {
+      start = options.onStart;
+      return new Promise<void>((resolve) => { finish = resolve; });
+    } };
+    const onSpeechStart = vi.fn(() => Promise.reject(new Error("Observer failed")));
+    const { result, unmount } = renderHook(() => useNarration({ voice, onSpeechStart }));
+    act(() => result.current.onSceneChange(scene("first", "First line."), 0));
+    expect(() => start?.()).not.toThrow();
+    await act(async () => { finish(); });
+    start?.("browser");
+    expect(onSpeechStart).toHaveBeenCalledExactlyOnceWith(undefined);
+    unmount();
+  });
+
   it("speaks a scene's line when that scene begins", async () => {
     const { useNarration } = await import("../src/player/use-narration");
     const voice = fakeVoice();
@@ -97,7 +141,8 @@ describe("useNarration", () => {
 
   it("reports whether it is speaking, so a page can wait before asking again", async () => {
     const { useNarration } = await import("../src/player/use-narration");
-    const voice = fakeVoice();
+    let finish!: () => void;
+    const voice = { speak: () => new Promise<void>((resolve) => { finish = resolve; }) };
     const { result } = renderHook(() => useNarration({ voice }));
 
     expect(result.current.speaking).toBe(false);
@@ -106,6 +151,8 @@ describe("useNarration", () => {
       await Promise.resolve();
     });
     expect(result.current.speaking).toBe(true);
+    await act(async () => { finish(); });
+    expect(result.current.speaking).toBe(false);
   });
 
   it("goes quiet when interrupted, and stays quiet until the next scene", async () => {

@@ -208,7 +208,14 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
       if (sounding) sounding.muted = muted;
       if (muted) stopBrowser();
     },
-    async speak(text, { signal }): Promise<void> {
+    async speak(text, { signal, onStart }): Promise<void> {
+      let started = false;
+      const notifyStart = (source?: "browser" | "generated") => {
+        if (started || disposed || signal.aborted || silent || held) return;
+        started = true;
+        try { void Promise.resolve(onStart?.(source)).catch(() => undefined); }
+        catch { /* Observer failures do not affect playback. */ }
+      };
       const line = await load(text, signal);
       if (disposed || signal.aborted || silent) return;
       if (line.source === "browser") {
@@ -224,6 +231,7 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
             clearWatchdog();
             signal.removeEventListener("abort", stop);
             speechStops.delete(stop);
+            utterance.onstart = null;
             utterance.onend = null;
             utterance.onerror = null;
             if (browserFinish === finish) browserFinish = undefined;
@@ -236,6 +244,7 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
           const clearWatchdog = watchSpeech(estimatedBrowserSeconds(text), stop);
           speechStops.add(stop);
           browserFinish = finish;
+          utterance.onstart = () => { if (!finished) notifyStart("browser"); };
           utterance.onend = finish;
           utterance.onerror = finish;
           signal.addEventListener("abort", stop, { once: true });
@@ -262,6 +271,7 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
             clearWatchdog();
             signal.removeEventListener("abort", stop);
             speechStops.delete(stop);
+            element.onplaying = null;
             element.onended = null;
             element.onerror = null;
             if (sounding === element) {
@@ -278,6 +288,7 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
           const clearWatchdog = watchSpeech(Math.max(line.seconds, estimatedBrowserSeconds(text)), fail);
           speechStops.add(stop);
           playbackFailure = fail;
+          element.onplaying = () => { if (!finished) notifyStart("generated"); };
           element.onended = finish;
           element.onerror = fail;
           signal.addEventListener("abort", stop, { once: true });
@@ -294,7 +305,7 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
         notifyFallback();
         URL.revokeObjectURL(line.src);
         lines.set(text.trim(), { source: "browser", seconds: estimatedBrowserSeconds(text) });
-        await this.speak(text, { signal });
+        await this.speak(text, { signal, onStart: notifyStart });
       }
     },
     dispose() {

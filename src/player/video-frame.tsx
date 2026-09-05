@@ -5,6 +5,7 @@ import {
   lazy,
   Suspense,
   useState,
+  useEffect,
   useSyncExternalStore,
   type CSSProperties,
   type ReactElement,
@@ -26,7 +27,19 @@ import {
 import { ExternalVideoBackdropProvider } from "../visual-system/scene-templates/external-video-backdrop.js";
 import { supportsExternalVideoBackdrop } from "../visual-system/catalog/video-backdrop-capability.js";
 
-function SafeScene({ scene }: { scene: VideoScene }): ReactElement {
+function PresentedScene({ notify }: { notify?: () => unknown }): null {
+  useEffect(() => {
+    if (!notify) return;
+    const frame = requestAnimationFrame(() => {
+      try { void Promise.resolve(notify()).catch(() => undefined); }
+      catch { /* Observers cannot affect scene rendering. */ }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [notify]);
+  return null;
+}
+
+function SafeScene({ scene, onFramePresented }: { scene: VideoScene; onFramePresented?: () => unknown }): ReactElement {
   const copy = scene.narration?.trim() || Object.values(scene.variables)
     .filter((value): value is string => typeof value === "string" && !/^https?:/i.test(value))
     .join(" ");
@@ -38,13 +51,14 @@ function SafeScene({ scene }: { scene: VideoScene }): ReactElement {
       font: "500 clamp(20px, 4vw, 64px)/1.3 system-ui", overflow: "hidden",
     }}
   >
+    <PresentedScene notify={onFramePresented} />
     <p>{copy.slice(0, 600) || "Your response continues."}</p>
     <small style={{ fontSize: "0.3em" }} role="status">This scene uses a simpler layout.</small>
   </div>;
 }
 
 class SceneBoundary extends Component<
-  { scene: VideoScene; children: ReactNode },
+  { scene: VideoScene; children: ReactNode; onFramePresented?: () => unknown },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -54,7 +68,7 @@ class SceneBoundary extends Component<
   }
 
   render() {
-    return this.state.failed ? <SafeScene scene={this.props.scene} /> : this.props.children;
+    return this.state.failed ? <SafeScene scene={this.props.scene} onFramePresented={this.props.onFramePresented} /> : this.props.children;
   }
 }
 
@@ -158,6 +172,7 @@ function sceneBackgroundChanges(
 }
 
 export interface VideoFrameProps {
+  onFramePresented?: () => unknown;
   kit: PlayerTemplateRegistry;
   config: Video;
   time: number;
@@ -171,6 +186,7 @@ export interface VideoFrameProps {
 }
 
 interface SceneLayerProps {
+  onFramePresented?: () => unknown;
   kit: PlayerTemplateRegistry;
   config: Video;
   range: VideoSceneRange;
@@ -189,6 +205,7 @@ interface SceneLayerProps {
 }
 
 function SceneLayer({
+  onFramePresented,
   kit,
   config,
   range,
@@ -238,13 +255,14 @@ function SceneLayer({
         } as CSSProperties}
       >
         {template ? (
-          <SceneBoundary key={range.scene.id} scene={range.scene}>
+          <SceneBoundary key={range.scene.id} scene={range.scene} onFramePresented={onFramePresented}>
             <Suspense fallback={
               <div
                 data-template-loading={range.scene.templateId}
                 style={{ position: "absolute", inset: 0 }}
               />
             }>
+              <PresentedScene notify={onFramePresented} />
               {createElement(template.component, {
                 variables: {
                   ...(template.defaults ?? getTemplateDefaults(template.schema!)),
@@ -268,7 +286,7 @@ function SceneLayer({
             </Suspense>
           </SceneBoundary>
         ) : (
-          <SafeScene scene={range.scene} />
+          <SafeScene scene={range.scene} onFramePresented={onFramePresented} />
         )}
       </div>
     </ExternalVideoBackdropProvider>
@@ -276,6 +294,7 @@ function SceneLayer({
 }
 
 export function VideoFrame({
+  onFramePresented,
   kit,
   config,
   time,
@@ -315,7 +334,7 @@ export function VideoFrame({
         className={className}
         style={{ width, height, background: "#090712", color: "#fff", ...style }}
       >
-        <SafeScene scene={active.scene} />
+        <SafeScene scene={active.scene} onFramePresented={onFramePresented} />
       </div>
     );
   }
@@ -542,6 +561,7 @@ export function VideoFrame({
             ? [
             <SceneLayer
               key={active.scene.id}
+              onFramePresented={onFramePresented}
               kit={kit}
               config={config}
               range={active}
@@ -587,6 +607,7 @@ export function VideoFrame({
             : [
           <SceneLayer
             key={active.scene.id}
+            onFramePresented={onFramePresented}
             kit={kit}
             config={config}
             range={active}
