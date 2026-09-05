@@ -104,7 +104,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
     await page.goto("http://127.0.0.1:4274/tests/browser/fixtures/video-chat.html");
     await page.getByRole("button", { name: "Settings", exact: true }).focus();
     await page.keyboard.press("Enter");
-    const github = page.getByRole("link", { name: "View on GitHub" });
+    const github = page.getByRole("link", { name: "GitHub", exact: true });
     await github.focus();
     const bounds = await github.boundingBox();
     expect(bounds).not.toBeNull();

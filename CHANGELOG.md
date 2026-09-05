@@ -4,7 +4,7 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
-- Adds SDK setup and GitHub links to the default VideoChat Settings, keeping developer discovery within the shared interface.
+- Adds Docs, About, and GitHub links to the default VideoChat Settings, keeping developer discovery within the shared interface.
 
 ## 0.8.1
 

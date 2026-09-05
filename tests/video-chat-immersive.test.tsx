@@ -93,8 +93,9 @@ it("offers SDK discovery without leaving the current conversation", () => {
   render(<VideoChat />);
   fireEvent.click(screen.getByRole("button", { name: "Settings" }));
   const links = [
-    ["Get the SDK", "https://vanillasky.ai/docs/getting-started/"],
-    ["View on GitHub", "https://github.com/VanillaSkyAi/video"],
+    ["Docs", "https://vanillasky.ai/docs/getting-started/"],
+    ["About", "https://vanillasky.ai/about/"],
+    ["GitHub", "https://github.com/VanillaSkyAi/video"],
   ];
   for (const [name, href] of links) {
     const link = screen.getByRole("link", { name });
