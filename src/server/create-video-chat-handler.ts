@@ -11,6 +11,7 @@ import {
 } from "./create-video-handler.js";
 import type { ResolvedMedia } from "./media-resolver.js";
 import { getGenerationLifecycleSink, type VideoGenerationLifecycleSink } from "./lifecycle.js";
+import { withDeadline } from "../video-chat/deadline.js";
 import { sanitizeVideoChatMedia } from "../video-chat/media.js";
 import {
   type VideoChatFirstShot,
@@ -647,11 +648,13 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
             templateId: context.templateId,
             preferredType: context.preferredType,
           };
-          const attempt = async (resolver: VideoChatMediaResolver | undefined) => {
+          const attempt = async (resolver: VideoChatMediaResolver | undefined, timeoutMs: number) => {
             context.signal.throwIfAborted();
             if (!resolver) return null;
             try {
-              const result = sanitizeVideoChatMedia(await resolver(query, mediaContext));
+              const result = sanitizeVideoChatMedia(await withDeadline(
+                (signal) => resolver(query, { ...mediaContext, signal }), timeoutMs, context.signal,
+              ));
               context.signal.throwIfAborted();
               return result;
             } catch (cause) {
@@ -663,7 +666,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
             }
           };
           if (fullAiVideo) {
-            const generated = await attempt(generateVideo);
+            const generated = await attempt(generateVideo, 15_000);
             if (generated) return generated;
             lifecycle?.reportWarning?.({
               code: "provider_warning",
@@ -672,7 +675,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
               recoverable: true,
             });
           }
-          return attempt(searchMedia);
+          return attempt(searchMedia, 3_000);
         }
       : undefined;
     const handler = createVideoHandler({
@@ -760,15 +763,14 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
         const mediaResolver = searchMedia;
         const resolve = async (query: string | undefined) => {
           if (!mediaResolver || !query) return null;
-          const signal = AbortSignal.any([request.signal, AbortSignal.timeout(10_000)]);
           try {
-            const raw = await Promise.resolve().then(() => mediaResolver(query, {
+            const raw = await withDeadline((signal) => mediaResolver(query, {
               purpose: "welcome",
               orientation: "landscape",
               signal,
-            }));
+            }), 3_000, request.signal);
             const media = sanitizeVideoChatMedia(raw);
-            if (signal.aborted || (raw != null && !media)) failed = true;
+            if (request.signal.aborted || (raw != null && !media)) failed = true;
             return media;
           } catch (cause) {
             failed = true;
@@ -888,11 +890,11 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
         }
         if (!searchMedia) return Response.json({ media: null }, { headers });
         try {
-          const raw = await Promise.resolve().then(() => searchMedia(keyword, {
+          const raw = await withDeadline((signal) => searchMedia(keyword, {
             purpose: "response",
             orientation,
-            signal: request.signal,
-          }));
+            signal,
+          }), 3_000, request.signal);
           return Response.json({ media: sanitizeVideoChatMedia(raw) }, { headers });
         } catch (cause) {
           if (!request.signal.aborted) reportError(cause);
@@ -927,23 +929,23 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
           ? value.lines.slice(-8).map((line, index) => boundedString(line, `request.lines[${index}]`, 2_000))
           : [];
         try {
-          const text = await callText(
+          const text = await withDeadline((signal) => callText(
             "suggestions",
             VIDEO_CHAT_SUGGESTIONS_PROMPT,
             `USER PROMPT: ${prompt}\n\nVIDEO RESPONSE:\n${lines.join("\n")}`,
             512,
-            request.signal,
-          );
+            signal,
+          ), 3_000, request.signal);
           const subjects = readSuggestionSubjects(text);
           const mediaResolver = searchMedia;
           const media = await Promise.all(subjects.map(async (subject) => {
             if (!mediaResolver || !subject.keyword) return null;
             try {
-              const raw = await Promise.resolve().then(() => mediaResolver(subject.keyword, {
+              const raw = await withDeadline((signal) => mediaResolver(subject.keyword, {
                 purpose: "suggestion",
                 orientation: "landscape",
-                signal: request.signal,
-              }));
+                signal,
+              }), 3_000, request.signal);
               return sanitizeVideoChatMedia(raw);
             } catch (cause) {
               if (!request.signal.aborted) reportError(cause);
@@ -967,7 +969,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
         allowedKeys(value, ["text"], "request");
         const text = boundedString(value.text, "request.text", 4_000);
         try {
-          const result = await generateSpeech({ text, signal: request.signal });
+          const result = await withDeadline((signal) => generateSpeech({ text, signal }), 3_000, request.signal);
           return new Response(audioBody(result.audio), {
             headers: {
               ...Object.fromEntries(headers),

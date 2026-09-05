@@ -106,6 +106,67 @@ describe("useVideoChat", () => {
     vi.unstubAllGlobals();
   });
 
+  it("completes before suggestions and retains context while late suggestions are discarded", async () => {
+    const { useVideoChat } = await import("../src/react");
+    const requests: Array<{ action: string | null; body?: unknown }> = [];
+    const base = videoChatFetcher({ requests });
+    let resolveSuggestions!: (response: Response) => void;
+    let suggestionsSignal: AbortSignal | undefined;
+    const fetcher: typeof fetch = (input, init) => {
+      if (String(input).includes("action=suggestions")) {
+        suggestionsSignal = init?.signal ?? undefined;
+        return new Promise((resolve) => { resolveSuggestions = resolve; });
+      }
+      return base(input, init);
+    };
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice() }));
+    let first: Promise<Video | undefined>;
+    act(() => { first = result.current.ask("Explain the Moon"); });
+    await waitFor(() => expect(result.current.currentTurn?.completed).toBe(true));
+    expect(await first!).toBeDefined();
+    const firstSignal = suggestionsSignal;
+    const firstResolve = resolveSuggestions;
+    act(() => { void result.current.ask("Give an analogy"); });
+    await waitFor(() => expect(result.current.currentTurn?.completed).toBe(true));
+    expect(firstSignal?.aborted).toBe(true);
+    const responseRequests = requests.filter(({ action }) => action === "response");
+    expect(JSON.stringify(responseRequests[1].body)).toContain("Explain the Moon");
+    await act(async () => { firstResolve(Response.json({ suggestions: [{ prompt: "Obsolete suggestion", media: null }] })); });
+    expect(result.current.suggestions).toEqual([]);
+    await act(async () => { resolveSuggestions(Response.json({ suggestions: [{ prompt: "Current suggestion", media: null }] })); });
+    await waitFor(() => expect(result.current.suggestions[0]?.prompt).toBe("Current suggestion"));
+  });
+
+  it("falls back when scene narration ignores cancellation and never settles", async () => {
+    const { useVideoChat } = await import("../src/react");
+    vi.useFakeTimers();
+    const base = videoChatFetcher();
+    const fetcher: typeof fetch = (input, init) => String(input).includes("action=narration")
+      ? new Promise(() => undefined) : base(input, init);
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice() }));
+    try {
+      act(() => { void result.current.ask("Explain the Moon"); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(3_100); });
+      expect(result.current.currentTurn?.completed).toBe(true);
+      expect(result.current.currentTurn?.video?.scenes).toHaveLength(2);
+      expect(result.current.warnings).toContain("Some narration was simplified so the response could continue.");
+    } finally { result.current.cancel(); vi.useRealTimers(); }
+  });
+
+  it("keeps playable scenes when a custom voice preparation never settles", async () => {
+    const { useVideoChat } = await import("../src/react");
+    vi.useFakeTimers();
+    const voice = { ...fakeVoice(), prepare: vi.fn(() => new Promise<{ seconds: number }>(() => undefined)) };
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher: videoChatFetcher(), voice }));
+    try {
+      act(() => { void result.current.ask("Explain the Moon"); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(3_100); });
+      expect(result.current.currentTurn?.completed).toBe(true);
+      expect(result.current.playerProps).toBeDefined();
+      expect(result.current.currentTurn?.video?.scenes).toHaveLength(2);
+    } finally { act(() => result.current.cancel()); vi.useRealTimers(); }
+  });
+
   it("loads capabilities and welcome content from the one default endpoint", async () => {
     const { useVideoChat } = await import("../src/react");
     const requests: Array<{ action: string | null; body?: unknown }> = [];
@@ -186,7 +247,7 @@ describe("useVideoChat", () => {
     expect(voice.prepare).toHaveBeenCalledWith("Spoken one-1", expect.any(Object));
     expect(result.current.status).toBe("playing");
     expect(result.current.playbackEnded).toBe(false);
-    expect(result.current.suggestions).toEqual([{ prompt: "Take it somewhere stranger", media: null }]);
+    await waitFor(() => expect(result.current.suggestions).toEqual([{ prompt: "Take it somewhere stranger", media: null }]));
     expect(result.current.playerProps).toMatchObject({ autoPlay: true, paused: false, controls: false });
     expect(result.current.playerProps).toHaveProperty("stream");
     const events = [];

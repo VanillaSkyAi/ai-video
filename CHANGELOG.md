@@ -4,6 +4,8 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Bounds optional video, stock, speech, and narration waits so stalled providers fall back without holding the whole answer. Completed responses no longer wait for follow-up suggestions.
+
 - Preserves playable video-chat openings and completed scenes when planning or
   an optional provider fails. Malformed scene lines no longer discard later
   valid scenes; generated footage can fall back to stock and safe templates.
