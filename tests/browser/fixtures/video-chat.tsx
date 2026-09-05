@@ -1,4 +1,5 @@
 import React from "react";
+import "../../../styles/video-chat.css";
 import { createRoot } from "react-dom/client";
 import { VideoChat, type VideoChatVoice } from "../../../src/react";
 

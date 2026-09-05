@@ -59,7 +59,7 @@ describe("VideoChat", () => {
 
     expectTypeOf(VideoChat).toBeFunction();
     const root = container.querySelector(".vanillasky-video-chat");
-    expect(root?.getAttribute("data-theme")).toBe("system");
+    expect(root?.hasAttribute("data-theme")).toBe(false);
     expect(root?.classList.contains("customer-shell")).toBe(true);
     expect(await screen.findByText("in video, not text.")).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Explain why the sky changes colour" })).toBeTruthy();
@@ -88,8 +88,8 @@ describe("VideoChat", () => {
       voice: { prepare: async () => ({ seconds: 1 }), speak: async () => {}, pause() {}, resume() {}, setMuted() {} },
     }} />);
     fireEvent.click(await screen.findByRole("button", { name: "Invent a surreal bedtime story" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Full response" }));
-    await waitFor(() => expect(screen.getByRole("dialog").textContent).toContain("The ocean brings a new wave"));
+    fireEvent.click(await screen.findByRole("button", { name: "Expand subtitles" }));
+    await waitFor(() => expect(screen.getByRole("region", { name: "Expanded subtitles" }).textContent).toContain("The ocean brings a new wave"));
     expect(screen.queryByRole("status")).toBeNull();
     expect(document.body.textContent).not.toMatch(/simplified|private-provider-detail|Some visuals/);
   });
@@ -127,7 +127,7 @@ describe("VideoChat", () => {
     }
   });
 
-  it("uses unique control ids and keeps appearance on each component root", async () => {
+  it("uses unique control ids and keeps playback preferences on each component root", async () => {
     const { VideoChat } = await import("../src/react");
     const { container } = render(<><VideoChat options={{ fetcher: chatFetcher() }} /><VideoChat options={{ fetcher: chatFetcher() }} /></>);
     const settings = await screen.findAllByRole("button", { name: "Settings" });
@@ -135,11 +135,12 @@ describe("VideoChat", () => {
     expect(new Set(controlIds).size).toBe(2);
 
     fireEvent.click(settings[0]!);
-    fireEvent.click(await screen.findByRole("radio", { name: "Light" }));
+    fireEvent.click(await screen.findByRole("switch", { name: "Subtitles Read along with the answer" }));
 
     const roots = container.querySelectorAll(".vanillasky-video-chat");
-    expect(roots[0]?.getAttribute("data-theme")).toBe("light");
-    expect(roots[1]?.getAttribute("data-theme")).toBe("system");
+    expect(roots[0]?.hasAttribute("data-theme")).toBe(false);
+    expect(roots[1]?.hasAttribute("data-theme")).toBe(false);
+    expect(screen.queryByRole("radio", { name: "Light" })).toBeNull();
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
     const source = readFileSync(join(process.cwd(), "src/video-chat/video-chat.tsx"), "utf8");
     expect(source).not.toContain('aria-haspopup="menu"');

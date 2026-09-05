@@ -79,7 +79,7 @@ describe("packed package verification", () => {
     expect(script).toContain("Packed VideoChat welcome did not render");
     expect(script).toContain("Packed VideoChat stylesheet did not apply");
     expect(script).toContain("Packed VideoChat stylesheet leaked into the host page");
-    expect(script).toContain("Packed VideoChat system light contrast drifted");
+    expect(script).toContain("Packed VideoChat increased-contrast glass drifted");
     expect(script).toContain("VideoChatProps");
     expect(script).toContain("provider secret");
     expect(script).toContain('from "@vanillaskyai/video/templates/catalog"');

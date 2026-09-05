@@ -937,12 +937,12 @@ createRoot(document.getElementById("root")).render(mediaProbe
     const contrastColors = await packedChat.evaluate((element) => {
       const style = element.ownerDocument.defaultView?.getComputedStyle(element);
       return {
-        background: style?.getPropertyValue("--vs-bg").trim(),
-        muted: style?.getPropertyValue("--vs-fg-muted").trim(),
+        background: style?.getPropertyValue("--vs-media-glass").trim(),
+        muted: style?.getPropertyValue("--vs-media-muted").trim(),
       };
     });
-    if (!contrastColors.background.includes("0.974") || !contrastColors.muted.includes("0.35")) {
-      throw new Error("Packed VideoChat system light contrast drifted");
+    if (contrastColors.background !== "#121622" || contrastColors.muted !== "#e4e5ef") {
+      throw new Error("Packed VideoChat increased-contrast glass drifted");
     }
     if (browserErrors.length > 0) throw new Error(`Packed VideoChat browser errors:\n${browserErrors.join("\n")}`);
 

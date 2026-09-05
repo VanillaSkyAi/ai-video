@@ -71,6 +71,10 @@ export function App() {
 }
 ```
 
+The default interface puts video behind a floating conversation field, with
+on-video subtitles and contextual controls. See the [immersive interface guide](docs/immersive-interface.md)
+for behavior and [customization](docs/customization.md) for application branding.
+
 Use `useVideoChat` when you want a custom interface while keeping the SDK-owned
 conversation and playback lifecycle. Edit the generated server when you want a
 different provider. The [provider guide](docs/provider-integration.md) explains

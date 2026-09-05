@@ -1,4 +1,5 @@
 import { defineConfig } from "tsup";
+import { copyFile, mkdir } from "node:fs/promises";
 
 export default defineConfig({
   entry: {
@@ -20,4 +21,8 @@ export default defineConfig({
   clean: true,
   splitting: true,
   external: ["react", "react-dom"],
+  async onSuccess() {
+    await mkdir("dist/assets", { recursive: true });
+    await copyFile("src/video-chat/assets/vanillasky-logo.svg", "dist/assets/vanillasky-logo.svg");
+  },
 });

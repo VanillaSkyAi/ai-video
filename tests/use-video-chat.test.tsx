@@ -862,6 +862,61 @@ describe("useVideoChat", () => {
     expect(result.current.suggestions).toEqual([]);
   });
 
+
+  it("restores archived completed turns after reset and can select an earlier answer", async () => {
+    const { useVideoChatSession } = await import("../src/video-chat/use-video-chat");
+    const { result } = renderHook(() => useVideoChatSession({ fetcher: videoChatFetcher(), voice: fakeVoice(), templates: kit }));
+    await act(async () => { await result.current.chat.ask("First question"); });
+    await act(async () => { await result.current.chat.ask("Second question"); });
+    const saved = result.current.chat.turns;
+    act(() => result.current.chat.reset());
+    expect(result.current.chat.turns).toHaveLength(0);
+    act(() => result.current.restoreSession(saved));
+    expect(result.current.chat.turns).toEqual(saved);
+    expect(result.current.chat.shownTurn?.id).toBe(saved[1]!.id);
+    expect(result.current.chat.status).toBe("playing");
+    act(() => result.current.chat.selectTurn(saved[0]!.id));
+    expect(result.current.chat.shownTurn?.id).toBe(saved[0]!.id);
+    expect(result.current.chat.playerProps?.video).toEqual(saved[0]!.video);
+    expect(Object.keys(result.current.chat)).not.toContain("restoreSession");
+    const longHistory = Array.from({ length: 105 }, (_, index) => ({ ...saved[0]!, id: `saved-${index}` }));
+    act(() => result.current.restoreSession([...longHistory, { ...saved[1]!, id: "unfinished", completed: false }]));
+    expect(result.current.chat.turns).toHaveLength(100);
+    expect(result.current.chat.turns[0]?.id).toBe("saved-5");
+    expect(result.current.chat.shownTurn?.id).toBe("saved-104");
+  });
+
+  it("isolates restored history from a pending response that ignores cancellation", async () => {
+    const { useVideoChatSession } = await import("../src/video-chat/use-video-chat");
+    let resolvePending!: (response: Response) => void;
+    let responseSignal: AbortSignal | undefined;
+    const base = videoChatFetcher();
+    let hold = false;
+    const fetcher: typeof fetch = (input, init) => {
+      if (hold && new URL(String(input), "https://app.example").searchParams.get("action") === "response") {
+        responseSignal = init?.signal ?? undefined;
+        return new Promise<Response>((resolve) => { resolvePending = resolve; });
+      }
+      return base(input, init);
+    };
+    const voice = fakeVoice();
+    const { result } = renderHook(() => useVideoChatSession({ fetcher, voice, templates: kit }));
+    await act(async () => { await result.current.chat.ask("Archived answer"); });
+    const saved = result.current.chat.turns;
+    hold = true;
+    let pending!: ReturnType<typeof result.current.chat.ask>;
+    act(() => { pending = result.current.chat.ask("Abandoned answer"); });
+    await waitFor(() => expect(resolvePending).toBeTypeOf("function"));
+    act(() => result.current.restoreSession(saved));
+    expect(responseSignal?.aborted).toBe(true);
+    await act(async () => {
+      resolvePending(responseStream("late", [scene("late", "Must not replace history")]));
+      await pending;
+    });
+    expect(result.current.chat.turns).toEqual(saved);
+    expect(result.current.chat.shownTurn?.prompt).toBe("Archived answer");
+    expect(result.current.chat.status).toBe("playing");
+  });
   it("resets the full session and aborts work on unmount", async () => {
     const { useVideoChat } = await import("../src/react");
     const voice = fakeVoice();
