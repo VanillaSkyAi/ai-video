@@ -1,6 +1,6 @@
 /** A quiet, zero-baseline comparison. Values are exact throughout the reveal. */
 import type { SafeZone } from "../../template-context";
-import { withOpacity } from "../../theme";
+import { fitTextSize } from "../../typography";
 
 export interface BarChartDatum {
   label: string;
@@ -60,7 +60,7 @@ export const BarChart: React.FC<BarChartProps> = ({
   return (
     <div
       role="img"
-      aria-label={values.map(({ label, value }) => `${label || "Value"}: ${String(value)}`).join(", ")}
+      aria-label={[topic, values.map(({ label, value }) => `${label || "Value"}: ${String(value)}`).join(", ")].filter(Boolean).join(". ")}
       data-bar-chart="true"
       style={{
         position: "absolute",
@@ -78,7 +78,9 @@ export const BarChart: React.FC<BarChartProps> = ({
           data-bar-chart-topic="true"
           style={{
             position: "absolute", top: -120 * s, left: 0, width: "100%",
-            color: textColor, fontSize: 40 * s, fontWeight: 500, lineHeight: 1.3,
+            color: textColor,
+            fontSize: fitTextSize(topic, 40 * s, chartWidth, { minScale: 0.7, charWidthRatio: 1 }),
+            fontWeight: 500, lineHeight: 1.3,
             overflowWrap: "anywhere", opacity: 1,
           }}
         >
@@ -95,12 +97,12 @@ export const BarChart: React.FC<BarChartProps> = ({
             data-bar-chart-item="true"
             style={{ height: rowHeight, flexShrink: 0, minWidth: 0, position: "relative" }}
           >
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 24 * s, opacity: easedReveal }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24 * s, opacity: easedReveal }}>
               <div
                 data-bar-chart-label="true"
                 style={{
                   color: textColor,
-                  fontSize: labelSize,
+                  fontSize: fitTextSize(label, labelSize, chartWidth * 0.55, { minScale: 0.75, charWidthRatio: 1 }),
                   lineHeight: 1.25,
                   fontWeight: 500,
                   maxWidth: "55%",
@@ -125,7 +127,7 @@ export const BarChart: React.FC<BarChartProps> = ({
                 {exactValue}
               </div>
             </div>
-            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: barHeight, backgroundColor: withOpacity(textColor, 0.08), borderRadius: 3 * s }}>
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: barHeight }}>
               <div
                 data-bar-chart-fill="true"
                 style={{

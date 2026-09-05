@@ -39,6 +39,16 @@ function renderTemplate(
 }
 
 describe("bar chart", () => {
+  it("announces the comparison topic and unit together with the exact values", () => {
+    const markup = renderPrimitive({
+      topic: "Activation (%)", data: [{ label: "Before", value: 41 }, { label: "After", value: 58 }],
+      width: 1080, height: 1920, progress: 1,
+    });
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    expect(document.querySelector('[role="img"]')?.getAttribute("aria-label"))
+      .toBe("Activation (%). Before: 41, After: 58");
+  });
+
   it.each([
     [1080, 1920],
     [1920, 1080],

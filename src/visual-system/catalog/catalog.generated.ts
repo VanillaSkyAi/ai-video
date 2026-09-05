@@ -471,7 +471,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
   {
     "id": "barChart",
     "label": "Bar chart",
-    "description": "Quiet horizontal bars compare exact values beneath a short topic, with room for subtitles.",
+    "description": "Quiet horizontal labeled bars compare exact values beneath a short topic, with room for subtitles.",
     "family": "Data & metrics",
     "jobs": [
       "proof"
