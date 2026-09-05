@@ -20,6 +20,7 @@ function Glyph({ children }: { children: ReactNode }) {
   return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" {...stroke}>{children}</svg>;
 }
 
+export const Sessions = () => <Glyph><path d="M5 3h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H8l-5 3V5a2 2 0 0 1 2-2Z" /><path d="M17 8h2a2 2 0 0 1 2 2v11l-4-3h-6a2 2 0 0 1-2-2v-2" /></Glyph>;
 export const Plus = () => <Glyph><path d="M12 5v14M5 12h14" /></Glyph>;
 export const Gear = () => <Glyph>
   <circle cx="12" cy="12" r="3" />

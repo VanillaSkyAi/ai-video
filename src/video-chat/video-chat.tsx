@@ -6,7 +6,7 @@ import { useVideoChatSession, type UseVideoChatOptions, type VideoChatTurn } fro
 import type { VideoChatMode, VideoChatSuggestion } from "./types.js";
 import { defaultMode, modeById, visualModes } from "./modes";
 import { defaultTheme, themeBackground, themeById, themes } from "./themes";
-import { ChevronUp, Close, Gear, Mic, Replay, Send, Sound, Stop, Muted, Play, Plus, Warning } from "./icons";
+import { ChevronUp, Close, Gear, Mic, Replay, Send, Sound, Stop, Muted, Play, Plus, Sessions, Warning } from "./icons";
 import { useDismiss, useFocusTrap } from "./use-dismiss";
 import { Welcome } from "./welcome";
 import { Frame, SuggestionCards } from "./suggestion-cards";
@@ -255,7 +255,7 @@ export function VideoChat({ options = {}, className, welcomeTitle, generatedVide
           aria-controls={historyId}
           onClick={() => { setHistoryOpen((open) => !open); setSettingsOpen(false); }}
         >
-          <Replay /><span className="nav-label">Sessions</span>
+          <Sessions /><span className="nav-label">Sessions</span>
         </button>}
       </div>
       <div className="group">

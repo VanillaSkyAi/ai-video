@@ -27,6 +27,7 @@ import type { VideoChatMedia, VideoChatSuggestion } from "./types.js";
  */
 export function Frame({ media, poster, playing }: { media: VideoChatMedia | null; poster?: boolean; playing?: boolean }) {
   const video = useRef<HTMLVideoElement>(null);
+  const [playingUrl, setPlayingUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const element = video.current;
@@ -37,11 +38,13 @@ export function Frame({ media, poster, playing }: { media: VideoChatMedia | null
 
   if (!media) return null;
   if (media.type === "image") return <img className="frame-media" src={media.url} alt="" />;
-  return <video
+  return <><video
     ref={video}
     className="frame-media"
     src={media.url}
     poster={poster ? media.posterUrl : undefined}
+    onPlaying={() => setPlayingUrl(media.url)}
+    onError={() => setPlayingUrl(null)}
     autoPlay={playing !== false}
     muted
     loop
@@ -50,7 +53,9 @@ export function Frame({ media, poster, playing }: { media: VideoChatMedia | null
     preload="metadata"
     // Decorative: it carries no information the words do not.
     aria-hidden="true"
-  />;
+  />
+    {poster && media.posterUrl && playingUrl !== media.url && <img className="frame-media frame-poster" src={media.posterUrl} alt="" />}
+  </>;
 }
 
 export function SuggestionCards({ suggestions, label, onAsk }: {
@@ -130,7 +135,7 @@ export function SuggestionCards({ suggestions, label, onAsk }: {
           onPointerEnter={() => take(index)}
           onClick={() => onAsk(card)}
         >
-          <Frame media={card.media} playing={index === at} />
+          <Frame media={card.media} poster playing={index === at} />
           <span className="card-wash" aria-hidden="true" />
           <span className="card-prompt">{card.prompt}</span>
         </button>

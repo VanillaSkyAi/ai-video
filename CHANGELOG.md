@@ -4,6 +4,8 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Show poster images on suggestion cards while videos are paused or autoplay is blocked, and use conversation bubbles for the Sessions button.
+
 ## 0.8.5
 
 - Align Settings section headings above their option containers with consistent spacing.
