@@ -562,10 +562,13 @@ function readSuggestionSubjects(text: string): SuggestionSubject[] {
   const parsed = JSON.parse(text.slice(opening, closing + 1)) as { suggestions?: unknown };
   return (Array.isArray(parsed.suggestions) ? parsed.suggestions : [])
     .flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
       const item = entry as { prompt?: unknown; keyword?: unknown };
-      const prompt = typeof item.prompt === "string" ? item.prompt.trim() : "";
+      const prompt = typeof item.prompt === "string" ? item.prompt.trim().replace(/\s+/gu, " ") : "";
       const keyword = typeof item.keyword === "string" ? item.keyword.trim() : "";
-      return prompt ? [{ prompt: prompt.slice(0, 300), keyword: keyword.slice(0, 80) }] : [];
+      // Keep whole questions: omit oversized suggestions rather than clipping meaning.
+      if (!prompt || Array.from(prompt).length > 60 || prompt.split(" ").length > 8) return [];
+      return [{ prompt, keyword: keyword.slice(0, 80) }];
     })
     .slice(0, 4);
 }

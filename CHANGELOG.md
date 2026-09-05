@@ -4,6 +4,8 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Keep generated follow-up prompts to one concise idea, at most eight words and sixty characters, for readable mobile cards.
+
 - Combine new conversations and history in one Sessions menu, and keep the follow-up input visible after playback ends.
 
 ## 0.8.4
