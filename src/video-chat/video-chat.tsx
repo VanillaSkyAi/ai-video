@@ -350,17 +350,21 @@ export function VideoChat({ options = {}, className, welcomeTitle, generatedVide
         </fieldset>
         <fieldset className="visual-options">
           <legend>Video creation</legend>
+          <div className="visual-choices">
           {availableModes.map((option) => <label className="choice-row" key={option.id}>
             <input type="radio" name={visualsName} checked={option.id === selectedMode.id} onChange={() => setModeId(option.id)} />
             <span><strong>{option.id === "full" ? generatedVideoLabel ?? option.label : option.label}</strong><small>{option.id === "full" ? generatedVideoDescription ?? option.note : option.note}</small></span>
           </label>)}
+          </div>
         </fieldset>
         <fieldset className="style-options">
           <legend>Video style</legend>
+          <div className="style-choices">
           {themes.map((option) => <label key={option.id}>
             <input type="radio" name={styleName} checked={option.id === themeId} onChange={() => setThemeId(option.id)} />
             <span><strong>{option.label}</strong></span>
           </label>)}
+          </div>
         </fieldset>
         <p className="settings-note">Creation and style changes apply to your next question.</p>
         <nav className="developer-links" aria-label="Build with VanillaSky">

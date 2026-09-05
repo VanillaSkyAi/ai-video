@@ -967,6 +967,38 @@ createRoot(document.getElementById("root")).render(mediaProbe
       if (!await sessions.evaluate((button) => button.ownerDocument.activeElement === button)) {
         throw new Error("Packed Sessions dismissal did not restore trigger focus");
       }
+      await packedChat.getByRole("button", { name: "Settings", exact: true }).click();
+      const settings = packedChat.getByRole("dialog", { name: "Settings", exact: true });
+      await settings.waitFor({ state: "visible" });
+      const headingLayout = await settings.evaluate((element) => {
+        // Measure the painted text, not the special fieldset/legend layout box.
+        for (const animation of element.getAnimations({ subtree: true })) {
+          if (animation.effect?.getComputedTiming().iterations !== Infinity) animation.finish();
+        }
+        return ["playback", "visual", "style"].map((kind) => {
+          const fieldset = element.querySelector("." + kind + "-options");
+          const legend = fieldset.querySelector("legend");
+          const range = element.ownerDocument.createRange();
+          range.selectNodeContents(legend);
+          const text = range.getBoundingClientRect();
+          const choices = fieldset.querySelector("." + kind + "-choices");
+          return { kind, label: legend.textContent, left: text.left, gap: choices ? choices.getBoundingClientRect().top - text.bottom : null };
+        });
+      });
+      if (headingLayout.map((heading) => heading.label).join("|") !== "Watching|Video creation|Video style") {
+        throw new Error("Packed Settings headings lost their fieldset semantics");
+      }
+      if (Math.max(...headingLayout.map((heading) => heading.left)) - Math.min(...headingLayout.map((heading) => heading.left)) > 1) {
+        throw new Error("Packed Settings headings are not horizontally aligned");
+      }
+      if (headingLayout.some((heading) => heading.kind !== "playback" && (heading.gap === null || heading.gap < 8))) {
+        throw new Error("Packed Settings choice backgrounds overlap their headings: " + JSON.stringify(headingLayout));
+      }
+      if (process.env.VANILLASKY_PACKED_SCREENSHOT_DIR) {
+        await page.screenshot({ animations: "disabled", path: join(process.env.VANILLASKY_PACKED_SCREENSHOT_DIR, viewport.width < 600 ? "settings-spacing-mobile.png" : "settings-spacing-desktop.png") });
+      }
+      await settings.getByRole("button", { name: "Close settings", exact: true }).click();
+      await settings.waitFor({ state: "hidden" });
     }
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ colorScheme: "light", contrast: "more" });
