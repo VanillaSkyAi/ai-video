@@ -529,6 +529,68 @@ if (!resilientEvents.some(({ type, data }) => type === "response.warning" && dat
 if (resilientBody.includes(privateCanary) || resilientBody.includes("TimeoutError")) {
   throw new Error("Packed recovered chat leaked private provider diagnostics");
 }
+
+// This provider genuinely never settles, rather than throwing a timeout itself.
+// Verify the packaged deadline preserves the first scene and produces a safe
+// replayable completion without waiting for application-owned cancellation.
+let deadlineGeneratedCalls = 0;
+let stalledStockSignal;
+const deadlineChat = server.createVideoChatHandler({
+  authorize: "none",
+  heartbeatMs: false,
+  generateText: async () => "Ocean currents move warmth around the world.",
+  generateVideo: async () => {
+    if (++deadlineGeneratedCalls === 1) return { type: "video", url: completedClip };
+    throw new Error(privateCanary);
+  },
+  searchMedia: (_query, context) => {
+    stalledStockSignal = context.signal;
+    return new Promise(() => {});
+  },
+  streamText: () => (async function* () {
+    yield JSON.stringify({ type: "video-chat.opening", spokenHook: "Ocean currents carry warmth.", mediaKeyword: "ocean currents" }) + "\\n";
+    for (const id of ["deadline-completed", "deadline-fallback"]) {
+      yield JSON.stringify({ type: "scene.add", scene: { id, templateId: "media", variables: { texts: "Ocean currents carry warmth", mediaKeyword: "ocean currents", mediaType: "video" }, timing: { fixedDuration: 5 } } }) + "\\n";
+    }
+    yield '{"type":"plan.complete"}\\n';
+  })(),
+});
+const deadlineStarted = performance.now();
+let deadlineWatchdog;
+let deadlineBody;
+try {
+  deadlineBody = await Promise.race([
+    deadlineChat(new Request("https://app.example/api/video-chat?action=response", {
+      method: "POST", body: JSON.stringify({ prompt: "Explain ocean currents", mode: "full" }),
+    })).then((response) => response.text()),
+    new Promise((_resolve, reject) => {
+      deadlineWatchdog = setTimeout(() => reject(new Error("Packed optional provider blocked completion beyond its deadline")), 8_000);
+    }),
+  ]);
+} finally {
+  clearTimeout(deadlineWatchdog);
+}
+if (performance.now() - deadlineStarted >= 8_000 || !stalledStockSignal?.aborted) {
+  throw new Error("Packed chat did not cancel slow optional stock work within its budget");
+}
+const deadlineEvents = deadlineBody.split("\\n")
+  .filter((line) => line.startsWith("data: ") && line !== "data: [DONE]")
+  .map((line) => JSON.parse(line.slice(6)));
+if (deadlineEvents.at(-1)?.type !== "response.complete"
+  || deadlineEvents.some(({ type, data }) => type === "response.error" && data.terminal)) {
+  throw new Error("Packed chat failed instead of recovering from a hanging provider");
+}
+const deadlineVideo = root.parseVideo(deadlineEvents.at(-1).data.snapshot);
+if (deadlineVideo.scenes.length !== 2 || deadlineVideo.scenes[0].id !== "deadline-completed"
+  || deadlineVideo.scenes[0].variables.mediaUrl !== completedClip
+  || deadlineVideo.scenes[1].id !== "deadline-fallback"
+  || deadlineVideo.scenes[1].variables.mediaType !== "gradient") {
+  throw new Error("Packed provider deadline lost completed scenes or safe fallback");
+}
+if (!deadlineEvents.some(({ type, data }) => type === "response.warning" && data.warning.recoverable)
+  || /packed-private-provider-canary|TimeoutError|Optional work exceeded/.test(deadlineBody)) {
+  throw new Error("Packed provider deadline omitted safe warnings or leaked diagnostics");
+}
 `);
   execFileSync(process.execPath, [join(consumer, "api.mjs")], { cwd: consumer, stdio: "inherit" });
 

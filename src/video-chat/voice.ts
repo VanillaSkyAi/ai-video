@@ -1,6 +1,8 @@
 import type { NarrationVoice } from "../player/use-narration.js";
+import { withDeadline } from "./deadline.js";
 
 const DEFAULT_MAX_CACHED_LINES = 60;
+const SPEECH_PREPARATION_TIMEOUT_MS = 3_000;
 const FALLBACK_BITS_PER_SECOND = 128_000;
 
 let sharedContext: AudioContext | undefined;
@@ -113,35 +115,31 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
         if (generatedSpeechUnavailable) {
           prepared = { source: "browser", seconds: estimatedBrowserSeconds(normalized) };
         } else {
-          const response = await fetcher(actionEndpoint(endpoint, "speech"), {
-            method: "POST",
-            headers,
-            credentials: options.credentials,
-            signal: controller.signal,
-            body: JSON.stringify({ text: normalized }),
-          });
-          if (controller.signal.aborted) {
-            throw controller.signal.reason ?? new DOMException("Speech preparation cancelled", "AbortError");
-          }
-          if (response.status === 204 || response.status === 404) {
-            generatedSpeechUnavailable = true;
-            prepared = { source: "browser", seconds: estimatedBrowserSeconds(normalized) };
-          } else if (!response.ok) {
-            notifyFallback();
-            prepared = { source: "browser", seconds: estimatedBrowserSeconds(normalized) };
-          } else {
-            const bytes = await response.arrayBuffer();
-            if (controller.signal.aborted) {
-              throw controller.signal.reason ?? new DOMException("Speech preparation cancelled", "AbortError");
+          prepared = await withDeadline(async (preparationSignal): Promise<PreparedLine> => {
+            const response = await fetcher(actionEndpoint(endpoint, "speech"), {
+              method: "POST",
+              headers,
+              credentials: options.credentials,
+              signal: preparationSignal,
+              body: JSON.stringify({ text: normalized }),
+            });
+            preparationSignal.throwIfAborted();
+            if (response.status === 204 || response.status === 404) {
+              generatedSpeechUnavailable = true;
+              return { source: "browser", seconds: estimatedBrowserSeconds(normalized) };
             }
+            if (!response.ok) throw new Error("Speech is unavailable");
+            const bytes = await response.arrayBuffer();
+            preparationSignal.throwIfAborted();
+            const seconds = await measureSeconds(bytes);
+            preparationSignal.throwIfAborted();
+            // Allocate only after every asynchronous step succeeds. A late decode
+            // cannot leak an object URL or replace the cached browser fallback.
             createdSrc = URL.createObjectURL(new Blob([bytes], {
               type: response.headers.get("content-type") || "audio/mpeg",
             }));
-            prepared = { source: "generated", src: createdSrc, seconds: await measureSeconds(bytes) };
-            if (controller.signal.aborted) {
-              throw controller.signal.reason ?? new DOMException("Speech preparation cancelled", "AbortError");
-            }
-          }
+            return { source: "generated", src: createdSrc, seconds };
+          }, SPEECH_PREPARATION_TIMEOUT_MS, controller.signal);
         }
       } catch (cause) {
         if (createdSrc) URL.revokeObjectURL(createdSrc);

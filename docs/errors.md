@@ -48,3 +48,16 @@ response. Fatal errors, disconnects, and explicit aborts do not call it.
 
 Automated regression and acceptance tests use mocked providers. See
 [Testing](testing.md) and the [chat acceptance gate](https://github.com/VanillaSkyAi/video/blob/main/docs/maintainers/acceptance.md).
+
+## Slow optional providers
+
+Generated video has a 15-second deadline per lookup. Stock media, generated
+speech preparation, and fallback scene narration have 3-second deadlines.
+A deadline uses the same safe fallback as a failed provider; completed scenes
+and scene order are preserved. Providers receive cancellation, and late results
+are ignored even when a provider does not cooperate. These initial limits bound
+waiting; they are not claims about measured live-provider performance.
+
+A completed turn and its saved video are available before follow-up suggestions.
+Suggestions load separately and may be omitted after a short deadline. Starting
+another turn or cancelling discards outstanding suggestions.

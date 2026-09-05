@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createVideoChatHandler } from "../src/server/create-video-chat-handler";
 import { decodeVideoSse } from "../src/protocol/sse";
 import type { ResolvedMedia } from "../src/server/media-resolver";
@@ -84,4 +84,85 @@ describe("video chat optional provider recovery", () => {
     await response.text();
     expect(searchMedia).not.toHaveBeenCalled();
   });
+});
+
+
+describe("video chat provider deadlines", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("finishes with stock when generated footage ignores cancellation, and ignores late footage", async () => {
+    vi.useFakeTimers();
+    const signals: AbortSignal[] = [];
+    const late: Array<(value: ResolvedMedia) => void> = [];
+    const searchMedia = vi.fn(async () => media);
+    const handler = createVideoChatHandler({
+      authorize: "none", heartbeatMs: false, streamText,
+      generateText: async () => "unused", searchMedia,
+      generateVideo: (_query, context) => {
+        signals.push(context.signal);
+        return new Promise((resolve) => late.push(resolve));
+      },
+    });
+    let completed = false;
+    const result = handler(request()).then((response) => response.text()).then((text) => { completed = true; return text; });
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(completed).toBe(true);
+    const text = await result;
+    expect(signals).toHaveLength(2);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(searchMedia).toHaveBeenCalledTimes(2);
+    expect(text).toContain("response.complete");
+    expect(text).toContain(media.url);
+    for (const resolve of late) resolve({ url: "https://media.example/late.mp4", type: "video" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(text).not.toContain("late.mp4");
+  });
+
+  it("finishes safe scenes when stock also ignores its signal", async () => {
+    vi.useFakeTimers();
+    const handler = createVideoChatHandler({
+      authorize: "none", heartbeatMs: false, streamText,
+      generateText: async () => "unused", generateVideo: async () => null,
+      searchMedia: () => new Promise(() => {}),
+    });
+    let completed = false;
+    const result = handler(request()).then((response) => response.text()).then((text) => { completed = true; return text; });
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(completed).toBe(true);
+    expect(await result).toContain('"mediaType":"gradient"');
+  });
+
+  it.each(["welcome", "opening-media", "suggestions"])("bounds ignored media cancellation for %s", async (action) => {
+    vi.useFakeTimers();
+    const handler = createVideoChatHandler({
+      authorize: "none", streamText, generateText: async () => JSON.stringify({ suggestions: [{ prompt: "What next?", keyword: "ocean" }] }),
+      searchMedia: () => new Promise(() => {}),
+    });
+    let completed = false;
+    const result = handler(new Request(`https://app.example/api/video-chat?action=${action}`, action === "welcome" ? {} : {
+      method: "POST", body: JSON.stringify(action === "opening-media" ? { keyword: "ocean" } : { prompt: "Ocean", lines: [] }),
+    })).then((response) => response.json()).then((body) => { completed = true; return body; });
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(completed).toBe(true);
+    expect(JSON.stringify(await result)).not.toContain("https://");
+  });
+
+  it.each(["suggestions", "speech"])("bounds an ignoring optional %s generator", async (action) => {
+    vi.useFakeTimers();
+    const handler = createVideoChatHandler({
+      authorize: "none", streamText,
+      generateText: () => new Promise(() => {}),
+      generateSpeech: () => new Promise(() => {}),
+    });
+    let completed = false;
+    const result = handler(new Request(`https://app.example/api/video-chat?action=${action}`, {
+      method: "POST", body: JSON.stringify(action === "speech" ? { text: "Ocean currents" } : { prompt: "Ocean", lines: [] }),
+    })).then((response) => response.json()).then((body) => { completed = true; return body; });
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(completed).toBe(true);
+    expect(await result).toEqual(action === "suggestions" ? { suggestions: [] } : {
+      error: { code: "speech_failed", message: "Speech could not be generated" },
+    });
+  });
+
 });

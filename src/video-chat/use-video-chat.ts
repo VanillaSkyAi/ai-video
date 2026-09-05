@@ -28,6 +28,7 @@ import type {
   VideoChatSuggestion,
   VideoChatWelcome,
 } from "./types.js";
+import { withDeadline } from "./deadline.js";
 import { sanitizeVideoChatMedia } from "./media.js";
 import { createVideoChatVoice, type VideoChatVoice } from "./voice.js";
 
@@ -143,6 +144,7 @@ type SessionAction =
   | { type: "player"; id: string; stream: AsyncIterable<VideoEvent> }
   | { type: "partial"; id: string; video: Video }
   | { type: "complete"; id: string; video: Video; suggestions: VideoChatSuggestion[] }
+  | { type: "suggestions"; id: string; suggestions: VideoChatSuggestion[] }
   | { type: "scene"; key: number; scene: VideoScene; index: number }
   | { type: "playback-end"; key: number }
   | { type: "warning"; id: string; message: string }
@@ -242,6 +244,8 @@ function reducer(state: SessionState, action: SessionAction): SessionState {
           suggestions: action.suggestions,
         })),
       };
+    case "suggestions":
+      return { ...state, turns: replaceTurn(state.turns, action.id, (turn) => ({ ...turn, suggestions: action.suggestions })) };
     case "scene":
       if (state.playerKey !== action.key) return state;
       return {
@@ -424,7 +428,10 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
   const voice = options.voice ?? ownedVoiceRef.current!;
   const voiceRef = useRef(voice);
   voiceRef.current = voice;
-  const narration = useNarration({ voice });
+  const unavailableVoiceLines = useRef(new Set<string>());
+  const narration = useNarration({ voice: {
+    speak: (text, options) => unavailableVoiceLines.current.has(text) ? undefined : voice.speak(text, options),
+  } });
   const narrationRef = useRef(narration);
   narrationRef.current = narration;
 
@@ -433,6 +440,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
   stateRef.current = state;
   const runRef = useRef(0);
   const inFlightRef = useRef<AbortController | undefined>(undefined);
+  const suggestionsRef = useRef<AbortController | undefined>(undefined);
   const openingRef = useRef<AbortController | undefined>(undefined);
   const timelineRef = useRef<ReturnType<typeof createSceneTimeline> | undefined>(undefined);
   const heldRef = useRef(false);
@@ -487,6 +495,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       runRef.current += 1;
       inFlightRef.current?.abort(new DOMException("Component unmounted", "AbortError"));
       openingRef.current?.abort(new DOMException("Component unmounted", "AbortError"));
+      suggestionsRef.current?.abort();
       timelineRef.current?.complete();
       timelineRef.current = undefined;
       narrationRef.current.interrupt();
@@ -502,6 +511,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     runRef.current += 1;
     inFlightRef.current?.abort(new DOMException(reason, "AbortError"));
     openingRef.current?.abort(new DOMException(reason, "AbortError"));
+    suggestionsRef.current?.abort();
     inFlightRef.current = undefined;
     openingRef.current = undefined;
     timelineRef.current?.complete();
@@ -520,10 +530,12 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
 
     inFlightRef.current?.abort(new DOMException("Replaced by a new prompt", "AbortError"));
     openingRef.current?.abort(new DOMException("Replaced by a new prompt", "AbortError"));
+    suggestionsRef.current?.abort();
     timelineRef.current?.complete();
     timelineRef.current = undefined;
     narrationRef.current.interrupt();
     voiceRef.current.resume();
+    unavailableVoiceLines.current.clear();
     heldRef.current = false;
     const controller = new AbortController();
     const openingController = new AbortController();
@@ -636,11 +648,22 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       }
     };
 
+    const prepareSpeech = async (text: string, signal: AbortSignal) => {
+      try {
+        return currentOptions.voice
+          ? await withDeadline((child) => voiceRef.current.prepare(text, { signal: child }), 3_000, signal)
+          : await voiceRef.current.prepare(text, { signal });
+      } catch (cause) {
+        if (currentOptions.voice && !signal.aborted && isCurrent()) unavailableVoiceLines.current.add(text);
+        throw cause;
+      }
+    };
+
     const speakOpening = async (text: string) => {
       try {
         if (!isOpeningCurrent()) return;
         dispatch({ type: "opening-start", id, line: text });
-        await voiceRef.current.prepare(text, { signal: openingController.signal });
+        await prepareSpeech(text, openingController.signal);
         if (!isOpeningCurrent()) return;
         await voiceRef.current.speak(text, { signal: openingController.signal });
       } catch {
@@ -658,7 +681,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       void speakOpening(spokenHook);
     }
 
-    const runAttempt = async (currentAttempt: number): Promise<{ video: Video; suggestions: VideoChatSuggestion[] }> => {
+    const runAttempt = async (currentAttempt: number): Promise<{ video: Video; lines: string[] }> => {
       const response = await request("response", {
         method: "POST",
         headers: { accept: "text/event-stream" },
@@ -685,7 +708,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
 
       try {
         for await (const event of decodeVideoSse(response.body)) {
-          if (!isCurrent() || currentAttempt !== attempt) return { video: { schemaVersion: "0.1", orientation, scenes: [], style: style! }, suggestions: [] };
+          if (!isCurrent() || currentAttempt !== attempt) return { video: { schemaVersion: "0.1", orientation, scenes: [], style: style! }, lines: [] };
           if (event.type === "response.start") style = event.data.style;
           if (event.type === "response.warning" || (event.type === "response.error" && !event.data.terminal)) {
             warn("Some parts were simplified so the response could continue.");
@@ -729,15 +752,17 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
           const narrated = narrating.then(async () => {
             const supplied = plannedScene.narration?.trim();
             if (supplied) return supplied;
-            const narrationResponse = await request("narration", {
-              method: "POST",
-              body: JSON.stringify({ prompt, scene: plannedScene, earlier: [...lines] }),
-            }, controller.signal);
-            if (!narrationResponse.ok) throw new Error("Narration unavailable");
-            const payload = await narrationResponse.json() as { line?: unknown };
-            const line = typeof payload.line === "string" ? payload.line.trim() : "";
-            if (!line) throw new Error("Narration unavailable");
-            return line;
+            return withDeadline(async (signal) => {
+              const narrationResponse = await request("narration", {
+                method: "POST",
+                body: JSON.stringify({ prompt, scene: plannedScene, earlier: [...lines] }),
+              }, signal);
+              if (!narrationResponse.ok) throw new Error("Narration unavailable");
+              const payload = await narrationResponse.json() as { line?: unknown };
+              const line = typeof payload.line === "string" ? payload.line.trim() : "";
+              if (!line) throw new Error("Narration unavailable");
+              return line;
+            }, 3_000, controller.signal);
           }).catch((cause: unknown) => {
             if (controller.signal.aborted) throw cause;
             warn("Some narration was simplified so the response could continue.");
@@ -752,7 +777,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
             const visual = prepareVisualScene(plannedScene, mode);
             const withNarration = line ? { ...visual, narration: line } : visual;
             const spoken = line
-              ? await voiceRef.current.prepare(line, { signal: controller.signal }).catch((cause: unknown) => {
+              ? await prepareSpeech(line, controller.signal).catch((cause: unknown) => {
                 if (controller.signal.aborted) throw cause;
                 warn("Some narration is unavailable; the response will continue.");
                 return undefined;
@@ -780,18 +805,6 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
         throw new VideoError("The video response contained no playable scenes", { code: "empty_response" });
       }
 
-      let suggestions: VideoChatSuggestion[] = [];
-      try {
-        const suggestionsResponse = await request("suggestions", {
-          method: "POST",
-          body: JSON.stringify({ prompt, lines }),
-        }, controller.signal);
-        if (suggestionsResponse.ok) {
-          suggestions = ((await suggestionsResponse.json()) as { suggestions?: VideoChatSuggestion[] }).suggestions ?? [];
-        }
-      } catch (cause) {
-        if (controller.signal.aborted) throw cause;
-      }
       return {
         video: {
           schemaVersion: "0.1",
@@ -799,12 +812,12 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
           scenes: ready.filter((entry): entry is VideoScene => entry != null),
           style,
         },
-        suggestions,
+        lines,
       };
     };
 
     try {
-      let response: { video: Video; suggestions: VideoChatSuggestion[] };
+      let response: { video: Video; lines: string[] };
       try {
         response = await untilAborted(runAttempt(attempt), controller.signal);
       } catch (cause) {
@@ -819,7 +832,23 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       if (!isCurrent()) return undefined;
       planDone = true;
       flush();
-      dispatch({ type: "complete", id, video: response.video, suggestions: response.suggestions });
+      dispatch({ type: "complete", id, video: response.video, suggestions: [] });
+      const suggestionsController = new AbortController();
+      suggestionsRef.current = suggestionsController;
+      void withDeadline(async (signal) => {
+        const result = await request("suggestions", {
+          method: "POST", body: JSON.stringify({ prompt, lines: response.lines }),
+        }, signal);
+        if (!result.ok) return [];
+        const payload = await result.json() as { suggestions?: VideoChatSuggestion[] };
+        return Array.isArray(payload.suggestions) ? payload.suggestions : [];
+      }, 7_000, suggestionsController.signal).then((suggestions) => {
+        if (mountedRef.current && runRef.current === run && !suggestionsController.signal.aborted) {
+          dispatch({ type: "suggestions", id, suggestions });
+        }
+      }).catch(() => undefined).finally(() => {
+        if (suggestionsRef.current === suggestionsController) suggestionsRef.current = undefined;
+      });
       return response.video;
     } catch (cause) {
       if (runRef.current !== run) return undefined;

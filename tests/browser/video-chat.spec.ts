@@ -45,7 +45,7 @@ test("plays an answer, keeps follow-up context, and recovers from optional media
   await expect.poll(() => requests.length).toBe(2);
   expect(requests[1].conversation).toEqual([expect.objectContaining({ prompt: requests[0].prompt, response: expect.stringContaining("The Moon rotates once per orbit.") })]);
   await expect(page.locator('[data-video-frame="ready"]')).toHaveAttribute("data-scene-id", /^turn-2-/);
-  await expect(page.getByRole("button", { name: "Play again", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Play again", exact: true })).toBeVisible({ timeout: 12_000 });
   await page.getByRole("button", { name: "Full response" }).click();
   await expect(page.getByRole("dialog")).toContainText("Walk around a friend while facing them.");
   await expect(page.getByRole("dialog")).toContainText("You turn once during the trip.");
