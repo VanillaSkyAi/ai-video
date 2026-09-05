@@ -939,6 +939,68 @@ createRoot(document.getElementById("root")).render(mediaProbe
     ) !== "content-box") {
       throw new Error("Packed VideoChat stylesheet leaked into the host page");
     }
+    // Exercise the installed package's shared navigation on desktop and phone.
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+      await page.setViewportSize(viewport);
+      const navigation = packedChat.locator(".chrome");
+      if (await navigation.getByRole("button", { name: "New session", exact: true }).count()
+        || await navigation.getByRole("button", { name: "History", exact: true }).count()) {
+        throw new Error("Packed navigation exposed standalone session actions");
+      }
+      const sessions = packedChat.getByRole("button", { name: "Sessions", exact: true });
+      await sessions.focus();
+      await sessions.press("Enter");
+      const menu = packedChat.getByRole("dialog", { name: "Sessions", exact: true });
+      await menu.waitFor({ state: "visible" });
+      await menu.getByRole("button", { name: "New session", exact: true }).waitFor({ state: "visible" });
+      const fits = await menu.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.left >= 0 && bounds.right <= globalThis.innerWidth && bounds.top >= 0 && bounds.bottom <= globalThis.innerHeight;
+      });
+      if (!fits) throw new Error("Packed Sessions menu overflowed the viewport");
+      if (process.env.VANILLASKY_PACKED_SCREENSHOT_DIR) {
+        mkdirSync(process.env.VANILLASKY_PACKED_SCREENSHOT_DIR, { recursive: true });
+        await page.screenshot({ animations: "disabled", path: join(process.env.VANILLASKY_PACKED_SCREENSHOT_DIR, viewport.width < 600 ? "session-controls-mobile.png" : "session-controls-desktop.png") });
+      }
+      await menu.getByRole("button", { name: "Close sessions", exact: true }).click();
+      await menu.waitFor({ state: "hidden" });
+      if (!await sessions.evaluate((button) => button.ownerDocument.activeElement === button)) {
+        throw new Error("Packed Sessions dismissal did not restore trigger focus");
+      }
+      await packedChat.getByRole("button", { name: "Settings", exact: true }).click();
+      const settings = packedChat.getByRole("dialog", { name: "Settings", exact: true });
+      await settings.waitFor({ state: "visible" });
+      const headingLayout = await settings.evaluate((element) => {
+        // Measure the painted text, not the special fieldset/legend layout box.
+        for (const animation of element.getAnimations({ subtree: true })) {
+          if (animation.effect?.getComputedTiming().iterations !== Infinity) animation.finish();
+        }
+        return ["playback", "visual", "style"].map((kind) => {
+          const fieldset = element.querySelector("." + kind + "-options");
+          const legend = fieldset.querySelector("legend");
+          const range = element.ownerDocument.createRange();
+          range.selectNodeContents(legend);
+          const text = range.getBoundingClientRect();
+          const choices = fieldset.querySelector("." + kind + "-choices");
+          return { kind, label: legend.textContent, left: text.left, gap: choices ? choices.getBoundingClientRect().top - text.bottom : null };
+        });
+      });
+      if (headingLayout.map((heading) => heading.label).join("|") !== "Watching|Video creation|Video style") {
+        throw new Error("Packed Settings headings lost their fieldset semantics");
+      }
+      if (Math.max(...headingLayout.map((heading) => heading.left)) - Math.min(...headingLayout.map((heading) => heading.left)) > 1) {
+        throw new Error("Packed Settings headings are not horizontally aligned");
+      }
+      if (headingLayout.some((heading) => heading.kind !== "playback" && (heading.gap === null || heading.gap < 8))) {
+        throw new Error("Packed Settings choice backgrounds overlap their headings: " + JSON.stringify(headingLayout));
+      }
+      if (process.env.VANILLASKY_PACKED_SCREENSHOT_DIR) {
+        await page.screenshot({ animations: "disabled", path: join(process.env.VANILLASKY_PACKED_SCREENSHOT_DIR, viewport.width < 600 ? "settings-spacing-mobile.png" : "settings-spacing-desktop.png") });
+      }
+      await settings.getByRole("button", { name: "Close settings", exact: true }).click();
+      await settings.waitFor({ state: "hidden" });
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ colorScheme: "light", contrast: "more" });
     const contrastColors = await packedChat.evaluate((element) => {
       const style = element.ownerDocument.defaultView?.getComputedStyle(element);

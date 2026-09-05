@@ -60,7 +60,9 @@ export const VIDEO_CHAT_NARRATION_PROMPT = [
 export const VIDEO_CHAT_SUGGESTIONS_PROMPT = [
   "You suggest what a user might prompt next after receiving a video response.",
   'Return JSON only: {"suggestions": [{"prompt": string, "keyword": string}]} with exactly four entries.',
-  "prompt: short and specific to what was created or discussed. Suggestions may continue, remix, deepen, compare, or apply it.",
+  "prompt: one clear, specific follow-up in 4–8 words. Never exceed 8 words or 60 characters, including spaces. These are small mobile cards, not full instructions.",
+  "Ask about one idea. Use context from the answer instead of restating it. No combined questions, preambles, lists of examples, or requests to visualize multiple things.",
+  "Examples: How do atoms gain electrons? Why do atoms bond? What holds the nucleus together? Can an atom split? Suggestions may continue, remix, deepen, compare, or apply the answer; stay relevant to its topic.",
   "keyword: two to four words naming something filmable that stands for the prompt, for stock footage search. Concrete subjects only - no abstractions, no text on screen.",
 ].join("\n");
 
