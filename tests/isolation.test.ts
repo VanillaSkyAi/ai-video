@@ -45,13 +45,7 @@ describe("standalone package boundary", () => {
       ["/Users", "/example-builder"].join(""),
     ];
     const hits = sourceFiles(join(process.cwd(), "src")).flatMap((path) => {
-      let source = readFileSync(path, "utf8");
-      // User-initiated documentation and About links are not runtime service dependencies.
-      // Allow only these literal anchor attributes in the shared Settings component.
-      if (path === join(process.cwd(), "src", "video-chat", "video-chat.tsx")) {
-        source = source.replace('href="https://vanillasky.ai/docs/getting-started/" target="_blank" rel="noopener noreferrer"', 'href="documentation"');
-        source = source.replace('href="https://vanillasky.ai/about/" target="_blank" rel="noopener noreferrer"', 'href="about"');
-      }
+      const source = readFileSync(path, "utf8");
       return banned.filter((marker) => source.includes(marker)).map((marker) => ({ path, marker }));
     });
     const manifest = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));

@@ -970,9 +970,11 @@
 
 .vanillasky-video-chat .developer-links { display: grid; gap: 2px; padding-top: 14px; border-top: 1px solid rgb(255 255 255 / 12%); }
 .vanillasky-video-chat .developer-links .section-label { padding-bottom: 4px; }
-.vanillasky-video-chat .developer-links a { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 10px 12px; border-radius: 12px; color: var(--vs-fg); font-size: 13px; line-height: 1.4; text-decoration: none; }
-.vanillasky-video-chat .developer-links a:hover { background: var(--vs-surface-hover); }
-.vanillasky-video-chat .developer-links a span { color: var(--vs-fg-muted); font-size: 18px; }
+.vanillasky-video-chat .developer-links :is(a, button) { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 10px 12px; border-radius: 12px; color: var(--vs-fg); font-size: 13px; line-height: 1.4; text-decoration: none; }
+.vanillasky-video-chat .developer-links :is(a, button):hover { background: var(--vs-surface-hover); }
+.vanillasky-video-chat .developer-links :is(a, button) span { color: var(--vs-fg-muted); font-size: 18px; }
+.vanillasky-video-chat .developer-links button { width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer; font-family: inherit; }
+.vanillasky-video-chat .developer-about p { margin: 0; padding: 2px 12px 12px; color: var(--vs-fg-muted); font-size: 12px; line-height: 1.6; }
 
 
 .vanillasky-video-chat .history { display: grid; gap: 4px; }

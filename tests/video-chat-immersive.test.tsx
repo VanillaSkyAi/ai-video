@@ -93,8 +93,7 @@ it("offers SDK discovery without leaving the current conversation", () => {
   render(<VideoChat />);
   fireEvent.click(screen.getByRole("button", { name: "Settings" }));
   const links = [
-    ["Docs", "https://vanillasky.ai/docs/getting-started/"],
-    ["About", "https://vanillasky.ai/about/"],
+    ["Docs", "https://github.com/VanillaSkyAi/video/blob/main/docs/getting-started.md"],
     ["GitHub", "https://github.com/VanillaSkyAi/video"],
   ];
   for (const [name, href] of links) {
@@ -103,5 +102,13 @@ it("offers SDK discovery without leaving the current conversation", () => {
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toContain("noopener");
   }
+  const about = screen.getByRole("button", { name: "About", exact: true });
+  expect(about.getAttribute("aria-expanded")).toBe("false");
+  expect(screen.queryByRole("region", { name: "About VanillaSky" })).toBeNull();
+  fireEvent.click(about);
+  expect(about.getAttribute("aria-expanded")).toBe("true");
+  expect(screen.getByRole("region", { name: "About VanillaSky" }).textContent).toContain("open-source SDK");
+  fireEvent.click(about);
+  expect(screen.queryByRole("region", { name: "About VanillaSky" })).toBeNull();
   expect(session.current.reset).not.toHaveBeenCalled();
 });
