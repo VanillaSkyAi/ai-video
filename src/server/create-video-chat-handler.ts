@@ -43,6 +43,13 @@ export type {
 } from "../video-chat/types.js";
 
 const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
+// Timelapse of Clouds by Dmitry Marchenkov, Pexels 11335959.
+// https://www.pexels.com/video/timelapse-of-clouds-11335959/
+const DEFAULT_WELCOME_HERO = {
+  url: "https://videos.pexels.com/video-files/11335959/11335959-hd_1920_1080_30fps.mp4",
+  type: "video" as const,
+  posterUrl: "https://images.pexels.com/videos/11335959/pexels-photo-11335959.jpeg?auto=compress&fit=crop&w=1920",
+};
 const DEFAULT_MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 const MAX_PROMPT_CHARACTERS = 8_000;
 const MAX_CONVERSATION_TURNS = 12;
@@ -639,7 +646,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
     modes: generateVideo ? ["templates", "full"] : ["templates"],
   };
   const welcomePrompts = (welcomeOptions?.prompts ?? DEFAULT_WELCOME_PROMPTS).slice(0, 4);
-  const heroQuery = welcomeOptions?.heroQuery ?? "underwater ocean sunlight";
+  const heroQuery = welcomeOptions?.heroQuery;
   let welcomeResponse: Record<string, unknown> | undefined;
   let requestSequence = 0;
 
@@ -815,7 +822,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
           }
         };
         const [hero, ...cards] = await Promise.all([
-          resolve(heroQuery),
+          heroQuery === undefined ? DEFAULT_WELCOME_HERO : resolve(heroQuery),
           ...welcomePrompts.map((entry) => resolve(entry.mediaQuery)),
         ]);
         return {

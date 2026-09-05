@@ -21,6 +21,26 @@ function plannedResponse() {
 }
 
 describe("createVideoChatHandler", () => {
+  it("uses the selected cloud film without a provider lookup by default", async () => {
+    const create = await loadCreateVideoChatHandler();
+    let lookups = 0;
+    const handler = create({ authorize: "none", streamText: plannedResponse(), generateText: async () => "", welcome: { prompts: [] }, searchMedia: () => { lookups++; return null; } });
+    const response = await handler(new Request("https://app.example/api?action=welcome"));
+    expect(await response.json()).toEqual({ hero: {
+      url: "https://videos.pexels.com/video-files/11335959/11335959-hd_1920_1080_30fps.mp4",
+      type: "video", posterUrl: "https://images.pexels.com/videos/11335959/pexels-photo-11335959.jpeg?auto=compress&fit=crop&w=1920",
+    }, cards: [] });
+    expect(lookups).toBe(0);
+  });
+  it("preserves host welcome queries instead of replacing them with clouds", async () => {
+    const create = await loadCreateVideoChatHandler();
+    const queries: string[] = [];
+    const handler = create({ authorize: "none", streamText: plannedResponse(), generateText: async () => "", welcome: { heroQuery: "city lights", prompts: [] }, searchMedia: (query: string) => { queries.push(query); return { url: "https://media.example/city.jpg", type: "image" }; } });
+    const response = await handler(new Request("https://app.example/api?action=welcome"));
+    expect((await response.json()).hero.url).toBe("https://media.example/city.jpg");
+    expect(queries).toEqual(["city lights"]);
+  });
+
   it("does not forward obsolete generation options from JavaScript callers", async () => {
     const createVideoChatHandler = await loadCreateVideoChatHandler();
     let selectedAudio = false;
@@ -526,7 +546,7 @@ describe("createVideoChatHandler", () => {
     expect(welcomeBody.cards.every(({ opening }) => Boolean(opening))).toBe(true);
     expect(JSON.stringify(welcomeBody)).not.toContain("providerSecret");
     expect(tasks).toEqual(["suggestions"]);
-    expect(mediaPurposes).toEqual(["suggestion", "welcome", "welcome", "welcome", "welcome", "welcome"]);
+    expect(mediaPurposes).toEqual(["suggestion", "welcome", "welcome", "welcome", "welcome"]);
   });
 
   it("cancels welcome media work with the request", async () => {

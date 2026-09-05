@@ -10,10 +10,9 @@ import { Frame, SuggestionCards } from "./suggestion-cards";
  * a real frame on each suggested prompt, shows the response instead of
  * describing it - and shows it in the shape the response will arrive in.
  *
- * Everything here is footage searched at run time rather than checked in, so
- * the example carries no media and the screen is never the same twice. It
- * degrades to the brand gradient when there is no key and no network, which is
- * the state the rest of the video chat already handles.
+ * The default cloud film is curated; host-selected welcome queries and cards
+ * resolve through the application. Media stays remote, and failed loads fall
+ * back to the brand gradient.
  */
 export function Welcome({ data, onAsk, title }: {
   data?: VideoChatWelcome;
