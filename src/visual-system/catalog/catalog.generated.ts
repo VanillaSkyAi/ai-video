@@ -471,7 +471,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
   {
     "id": "barChart",
     "label": "Bar chart",
-    "description": "Animated labeled bars compare grounded values beneath a headline.",
+    "description": "Quiet horizontal bars compare exact values beneath a short topic, with room for subtitles.",
     "family": "Data & metrics",
     "jobs": [
       "proof"
@@ -493,14 +493,14 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "texts": {
           "type": "string",
           "title": "Text",
-          "description": "Title text shown above the chart",
-          "default": "Revenue up 300%.",
+          "description": "Short topic or shared unit shown above the comparison; leave the explanation to narration.",
+          "default": "Quarterly revenue",
           "maxLength": 48
         },
         "bars": {
           "type": "array",
           "title": "Comparison values",
-          "description": "Array of 2-6 grounded values with short category labels. Values are shown exactly and bar heights are scaled relative to the largest value. Use only facts supported by the input.",
+          "description": "Array of 2-6 grounded values with short category labels. Values are shown exactly and horizontal bar lengths share a zero baseline, scaled relative to the largest value. Use only facts supported by the input.",
           "examples": [
             [
               {
@@ -522,7 +522,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
             "properties": {
               "label": {
                 "type": "string",
-                "description": "Short category label shown below the bar (18 characters or fewer).",
+                "description": "Short category label shown above the bar (18 characters or fewer).",
                 "maxLength": 18
               },
               "value": {

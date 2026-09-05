@@ -184,7 +184,7 @@ export const BUILTIN_TEMPLATE_MANIFEST: readonly BuiltinTemplateManifestEntry[] 
   {
     id: "barChart",
     label: "Bar chart",
-    description: "Animated labeled bars compare grounded values beneath a headline.",
+    description: "Quiet horizontal bars compare exact values beneath a short topic, with room for subtitles.",
     family: "Data & metrics",
     jobs: ["proof"],
     register: "motion-led",

@@ -4,6 +4,8 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Redesign the bar-chart template with proportional horizontal bars, exact values, restrained motion, and space below the comparison for subtitles. Preserve existing variables and explicit brand backgrounds.
+
 ## 0.8.4
 
 - Use a curated cloud timelapse for the default welcome screen, while preserving host-selected welcome searches.
