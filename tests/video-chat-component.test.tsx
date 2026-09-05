@@ -117,6 +117,20 @@ describe("VideoChat", () => {
     expect((await screen.findByRole("status")).textContent).toBeTruthy();
   });
 
+  it("shows a quota error and usable input after a suggested opening even with recovery notices disabled", async () => {
+    const { VideoChat } = await import("../src/react");
+    const base = chatFetcher();
+    render(<VideoChat showRecoveryNotice={false} options={{
+      fetcher: async (input, init) => new URL(String(input), "https://app.example").searchParams.get("action") === "response"
+        ? new Response("private quota details", { status: 429 }) : base(input, init),
+      voice: { prepare: async () => ({ seconds: 1 }), speak: async () => {}, pause() {}, resume() {}, setMuted() {} },
+    }} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Invent a surreal bedtime story" }));
+    expect((await screen.findByRole("status")).textContent).toContain("The conversation limit has been reached. Please try again later.");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Prompt" }).closest(".panel")?.getAttribute("data-input-visible")).toBe("true"));
+    expect(document.body.textContent).not.toContain("private quota details");
+  });
+
   it("hydrates when voice input exists only in the browser", async () => {
     const { renderToString } = await import("react-dom/server");
     const { hydrateRoot } = await import("react-dom/client");
