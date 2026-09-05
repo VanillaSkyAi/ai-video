@@ -212,12 +212,12 @@ const success = await collect(simulateVideoStream(videoFixtures.scenarios.succes
 const delayed = await collect(simulateVideoStream(videoFixtures.scenarios.delayed));
 const truncated = await collect(simulateVideoStream(videoFixtures.scenarios.truncated));
 const invalidScene = await collect(simulateVideoStream(videoFixtures.scenarios.invalidScene));
-const providerFailure = await collect(simulateVideoStream(videoFixtures.scenarios.providerFailure));
+const providerFailure = await collect(simulateVideoStream(videoFixtures.scenarios.providerFailure, { input: { ...videoFixtures.portrait.input, opening: false } }));
 const contentFilter = await collect(simulateVideoStream(videoFixtures.scenarios.contentFilter));
 if (success[0]?.eventId !== "test-run:0" || success.at(-1)?.type !== "response.complete") throw new Error("Packed success scenario is not deterministic");
 if (delayed.at(-1)?.type !== "response.complete") throw new Error("Packed delayed scenario failed");
 if (truncated.at(-1)?.data?.finishReason !== "length" || truncated.at(-1)?.data?.snapshot?.scenes?.length !== 2) throw new Error("Packed truncation lost its playable result");
-if (!invalidScene.some((event) => event.type === "response.error" && event.data.error.recoverable) || invalidScene.at(-1)?.type !== "response.complete") throw new Error("Packed invalid scene did not recover");
+if (!invalidScene.some((event) => event.type === "response.warning" && event.data.warning.recoverable) || invalidScene.at(-1)?.type !== "response.complete") throw new Error("Packed invalid scene did not recover");
 if (providerFailure.at(-1)?.type !== "response.error" || JSON.stringify(providerFailure).includes("fixture-private-value")) throw new Error("Packed provider failure was not redacted");
 if (contentFilter.at(-1)?.data?.finishReason !== "content-filter" || contentFilter.at(-1)?.data?.snapshot?.scenes?.length !== 2) throw new Error("Packed content filter lost its playable result");
 
@@ -241,7 +241,7 @@ const failureHandler = createVideoHandler({
 });
 const failureResponse = await failureHandler(new Request("https://app.example/api/video", {
   method: "POST",
-  body: JSON.stringify({ protocolVersion: "0.5", requestId: "packed-test-failure", input: videoFixtures.portrait.input }),
+  body: JSON.stringify({ protocolVersion: "0.5", requestId: "packed-test-failure", input: { ...videoFixtures.portrait.input, opening: false } }),
 }));
 const failureBody = await failureResponse.text();
 if (!failureBody.includes('"type":"response.error"') || failureBody.includes("fixture-private-value")) throw new Error("Packed route failure was not redacted");
@@ -481,6 +481,65 @@ if (JSON.stringify(pacedScenes) !== JSON.stringify([
 if (pacingEvents.filter(({ type }) => type === "response.warning").length !== 2) {
   throw new Error("Packed handler omitted pacing warnings");
 }
+
+// Exercise the installed chat stack with local mocks only: no provider network
+// requests, credentials, or generated-video credits are involved.
+const privateCanary = "packed-private-provider-canary";
+const completedClip = "https://media.example/completed.mp4";
+const replacementClip = "https://media.example/replacement.mp4";
+let generatedCalls = 0;
+let stockCalls = 0;
+const resilientChat = server.createVideoChatHandler({
+  authorize: "none",
+  heartbeatMs: false,
+  generateText: async () => "Ocean currents move warmth around the world.",
+  generateVideo: async () => {
+    generatedCalls += 1;
+    if (generatedCalls === 1) return { type: "video", url: completedClip };
+    throw new DOMException(privateCanary, "TimeoutError");
+  },
+  searchMedia: async () => {
+    stockCalls += 1;
+    return { type: "video", url: replacementClip };
+  },
+  streamText: () => (async function* () {
+    yield JSON.stringify({ type: "video-chat.opening", spokenHook: "Ocean currents carry warmth around the world.", mediaKeyword: "ocean currents" }) + "\\n";
+    yield JSON.stringify({ type: "scene.add", scene: { id: "packed-completed-scene", templateId: "media", variables: { texts: "Warm water travels", mediaKeyword: "ocean currents", mediaType: "video" }, narration: "Warm water travels around the world.", timing: { fixedDuration: 5 } } }) + "\\n";
+    yield '{"type":"scene.add", malformed}\\n';
+    yield JSON.stringify({ type: "scene.add", placement: "closer", scene: { id: "packed-recovered-scene", templateId: "media", variables: { texts: "Currents connect our oceans", mediaKeyword: "ocean currents", mediaType: "video" }, narration: "Currents connect our oceans.", timing: { fixedDuration: 5 } } }) + "\\n";
+    yield '{"type":"plan.complete"}\\n';
+  })(),
+});
+const resilientResponse = await resilientChat(new Request("https://app.example/api/video-chat?action=response", {
+  method: "POST",
+  body: JSON.stringify({ prompt: "Explain ocean currents", mode: "full" }),
+}));
+if (!resilientResponse.ok) throw new Error("Packed resilient chat request failed");
+const resilientBody = await resilientResponse.text();
+const resilientEvents = resilientBody.split("\\n")
+  .filter((line) => line.startsWith("data: ") && line !== "data: [DONE]")
+  .map((line) => JSON.parse(line.slice(6)));
+if (generatedCalls !== 2 || stockCalls !== 1) throw new Error("Packed chat did not isolate the failed generated provider");
+const openingIndex = resilientEvents.findIndex(({ type }) => type === "data.video-chat-opening");
+const firstSceneIndex = resilientEvents.findIndex(({ type }) => type === "scene.add");
+if (openingIndex < 0 || openingIndex >= firstSceneIndex
+  || resilientEvents[openingIndex].data.line !== "Ocean currents carry warmth around the world.") {
+  throw new Error("Packed chat did not preserve its opening before recovered scenes");
+}
+const resilientScenes = resilientEvents.filter(({ type }) => type === "scene.add").map(({ data }) => data.scene);
+if (JSON.stringify(resilientScenes.map(({ id, variables }) => [id, variables.mediaUrl])) !== JSON.stringify([
+  ["packed-completed-scene", completedClip], ["packed-recovered-scene", replacementClip],
+])) throw new Error("Packed chat lost completed or later scenes during recovery");
+if (resilientEvents.some(({ type, data }) => type === "response.error" && data.terminal)
+  || resilientEvents.at(-1)?.type !== "response.complete") throw new Error("Packed recovered chat ended fatally");
+const recoveredSnapshot = root.parseVideo(resilientEvents.at(-1).data.snapshot);
+if (recoveredSnapshot.scenes.length !== 2) throw new Error("Packed recovered snapshot is not replayable");
+if (!resilientEvents.some(({ type, data }) => type === "response.warning" && data.warning.recoverable)) {
+  throw new Error("Packed recovered chat omitted its non-fatal warning");
+}
+if (resilientBody.includes(privateCanary) || resilientBody.includes("TimeoutError")) {
+  throw new Error("Packed recovered chat leaked private provider diagnostics");
+}
 `);
   execFileSync(process.execPath, [join(consumer, "api.mjs")], { cwd: consumer, stdio: "inherit" });
 
@@ -523,6 +582,8 @@ declare const error: VideoError;
 declare const hook: UseVideoResult;
 declare const chatHook: UseVideoChatResult;
 declare const chatTurn: VideoChatTurn;
+const chatWarnings: readonly string[] = chatHook.warnings;
+const turnWarnings: readonly string[] | undefined = chatTurn.warnings;
 declare const chatVoice: VideoChatVoice;
 declare const handlerOptions: VideoHandlerOptions;
 declare const chatHandlerOptions: VideoChatHandlerOptions;
@@ -535,7 +596,7 @@ const savedPlayer = createElement(VideoPlayer, {
   autoPlay: false,
   onPlaybackEnd: (completed) => { void completed.schemaVersion; },
 });
-const createdChatVoice = createVideoChatVoice({ fetcher: fetch });
+const createdChatVoice = createVideoChatVoice({ fetcher: fetch, onFallback: () => undefined });
 const videoChatProps: VideoChatProps = { options: { voice: chatVoice }, className: "customer-shell" };
 const packedVideoChat = createElement(VideoChat, videoChatProps);
 const PackedChatTypeProbe = () => {
@@ -558,7 +619,7 @@ hook.state;
 hook.config;
 // @ts-expect-error Handler behavior selectors are not callback-shaped.
 handlerOptions.onInvalidPart;
-void [input, brandedInput, resolvedBackground, semanticBrand, video.schemaVersion, parsedVideo, validationCode, validationError.code, hook.video, hook.warnings, chatHook.playerProps, createdChatVoice, videoChatProps, packedVideoChat, PackedChatTypeProbe, handlerOptions.invalidPartBehavior, chatHandlerOptions.generateText, chatCapabilities.modes, summary, usage, warning, error.code, error.status, error.requestId, error.runId, savedPlayer, builtinId, builtinMetadata, family, sceneTemplate, sceneMetadata, sceneProps, templateRegistry, timingMetadata, transitionTiming];
+void [input, brandedInput, resolvedBackground, semanticBrand, video.schemaVersion, parsedVideo, validationCode, validationError.code, hook.video, hook.warnings, chatHook.playerProps, chatWarnings, turnWarnings, createdChatVoice, videoChatProps, packedVideoChat, PackedChatTypeProbe, handlerOptions.invalidPartBehavior, chatHandlerOptions.generateText, chatCapabilities.modes, summary, usage, warning, error.code, error.status, error.requestId, error.runId, savedPlayer, builtinId, builtinMetadata, family, sceneTemplate, sceneMetadata, sceneProps, templateRegistry, timingMetadata, transitionTiming];
 `);
   writeFileSync(join(consumer, "types-tsconfig.json"), JSON.stringify({ compilerOptions: { strict: true, noEmit: true, target: "ES2022", module: "NodeNext", moduleResolution: "NodeNext", skipLibCheck: false }, include: ["types.ts"] }));
   execFileSync(process.execPath, [join(consumer, "node_modules", "typescript", "bin", "tsc"), "-p", "types-tsconfig.json"], { cwd: consumer, stdio: "inherit" });

@@ -28,6 +28,8 @@ export interface CreateVideoChatVoiceOptions {
   credentials?: RequestCredentials;
   fetcher?: typeof fetch;
   maxCachedLines?: number;
+  /** Called when optional generated speech falls back to browser speech. */
+  onFallback?: () => unknown;
 }
 
 function actionEndpoint(endpoint: string | URL, action: string): string {
@@ -71,6 +73,11 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
   let silent = false;
   let disposed = false;
   let generatedSpeechUnavailable = false;
+  let playbackFailure: (() => void) | undefined;
+  const notifyFallback = () => {
+    try { void Promise.resolve(options.onFallback?.()).catch(() => undefined); }
+    catch { /* Observer failures do not affect speech. */ }
+  };
 
   const forgetOldest = () => {
     while (lines.size > maximum) {
@@ -120,6 +127,7 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
             generatedSpeechUnavailable = true;
             prepared = { source: "browser", seconds: estimatedBrowserSeconds(normalized) };
           } else if (!response.ok) {
+            notifyFallback();
             prepared = { source: "browser", seconds: estimatedBrowserSeconds(normalized) };
           } else {
             const bytes = await response.arrayBuffer();
@@ -138,6 +146,7 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
       } catch (cause) {
         if (createdSrc) URL.revokeObjectURL(createdSrc);
         if (controller.signal.aborted) throw controller.signal.reason ?? cause;
+        notifyFallback();
         prepared = { source: "browser", seconds: estimatedBrowserSeconds(normalized) };
       }
 
@@ -161,6 +170,21 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
     }
   };
 
+  const speechStops = new Set<() => void>();
+  const watchSpeech = (seconds: number, expire: () => void) => {
+    // Count only active playback time; a deliberate pause must remain paused.
+    let remaining = Math.max(1, seconds) * 2_000 + 5_000;
+    const timer = setInterval(() => {
+      if (held) return;
+      remaining -= 250;
+      if (remaining <= 0) {
+        clearInterval(timer);
+        expire();
+      }
+    }, 250);
+    return () => clearInterval(timer);
+  };
+
   const stopBrowser = () => {
     globalThis.speechSynthesis?.cancel();
     browserFinish?.();
@@ -178,7 +202,7 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
     },
     resume() {
       held = false;
-      if (sounding && !silent) void sounding.play().catch(() => undefined);
+      if (sounding && !silent) void sounding.play().catch(() => playbackFailure?.());
       if (!silent) globalThis.speechSynthesis?.resume();
     },
     setMuted(muted) {
@@ -186,7 +210,7 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
       if (sounding) sounding.muted = muted;
       if (muted) stopBrowser();
     },
-    async speak(text, { signal }) {
+    async speak(text, { signal }): Promise<void> {
       const line = await load(text, signal);
       if (disposed || signal.aborted || silent) return;
       if (line.source === "browser") {
@@ -199,41 +223,81 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
           const finish = () => {
             if (finished) return;
             finished = true;
+            clearWatchdog();
+            signal.removeEventListener("abort", stop);
+            speechStops.delete(stop);
+            utterance.onend = null;
+            utterance.onerror = null;
             if (browserFinish === finish) browserFinish = undefined;
             resolve();
           };
+          const stop = () => {
+            synthesis.cancel();
+            finish();
+          };
+          const clearWatchdog = watchSpeech(estimatedBrowserSeconds(text), stop);
+          speechStops.add(stop);
           browserFinish = finish;
           utterance.onend = finish;
           utterance.onerror = finish;
-          signal.addEventListener("abort", () => {
-            synthesis.cancel();
+          signal.addEventListener("abort", stop, { once: true });
+          try {
+            synthesis.speak(utterance);
+            if (held) synthesis.pause();
+          } catch {
             finish();
-          }, { once: true });
-          synthesis.speak(utterance);
-          if (held) synthesis.pause();
+          }
         });
         return;
       }
 
-      const element = new Audio(line.src);
-      element.muted = silent;
-      sounding = element;
-      await new Promise<void>((resolve) => {
-        let finished = false;
-        const finish = () => {
-          if (finished) return;
-          finished = true;
-          if (sounding === element) sounding = undefined;
-          resolve();
-        };
-        element.onended = finish;
-        element.onerror = finish;
-        signal.addEventListener("abort", () => {
-          element.pause();
-          finish();
-        }, { once: true });
-        if (!held) void element.play().catch(finish);
-      });
+      let playbackFailed = false;
+      try {
+        const element = new Audio(line.src);
+        element.muted = silent;
+        sounding = element;
+        await new Promise<void>((resolve) => {
+          let finished = false;
+          const finish = () => {
+            if (finished) return;
+            finished = true;
+            clearWatchdog();
+            signal.removeEventListener("abort", stop);
+            speechStops.delete(stop);
+            element.onended = null;
+            element.onerror = null;
+            if (sounding === element) {
+              sounding = undefined;
+              playbackFailure = undefined;
+            }
+            resolve();
+          };
+          const stop = () => {
+            element.pause();
+            finish();
+          };
+          const fail = () => { playbackFailed = true; stop(); };
+          const clearWatchdog = watchSpeech(Math.max(line.seconds, estimatedBrowserSeconds(text)), fail);
+          speechStops.add(stop);
+          playbackFailure = fail;
+          element.onended = finish;
+          element.onerror = fail;
+          signal.addEventListener("abort", stop, { once: true });
+          try {
+            if (!held) void element.play().catch(fail);
+          } catch {
+            fail();
+          }
+        });
+      } catch {
+        playbackFailed = true;
+      }
+      if (playbackFailed && !disposed && !signal.aborted && !silent) {
+        notifyFallback();
+        URL.revokeObjectURL(line.src);
+        lines.set(text.trim(), { source: "browser", seconds: estimatedBrowserSeconds(text) });
+        await this.speak(text, { signal });
+      }
     },
     dispose() {
       disposed = true;
@@ -241,6 +305,8 @@ export function createVideoChatVoice(options: CreateVideoChatVoiceOptions = {}):
         controller.abort(new DOMException("Video chat voice was disposed", "AbortError"));
       }
       pendingLoads.clear();
+      for (const stop of speechStops) stop();
+      speechStops.clear();
       sounding?.pause();
       sounding = undefined;
       stopBrowser();

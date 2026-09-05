@@ -46,6 +46,9 @@ export interface VideoProviderLifecycleResult {
 }
 
 export interface VideoGenerationLifecycleSink {
+  recoverGeneratedParts?: boolean;
+  reportWarning?(warning: VideoWarning): void;
+  rejectPart?(error: Error): boolean;
   registerProviderResult(result: Promise<VideoProviderLifecycleResult>): void;
 }
 

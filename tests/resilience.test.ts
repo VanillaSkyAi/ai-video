@@ -44,8 +44,8 @@ describe("generated-part resilience", () => {
     ]);
     expect(JSON.stringify(events)).not.toContain("private variable detail");
     expect(events).toContainEqual(expect.objectContaining({
-      type: "response.error",
-      data: { error: { code: "invalid_generated_part", message: "Generated content was skipped", recoverable: true }, terminal: false },
+      type: "response.warning",
+      data: { warning: { code: "provider_warning", category: "provider", message: "Some generated content was skipped.", recoverable: true } },
     }));
   });
 
@@ -121,7 +121,7 @@ describe("generated-part resilience", () => {
     expect(JSON.stringify(events)).not.toMatch(/secret schema detail|reporter failed/);
   });
 
-  it("reports and redacts terminal core failures", async () => {
+  it("reports interrupted plans without discarding playable scenes", async () => {
     const reported: string[] = [];
     const handler = createVideoStreamHandler({
       authorize: "none",
@@ -135,8 +135,8 @@ describe("generated-part resilience", () => {
     for await (const event of decodeVideoSse(response.body!)) events.push(event);
     expect(reported).toContain("The planner stream ended before plan.complete");
     expect(events.at(-1)).toMatchObject({
-      type: "response.error",
-      data: { error: { message: "Video response generation failed" } },
+      type: "response.complete",
+      data: { finishReason: "other" },
     });
   });
 
@@ -173,7 +173,7 @@ describe("generated-part resilience", () => {
     const events = [];
     for await (const event of decodeVideoSse(response.body!)) events.push(event);
     expect(events.map(({ type }) => type)).toEqual([
-      "response.start", "scene.add", "response.error", "scene.add", "response.complete",
+      "response.start", "scene.add", "response.warning", "scene.add", "response.complete",
     ]);
   });
 });

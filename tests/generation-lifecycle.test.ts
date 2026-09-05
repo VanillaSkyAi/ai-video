@@ -133,7 +133,7 @@ describe("typed generation lifecycle", () => {
   });
 
   it.each(["error", "tool-calls", "tool_calls"])(
-    "treats provider finish reason %s as terminal failure even after plan.complete",
+    "preserves playable scenes after provider finish reason %s",
     async (finishReason) => {
       const internalErrors: Error[] = [];
       const completed: VideoGenerationSummary[] = [];
@@ -155,11 +155,11 @@ describe("typed generation lifecycle", () => {
       const events = await eventsFrom(await handler(request()));
 
       expect(events.at(-1)).toMatchObject({
-        type: "response.error",
-        data: { error: { code: "generation_failed", message: "Video response generation failed" } },
+        type: "response.complete",
+        data: { finishReason: "other" },
       });
       expect(internalErrors).toHaveLength(1);
-      expect(completed).toHaveLength(0);
+      expect(completed).toHaveLength(1);
     },
   );
 
@@ -247,7 +247,7 @@ describe("typed generation lifecycle", () => {
 
     const events = await eventsFrom(await handler(request()));
 
-    expect(counts).toEqual({ warning: 1, error: 1, complete: 1 });
+    expect(counts).toEqual({ warning: 2, error: 1, complete: 1 });
     expect(events.at(-1)?.type).toBe("response.complete");
     expect(JSON.stringify(events)).not.toMatch(/callback secret|raw provider warning secret|templateId.*missing/);
   });

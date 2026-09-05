@@ -126,7 +126,11 @@ fixed visual-mode spend limits, capability fallbacks, and auxiliary response
 shapes. The application supplies provider-neutral `streamText`, `generateText`,
 `generateSpeech`, `transcribe`, `searchMedia`, and `generateVideo` callbacks.
 Only the two text callbacks are required. Missing optional callbacks remove
-their capability; templates and browser speech remain available.
+their capability; templates and browser speech remain available. During response
+creation, failed generated footage falls back to stock when available, then to
+a safe template. The default handler skips invalid planner parts and preserves
+playable scenes on an interrupted plan, emitting non-fatal warnings. Explicit
+`invalidPartBehavior: "fail"` retains strict generation semantics.
 
 - A response accepts `prompt`, `mode`, `orientation`, optional bounded
   `conversation`, `opening`, `brand`, and `style`. `opening` is an optional
@@ -251,6 +255,14 @@ paces each scene to its prepared speech, and keeps pause, mute, replay, history,
 captions, and actual playback completion synchronized. The default voice tries
 the handler's generated-speech action and falls back to browser speech. Pass a
 `VideoChatVoice` to replace it without rebuilding session orchestration.
+`createVideoChatVoice({ onFallback })` optionally observes a generated-speech
+failure that selects browser speech. Observer exceptions and rejected promises
+are isolated from playback; no provider diagnostics are passed to this callback.
+
+`chat.warnings` exposes concise notices for the displayed turn, also retained
+as optional `VideoChatTurn.warnings`. The default interface displays these as
+status messages. Optional scene, narration, speech, or stream failures preserve
+playable output; an error is shown only when no playable response remains.
 `ask(prompt, { opening, openingMedia })` lets a custom interface start a
 prewritten suggestion hook immediately and reuse its image or video without
 another model or media lookup. The hook otherwise reads the opening from the

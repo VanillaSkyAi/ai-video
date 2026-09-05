@@ -11,6 +11,8 @@ import {
 } from "../visual-system/catalog/media-resolver-contract.js";
 import { MAX_RETAINED_MEDIA_URL_LENGTH } from "../protocol/persistence.js";
 
+import { getGenerationLifecycleSink } from "./lifecycle.js";
+
 const MAX_MEDIA_QUERY_CHARACTERS = 80;
 const MAX_MEDIA_QUERY_WORDS = 8;
 
@@ -71,10 +73,6 @@ function fallbackVariables(
   return fallback;
 }
 
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === "AbortError";
-}
-
 async function resolveVariables(options: {
   variables: Record<string, unknown>;
   requestId: string;
@@ -88,6 +86,7 @@ async function resolveVariables(options: {
   openingReady: boolean;
   /** Returns false once this request has resolved as much media as it may. */
   claimBudget?: () => boolean;
+  onFallback?: () => void;
 }): Promise<Record<string, unknown>> {
   if (!Object.hasOwn(options.variables, "mediaKeyword")) return options.variables;
 
@@ -103,6 +102,10 @@ async function resolveVariables(options: {
   // Claimed before the provider is called, not after: the point is to not spend.
   if (options.claimBudget && !options.claimBudget()) return fallbackVariables(variables);
 
+  const fallback = () => {
+    options.onFallback?.();
+    return fallbackVariables(variables);
+  };
   let resolved: ResolvedMedia | null;
   try {
     resolved = await options.resolveMedia(rawQuery, {
@@ -114,30 +117,29 @@ async function resolveVariables(options: {
       generatedLook: options.input.style?.generatedLook,
       signal: options.signal,
     });
+    if (options.signal.aborted) {
+      throw options.signal.reason ?? new DOMException("The media request was aborted", "AbortError");
+    }
+    if (!resolved) return fallback();
+    if (resolved.type !== "image" && resolved.type !== "video") {
+      throw new Error("Resolved media type is invalid");
+    }
+    const url = cleanUrl(resolved.url, "URL");
+    if (!url) throw new Error("Resolved media URL is required");
+    const posterUrl = options.contract.acceptsPoster
+      ? cleanUrl(resolved.posterUrl, "poster URL")
+      : undefined;
+    options.approveUrl(options.input, url);
+    if (posterUrl) options.approveUrl(options.input, posterUrl);
+    variables.mediaUrl = url;
+    variables.mediaType = resolved.type === "image" ? "photo" : "video";
+    if (posterUrl) variables.mediaPoster = posterUrl;
+    else delete variables.mediaPoster;
+    return variables;
   } catch (error) {
     if (options.signal.aborted) throw options.signal.reason ?? error;
-    if (isAbortError(error)) throw error;
-    return fallbackVariables(variables);
+    return fallback();
   }
-  if (options.signal.aborted) {
-    throw options.signal.reason ?? new DOMException("The media request was aborted", "AbortError");
-  }
-  if (!resolved) return fallbackVariables(variables);
-  if (resolved.type !== "image" && resolved.type !== "video") {
-    throw new Error("Resolved media type is invalid");
-  }
-  const url = cleanUrl(resolved.url, "URL");
-  if (!url) throw new Error("Resolved media URL is required");
-  const posterUrl = options.contract.acceptsPoster
-    ? cleanUrl(resolved.posterUrl, "poster URL")
-    : undefined;
-  options.approveUrl(options.input, url);
-  if (posterUrl) options.approveUrl(options.input, posterUrl);
-  variables.mediaUrl = url;
-  variables.mediaType = resolved.type === "image" ? "photo" : "video";
-  if (posterUrl) variables.mediaPoster = posterUrl;
-  else delete variables.mediaPoster;
-  return variables;
 }
 
 function templateContract(
@@ -175,6 +177,7 @@ async function resolvePartVariables(options: {
   approveUrl: (input: VideoInput, url: string) => void;
   openingReady: boolean;
   claimBudget?: () => boolean;
+  onFallback?: () => void;
 }): Promise<VideoPlanPart> {
   if (!options.templateId) return sanitizeUnknownTemplatePart(options.part);
   const shared = {
@@ -186,6 +189,7 @@ async function resolvePartVariables(options: {
     approveUrl: options.approveUrl,
     openingReady: options.openingReady,
     claimBudget: options.claimBudget,
+    onFallback: options.onFallback,
   };
   if (options.part.type === "scene.add") {
     const variables = await resolveVariables({
@@ -265,6 +269,10 @@ export function createMediaResolvingPlanner(options: {
       approveUrl: options.approveUrl,
       openingReady: openingReady ?? options.isOpeningReady(context.request.input),
       claimBudget,
+      onFallback: () => getGenerationLifecycleSink(context)?.reportWarning?.({
+        code: "provider_warning", category: "provider",
+        message: "Some visuals use a simple background.", recoverable: true,
+      }),
     });
 
     if (limit === 1) {

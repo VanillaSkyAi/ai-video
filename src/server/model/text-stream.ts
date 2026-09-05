@@ -139,6 +139,7 @@ interface SettledField<T> {
   rejected: boolean;
 }
 
+const PROVIDER_DIAGNOSTICS_TIMEOUT_MS = 1_000;
 const PROVIDER_RESULT_ABORTED = Symbol("provider-result-aborted");
 
 function settle<T>(value: Awaitable<T> | undefined): Promise<SettledField<T>> {
@@ -154,7 +155,16 @@ function providerResultOrAbort(
 ): Promise<VideoProviderLifecycleResult | typeof PROVIDER_RESULT_ABORTED> {
   return new Promise((resolve, reject) => {
     let completed = false;
-    const cleanup = () => signal.removeEventListener("abort", onAbort);
+    const timeout = setTimeout(() => {
+      if (completed) return;
+      completed = true;
+      cleanup();
+      resolve({ warnings: [providerWarning("provider_diagnostics_unavailable", "Some response diagnostics were unavailable.")] });
+    }, PROVIDER_DIAGNOSTICS_TIMEOUT_MS);
+    const cleanup = () => {
+      clearTimeout(timeout);
+      signal.removeEventListener("abort", onAbort);
+    };
     const onAbort = () => {
       if (completed) return;
       completed = true;
@@ -282,60 +292,80 @@ export function createTextDeltaVideoPlanner(
     const providerResult = enriched
       ? inspectProviderSource(enriched, options.includeRawProviderData ?? false)
       : undefined;
-    if (providerResult) getGenerationLifecycleSink(context)?.registerProviderResult(providerResult);
+    let releaseDiagnostics!: (result?: VideoProviderLifecycleResult) => void;
+    const stoppedDiagnostics = new Promise<VideoProviderLifecycleResult>((resolve) => {
+      releaseDiagnostics = (result) => resolve(result ?? { warnings: [] });
+    });
+    if (providerResult) getGenerationLifecycleSink(context)?.registerProviderResult(Promise.race([providerResult, stoppedDiagnostics]));
     const textStream = enriched?.textStream ?? source as AsyncIterable<string>;
+    const parseLine = (line: string) => {
+      try { return parsePlanLine(line); } catch (cause) {
+        const error = cause instanceof Error ? cause : new Error(String(cause));
+        if (!getGenerationLifecycleSink(context)?.rejectPart?.(error)) throw error;
+        return undefined;
+      }
+    };
     let buffer = "";
     let explicitlyCompleted = false;
-    for await (const delta of textStream) {
-      if (typeof delta !== "string") throw new Error("The LLM adapter returned a non-text delta");
-      buffer += delta;
-      let newline = buffer.indexOf("\n");
-      while (newline >= 0) {
-        const line = buffer.slice(0, newline).trim();
-        buffer = buffer.slice(newline + 1);
-        const part = parsePlanLine(line);
+    try {
+      for await (const delta of textStream) {
+        if (typeof delta !== "string") throw new Error("The LLM adapter returned a non-text delta");
+        buffer += delta;
+        let newline = buffer.indexOf("\n");
+        while (newline >= 0) {
+          const line = buffer.slice(0, newline).trim();
+          buffer = buffer.slice(newline + 1);
+          const part = parseLine(line);
+          if (part) {
+            if (part.type === "plan.complete") explicitlyCompleted = true;
+            yield part;
+          }
+          newline = buffer.indexOf("\n");
+        }
+      }
+      const tail = buffer.trim();
+      try {
+        const part = parsePlanLine(tail);
         if (part) {
           if (part.type === "plan.complete") explicitlyCompleted = true;
           yield part;
         }
-        newline = buffer.indexOf("\n");
+      } catch (error) {
+        if (!tail.startsWith("{") || !isConfidentlyTruncatedJson(tail)) {
+          if (!getGenerationLifecycleSink(context)?.rejectPart?.(error instanceof Error ? error : new Error(String(error)))) throw error;
+        } else {
+          yield { type: "plan.complete", finishReason: "length" };
+          explicitlyCompleted = true;
+        }
       }
-    }
-    const tail = buffer.trim();
-    try {
-      const part = parsePlanLine(tail);
-      if (part) {
-        if (part.type === "plan.complete") explicitlyCompleted = true;
-        yield part;
+      if (enriched) {
+        const provider = await providerResultOrAbort(providerResult!, context.signal);
+        if (provider === PROVIDER_RESULT_ABORTED) return;
+        releaseDiagnostics(provider);
+        const standardReason = normalizeFinishReason(provider.finishReason);
+        const rawReason = normalizeFinishReason(provider.rawFinishReason);
+        const providerReason = standardReason && standardReason !== "other"
+          ? standardReason
+          : rawReason ?? standardReason;
+        if (providerReason === "provider-error") {
+          throw new Error("The model provider finished with an error");
+        }
+        if (providerReason === "tool-calls") {
+          throw new Error("The model provider requested unsupported tool calls");
+        }
+        // A normal provider stop is not the protocol's explicit completion and
+        // must not make a malformed response look complete.
+        if (!explicitlyCompleted && (
+          providerReason === "length" ||
+          providerReason === "content-filter" ||
+          providerReason === "other"
+        )) {
+          yield { type: "plan.complete", finishReason: providerReason };
+        }
       }
-    } catch (error) {
-      if (!tail.startsWith("{") || !isConfidentlyTruncatedJson(tail)) throw error;
-      yield { type: "plan.complete", finishReason: "length" };
-      explicitlyCompleted = true;
-    }
-    if (enriched) {
-      const provider = await providerResultOrAbort(providerResult!, context.signal);
-      if (provider === PROVIDER_RESULT_ABORTED) return;
-      const standardReason = normalizeFinishReason(provider.finishReason);
-      const rawReason = normalizeFinishReason(provider.rawFinishReason);
-      const providerReason = standardReason && standardReason !== "other"
-        ? standardReason
-        : rawReason ?? standardReason;
-      if (providerReason === "provider-error") {
-        throw new Error("The model provider finished with an error");
-      }
-      if (providerReason === "tool-calls") {
-        throw new Error("The model provider requested unsupported tool calls");
-      }
-      // A normal provider stop is not the protocol's explicit completion and
-      // must not make a malformed response look complete.
-      if (!explicitlyCompleted && (
-        providerReason === "length" ||
-        providerReason === "content-filter" ||
-        providerReason === "other"
-      )) {
-        yield { type: "plan.complete", finishReason: providerReason };
-      }
+    } finally {
+      // Failed/closed iterators cannot promise their provider metadata will settle.
+      releaseDiagnostics();
     }
   };
 }

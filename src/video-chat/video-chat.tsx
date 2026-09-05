@@ -301,6 +301,10 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
           </button>}
         </div>
 
+        {!chat.error && chat.warnings.length > 0 && <p className="error" role="status">
+          <Warning /><span>{chat.warnings.at(-1)}</span>
+        </p>}
+
         {(chat.error || listen.error) && <p className="error" role="status">
           <Warning /><span>{chat.error?.message ?? listen.error}</span>
         </p>}
