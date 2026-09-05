@@ -564,7 +564,7 @@ describe("useVideoChat", () => {
     expect(events.at(-1)?.type).toBe("response.complete");
   });
 
-  it("settles and removes the player stream after a terminal failure", async () => {
+  it("preserves and completes the playable response after a terminal failure", async () => {
     const { useVideoChat } = await import("../src/react");
     let fail!: () => void;
     const failureReady = new Promise<void>((resolve) => { fail = resolve; });
@@ -581,7 +581,7 @@ describe("useVideoChat", () => {
           ];
           controller.enqueue(encoder.encode(first.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("")));
           void failureReady.then(() => {
-            const event = { protocolVersion: "0.5", type: "response.error", eventId: "terminal:2", runId: "terminal", sequence: 2, data: { error: { code: "provider_failed", message: "Planning stopped", recoverable: false }, terminal: true } };
+            const event = { protocolVersion: "0.5", type: "response.error", eventId: "terminal:2", runId: "terminal", sequence: 2, data: { error: { code: "generation_failed", message: "Planning stopped", recoverable: false }, terminal: true } };
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\ndata: [DONE]\n\n`));
             controller.close();
           });
@@ -597,11 +597,79 @@ describe("useVideoChat", () => {
     fail();
     await act(async () => { await pending; });
 
-    expect(result.current.status).toBe("error");
-    expect(result.current.playerProps).toBeUndefined();
+    expect(result.current.error).toBeUndefined();
+    expect(result.current.currentTurn?.completed).toBe(true);
+    expect(result.current.playerProps?.stream).toBe(playerStream);
+    expect(result.current.warnings.length).toBeGreaterThan(0);
     const events = [];
     for await (const event of playerStream) events.push(event);
     expect(events.at(-1)?.type).toBe("response.complete");
+  });
+
+  it.each([502, 200])("uses scene narration fallback for unusable narration HTTP %s", async (status) => {
+    const { useVideoChat } = await import("../src/react");
+    const base = videoChatFetcher();
+    const fetcher: typeof fetch = vi.fn(async (input, init) => String(input).includes("action=narration")
+      ? Response.json({ line: "" }, { status }) : base(input, init));
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice() }));
+    await act(async () => { await result.current.ask("Keep going"); });
+    expect(result.current.currentTurn?.video?.scenes[0]?.narration).toBe("First");
+    expect(result.current.warnings.length).toBeGreaterThan(0);
+  });
+
+  it("finishes received scenes when optional narration ignores the request timeout", async () => {
+    const { useVideoChat } = await import("../src/react");
+    const base = videoChatFetcher();
+    const fetcher: typeof fetch = vi.fn(async (input, init) => String(input).includes("action=narration")
+      ? new Promise<Response>(() => undefined) : base(input, init));
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice(), timeoutMs: 30 }));
+    await act(async () => { await result.current.ask("Keep completed scenes"); });
+    expect(result.current.currentTurn?.video?.scenes).toHaveLength(2);
+    expect(result.current.currentTurn?.completed).toBe(true);
+    expect(result.current.error).toBeUndefined();
+  });
+
+  it("retains a playable opening when the response contains no scenes", async () => {
+    const { useVideoChat } = await import("../src/react");
+    const base = videoChatFetcher();
+    const fetcher: typeof fetch = vi.fn(async (input, init) => String(input).includes("action=response")
+      ? responseStream("empty", []) : base(input, init));
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice: fakeVoice() }));
+    await act(async () => { await result.current.ask("Keep the opening"); });
+    expect(result.current.currentTurn?.video?.scenes[0]?.narration).toBe("Let us begin somewhere unexpected.");
+    expect(result.current.error).toBeUndefined();
+    expect(result.current.currentTurn?.completed).toBe(true);
+  });
+
+  it("warns when the default voice recovers a speech provider failure", async () => {
+    const { useVideoChat } = await import("../src/react");
+    const base = videoChatFetcher();
+    const fetcher: typeof fetch = vi.fn(async (input, init) => String(input).includes("action=speech")
+      ? new Response("private provider failure", { status: 502 }) : base(input, init));
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher }));
+    await act(async () => { await result.current.ask("Keep speaking"); });
+    expect(result.current.currentTurn?.video?.scenes).toHaveLength(2);
+    expect(result.current.warnings).toContain("Using browser voice for this response.");
+    expect(JSON.stringify(result.current.warnings)).not.toContain("private");
+  });
+
+  it("keeps every scene when narration and speech preparation fail", async () => {
+    const { useVideoChat } = await import("../src/react");
+    const base = videoChatFetcher();
+    const fetcher: typeof fetch = vi.fn(async (input, init) => {
+      if (String(input).includes("action=narration")) throw new Error("private provider detail");
+      return base(input, init);
+    });
+    const voice = fakeVoice();
+    voice.prepare.mockRejectedValue(new Error("private speech detail"));
+    const { result } = renderHook(() => useVideoChat({ templates: kit, fetcher, voice }));
+    let video: Video | undefined;
+    await act(async () => { video = await result.current.ask("Keep going"); });
+    expect(video?.scenes).toHaveLength(2);
+    expect(result.current.error).toBeUndefined();
+    expect(result.current.currentTurn?.opening).toBe("Let us begin somewhere unexpected.");
+    expect(result.current.warnings.length).toBeGreaterThan(0);
+    expect(JSON.stringify(result.current.warnings)).not.toContain("private");
   });
 
   it("keeps a playable video when follow-up suggestions fail", async () => {
@@ -638,6 +706,57 @@ describe("useVideoChat", () => {
 });
 
 describe("createVideoChatVoice", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it.each(["browser", "generated"])("settles %s speech when playback never reports completion", async (source) => {
+    const { createVideoChatVoice } = await import("../src/react");
+    vi.useFakeTimers();
+    vi.stubGlobal("speechSynthesis", { speak: vi.fn(), cancel: vi.fn(), pause: vi.fn(), resume: vi.fn() });
+    vi.stubGlobal("SpeechSynthesisUtterance", class { constructor(public text: string) {} });
+    vi.stubGlobal("Audio", class { play() { return Promise.resolve(); } pause() {} });
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:audio"), revokeObjectURL: vi.fn() }));
+    const voice = createVideoChatVoice({ fetcher: vi.fn(async () => source === "browser"
+      ? new Response(null, { status: 204 })
+      : new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "audio/mpeg" } })) });
+    let settled = false;
+    const speaking = Promise.resolve(voice.speak("Keep going.", { signal: new AbortController().signal })).then(() => { settled = true; });
+    await vi.advanceTimersByTimeAsync(0);
+    voice.pause();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(settled).toBe(false);
+    voice.resume();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(settled).toBe(true);
+    await speaking;
+    expect(vi.getTimerCount()).toBe(0);
+    voice.dispose?.();
+  });
+
+  it.each(["end", "abort", "dispose"])("cleans the speech watchdog and abort listener on %s", async (finish) => {
+    const { createVideoChatVoice } = await import("../src/react");
+    vi.useFakeTimers();
+    let utterance: { onend?: () => void } | undefined;
+    vi.stubGlobal("speechSynthesis", { speak: (value: typeof utterance) => { utterance = value; }, cancel: vi.fn(), pause: vi.fn(), resume: vi.fn() });
+    vi.stubGlobal("SpeechSynthesisUtterance", class { constructor(public text: string) {} });
+    const voice = createVideoChatVoice({ fetcher: vi.fn(async () => new Response(null, { status: 204 })) });
+    const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, "removeEventListener");
+    const speaking = voice.speak("Keep going.", { signal: controller.signal });
+    await vi.advanceTimersByTimeAsync(0);
+    remove.mockClear();
+    if (finish === "abort") controller.abort();
+    else if (finish === "dispose") voice.dispose?.();
+    else utterance?.onend?.();
+    await speaking;
+    expect(vi.getTimerCount()).toBe(0);
+    expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
+    voice.dispose?.();
+  });
+
   it("remembers the server's browser-voice fallback without repeating requests", async () => {
     const { createVideoChatVoice } = await import("../src/react");
     const fetcher = vi.fn(async () => new Response(null, { status: 204 }));
@@ -665,6 +784,28 @@ describe("createVideoChatVoice", () => {
     expect((await voice.prepare("A short spoken response.")).seconds).toBeGreaterThan(0);
     await voice.speak("A short spoken response.", { signal: new AbortController().signal });
 
+    expect(speak).toHaveBeenCalledOnce();
+    voice.dispose?.();
+  });
+
+  it.each(["play", "resume"])("uses browser speech when generated audio cannot %s", async (failure) => {
+    const { createVideoChatVoice } = await import("../src/react");
+    const speak = vi.fn((utterance: { onend?: () => void }) => utterance.onend?.());
+    vi.stubGlobal("speechSynthesis", { speak, cancel: vi.fn(), pause: vi.fn(), resume: vi.fn() });
+    vi.stubGlobal("SpeechSynthesisUtterance", class { constructor(public text: string) {} });
+    vi.stubGlobal("Audio", class {
+      play() { return Promise.reject(new Error("private playback failure")); }
+      pause() {}
+    });
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:audio"), revokeObjectURL: vi.fn() }));
+    const voice = createVideoChatVoice({ fetcher: vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "audio/mpeg" } })) });
+    if (failure === "resume") voice.pause();
+    const speaking = voice.speak("Keep speaking.", { signal: new AbortController().signal });
+    if (failure === "resume") {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      voice.resume();
+    }
+    await speaking;
     expect(speak).toHaveBeenCalledOnce();
     voice.dispose?.();
   });

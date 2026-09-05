@@ -4,6 +4,14 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Preserves playable video-chat openings and completed scenes when planning or
+  an optional provider fails. Malformed scene lines no longer discard later
+  valid scenes; generated footage can fall back to stock and safe templates.
+- Continues narration with scene text and browser voice when generated speech
+  fails, and shows concise non-fatal warnings without provider details.
+- Keeps template rendering failures local to a scene, and lets stock searches
+  recover from failed lookups or malformed candidates.
+
 ## 0.7.1
 
 - Keeps Full AI video responses running when a text provider repeats narration

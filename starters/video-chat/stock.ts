@@ -28,12 +28,6 @@ interface StockMedia {
   posterUrl?: string;
 }
 
-interface VideoFile {
-  link?: unknown;
-  width?: number;
-  height?: number;
-}
-
 /** One hour, keyed by query. The same response asked twice searches once. */
 const cache = new Map<string, { payload: unknown; expiresAt: number }>();
 
@@ -45,52 +39,63 @@ function normalizeKeyword(value: string): string {
     .slice(0, MAX_KEYWORD_LENGTH);
 }
 
-function trustedUrl(value: unknown, host: string): string {
-  const url = new URL(String(value));
-  if (url.protocol !== "https:" || url.hostname !== host) {
-    throw new Error(`Stock search returned a URL outside ${host}`);
-  }
-  return url.toString();
+function record(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
 }
 
-function pickVideoFile(files: VideoFile[], orientation: VideoOrientation): VideoFile & { link: string } | null {
-  const usable = files
-    .filter((file): file is VideoFile & { link: string } => typeof file.link === "string")
-    // One file on an unexpected host is one file to skip, not a reason to give
-    // up the search: throwing here lost every other rendition of the same clip.
-    .flatMap((file) => {
-      try {
-        return [{ ...file, link: trustedUrl(file.link, "videos.pexels.com") }];
-      } catch {
-        return [];
-      }
-    })
-    .filter((file) => file.width && file.height);
-  // Matched to the stage, because a clip cropped to the other shape loses
-  // whatever the search was actually for - a landscape river in a portrait
-  // frame is a column of water with both banks cut off.
-  const wanted = orientation === "portrait"
-    ? (file: VideoFile) => (file.height ?? 0) >= (file.width ?? 0)
-    : (file: VideoFile) => (file.width ?? 0) >= (file.height ?? 0);
-  return usable.find(wanted) ?? usable[0] ?? null;
+function entries(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function trustedUrl(value: unknown, host: string): string | undefined {
+  if (typeof value !== "string") return undefined;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.hostname !== host || url.username || url.password) return undefined;
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+function pickVideoFile(files: unknown, orientation: VideoOrientation): string | undefined {
+  const usable = entries(files).flatMap((value) => {
+    const file = record(value);
+    const link = trustedUrl(file.link, "videos.pexels.com");
+    const { width, height } = file;
+    if (!link || typeof width !== "number" || typeof height !== "number"
+      || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return [];
+    return [{ link, width, height }];
+  });
+  // Prefer the stage's shape without discarding other safe renditions.
+  return (usable.find((file) => orientation === "portrait"
+    ? file.height >= file.width
+    : file.width >= file.height) ?? usable[0])?.link;
 }
 
 async function search(url: string, apiKey: string, signal: AbortSignal): Promise<unknown> {
   const cached = cache.get(url);
   if (cached && cached.expiresAt > Date.now()) return cached.payload;
 
-  const response = await fetch(url, {
-    headers: { Authorization: apiKey },
-    signal: AbortSignal.any([signal, AbortSignal.timeout(LOOKUP_TIMEOUT_MS)]),
-  });
-  // Only a real response is worth keeping. Caching the failure would let one
-  // rate-limited minute leave every response about the Moon on a gradient for
-  // the hour that followed.
-  if (!response.ok) return null;
-  const payload = await response.json();
-  cache.set(url, { payload, expiresAt: Date.now() + 60 * 60 * 1_000 });
-  if (cache.size > 100) cache.delete(cache.keys().next().value!);
-  return payload;
+  if (signal.aborted) return null;
+  try {
+    const response = await fetch(url, {
+      headers: { Authorization: apiKey },
+      signal: AbortSignal.any([signal, AbortSignal.timeout(LOOKUP_TIMEOUT_MS)]),
+    });
+    if (!response.ok || signal.aborted) return null;
+    const payload: unknown = await response.json();
+    if (signal.aborted) return null;
+    cache.set(url, { payload, expiresAt: Date.now() + 60 * 60 * 1_000 });
+    if (cache.size > 100) cache.delete(cache.keys().next().value!);
+    return payload;
+  } catch {
+    // A failed video search must still allow the independent photo fallback.
+    if (!signal.aborted) console.warn("[video-chat] Stock lookup unavailable; trying a fallback.");
+    return null;
+  }
 }
 
 /**
@@ -102,38 +107,27 @@ async function search(url: string, apiKey: string, signal: AbortSignal): Promise
 export async function findStockFootage(subject: string, orientation: VideoOrientation, signal: AbortSignal): Promise<StockMedia | null> {
   const apiKey = process.env.PEXELS_API_KEY;
   const keyword = normalizeKeyword(subject);
-  if (!apiKey || !keyword) return null;
+  if (!apiKey || !keyword || signal.aborted) return null;
 
   const params = new URLSearchParams({ query: keyword, orientation, per_page: "3", page: "1" });
-  const started = Date.now();
-  try {
-    const videos = await search(`${VIDEO_SEARCH}?${params}`, apiKey, signal) as
-      { videos?: Array<{ image?: unknown; video_files?: VideoFile[] }> } | null;
-    for (const video of videos?.videos ?? []) {
-      const file = pickVideoFile(video.video_files ?? [], orientation);
-      if (!file) continue;
-      console.log(`[video-chat] stock video in ${Date.now() - started}ms: ${keyword}`);
-      return {
-        url: file.link,
-        type: "video",
-        // The still shown while the video decodes its first frame, which is
-        // otherwise a flash of gradient where the footage should be.
-        ...(video.image ? { posterUrl: trustedUrl(video.image, "images.pexels.com") } : {}),
-      };
-    }
-
-    const photos = await search(`${PHOTO_SEARCH}?${params}`, apiKey, signal) as
-      { photos?: Array<{ src?: { large2x?: unknown; large?: unknown } }> } | null;
-    const photo = photos?.photos?.[0]?.src?.large2x ?? photos?.photos?.[0]?.src?.large;
-    if (!photo) return null;
-    console.log(`[video-chat] stock photo in ${Date.now() - started}ms: ${keyword}`);
-    return { url: trustedUrl(photo, "images.pexels.com"), type: "image" };
-  } catch (cause) {
-    // A timeout, an abort, or a search that returned something unexpected. The
-    // beat keeps its copy on the brand gradient.
-    if (!signal.aborted) {
-      console.warn(`[video-chat] stock search failed after ${Date.now() - started}ms:`, cause instanceof Error ? cause.message : cause);
-    }
-    return null;
+  const videos = record(await search(`${VIDEO_SEARCH}?${params}`, apiKey, signal));
+  if (signal.aborted) return null;
+  for (const value of entries(videos.videos)) {
+    const video = record(value);
+    const url = pickVideoFile(video.video_files, orientation);
+    if (!url) continue;
+    const posterUrl = trustedUrl(video.image, "images.pexels.com");
+    return { url, type: "video", ...(posterUrl ? { posterUrl } : {}) };
   }
+
+  const photos = record(await search(`${PHOTO_SEARCH}?${params}`, apiKey, signal));
+  if (signal.aborted) return null;
+  for (const value of entries(photos.photos)) {
+    const source = record(record(value).src);
+    for (const candidate of [source.large2x, source.large]) {
+      const url = trustedUrl(candidate, "images.pexels.com");
+      if (url) return { url, type: "image" };
+    }
+  }
+  return null;
 }

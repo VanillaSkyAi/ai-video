@@ -18,6 +18,7 @@ import {
   type MediaResolver,
 } from "./media-resolver.js";
 import { createBoundedVariablePlanner } from "./bound-variables.js";
+import { invokeIsolated } from "./composition-runtime.js";
 import type { VideoInput } from "../protocol/types.js";
 
 export type { MediaResolver, MediaResolverContext, ResolvedMedia } from "./media-resolver.js";
@@ -110,7 +111,7 @@ export function createVideoHandler(
   const planner = createBoundedVariablePlanner({
     planner: createTextDeltaVideoPlanner({ streamText, includeRawProviderData }),
     templates,
-    onClipped: (templateId, fields) => void handlerOptions.onWarning?.(
+    onClipped: (templateId, fields) => invokeIsolated(handlerOptions.onWarning,
       createClippedVariableWarning(templateId, fields),
     ),
   });
@@ -141,7 +142,7 @@ export function createVideoHandler(
       // that set it rather than to the browser, which cannot act on it.
       onBudgetReached: maxResolvedMedia === undefined
         ? undefined
-        : () => { void handlerOptions.onWarning?.(createMediaBudgetWarning(maxResolvedMedia)); },
+        : () => { invokeIsolated(handlerOptions.onWarning, createMediaBudgetWarning(maxResolvedMedia)); },
       // The same rule the scene validator applies, answered from the part
       // rather than from what the validator has already seen.
       marksOpeningReady: (part) => part.type === "scene.add"

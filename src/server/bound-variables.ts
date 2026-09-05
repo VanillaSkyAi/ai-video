@@ -1,3 +1,5 @@
+import { getGenerationLifecycleSink } from "./lifecycle.js";
+import { invokeIsolated } from "./composition-runtime.js";
 import type { VideoPlanPart, VideoPlanner } from "../protocol/types.js";
 import type { ServerTemplateRegistry } from "../visual-system/catalog/server-kit.js";
 import type { TemplateJsonSchemaProperty } from "../visual-system/catalog/catalog-types.js";
@@ -81,22 +83,39 @@ export function createBoundedVariablePlanner(options: {
   onClipped?: (templateId: string, fields: readonly string[]) => void;
 }): VideoPlanner {
   return async function* boundPlan(context) {
-    for await (const part of options.planner(context)) {
+    for await (let part of options.planner(context)) {
       if (part.type !== "scene.add") {
         yield part;
         continue;
       }
-      const { variables, clipped } = boundSceneVariables(
-        options.templates,
-        part.scene.templateId,
-        part.scene.variables,
-      );
-      if (clipped.length === 0) {
-        yield part;
-        continue;
+      try {
+        const lifecycle = getGenerationLifecycleSink(context);
+        if (!options.templates.getTemplateMetadata(part.scene.templateId) && lifecycle?.recoverGeneratedParts &&
+          (context.request.capabilities?.templates == null || context.request.capabilities.templates.includes("media"))) {
+          const copy = [part.scene.variables.texts, part.scene.variables.title, part.scene.variables.message, part.scene.narration]
+            .find((value): value is string => typeof value === "string" && Boolean(value.trim()) &&
+              !/https?:\/\/|\b(?:api[_-]?key|authorization|secret|token|password)\s*[:=]/i.test(value));
+          if (copy) {
+            part = { ...part, scene: { ...part.scene, templateId: "media", variables: { texts: copy, mediaType: "gradient" } } };
+            lifecycle.reportWarning?.({ code: "provider_warning", category: "provider", message: "Some scenes use a simpler layout.", recoverable: true });
+          }
+        }
+        const { variables, clipped } = boundSceneVariables(
+          options.templates,
+          part.scene.templateId,
+          part.scene.variables,
+        );
+        if (clipped.length === 0) {
+          yield part;
+          continue;
+        }
+        const templateId = part.scene.templateId;
+        invokeIsolated(options.onClipped && (() => options.onClipped!(templateId, clipped)), undefined);
+        yield { ...part, scene: { ...part.scene, variables } } satisfies VideoPlanPart;
+      } catch (cause) {
+        const error = cause instanceof Error ? cause : new Error(String(cause));
+        if (!getGenerationLifecycleSink(context)?.rejectPart?.(error)) throw error;
       }
-      options.onClipped?.(part.scene.templateId, clipped);
-      yield { ...part, scene: { ...part.scene, variables } } satisfies VideoPlanPart;
     }
   };
 }

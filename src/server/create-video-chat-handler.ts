@@ -10,6 +10,7 @@ import {
   type VideoHandlerOptions,
 } from "./create-video-handler.js";
 import type { ResolvedMedia } from "./media-resolver.js";
+import { getGenerationLifecycleSink, type VideoGenerationLifecycleSink } from "./lifecycle.js";
 import { sanitizeVideoChatMedia } from "../video-chat/media.js";
 import {
   type VideoChatFirstShot,
@@ -619,10 +620,10 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
   ) => {
     const mode = requestedMode !== "templates" && !generateVideo ? "templates" : requestedMode;
     const fullAiVideo = mode === "full";
-    const selectedResolver = fullAiVideo ? generateVideo : searchMedia;
-    const resolveSelected = selectedResolver
-      ? (query: string, context: Parameters<NonNullable<VideoHandlerOptions["resolveMedia"]>>[1]) =>
-          selectedResolver(query, {
+    let lifecycle: VideoGenerationLifecycleSink | undefined;
+    const resolveSelected: VideoHandlerOptions["resolveMedia"] = generateVideo || searchMedia
+      ? async (query, context) => {
+          const mediaContext: VideoChatMediaContext = {
             purpose: "response",
             orientation: context.input.orientation ?? "landscape",
             generatedLook: context.generatedLook,
@@ -631,11 +632,39 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
             scene: context.scene,
             templateId: context.templateId,
             preferredType: context.preferredType,
-          })
+          };
+          const attempt = async (resolver: VideoChatMediaResolver | undefined) => {
+            context.signal.throwIfAborted();
+            if (!resolver) return null;
+            try {
+              const result = sanitizeVideoChatMedia(await resolver(query, mediaContext));
+              context.signal.throwIfAborted();
+              return result;
+            } catch (cause) {
+              // A provider deadline is local to this shot. Only cancellation of
+              // the response itself stops the remaining scenes and providers.
+              context.signal.throwIfAborted();
+              reportError(cause);
+              return null;
+            }
+          };
+          if (fullAiVideo) {
+            const generated = await attempt(generateVideo);
+            if (generated) return generated;
+            lifecycle?.reportWarning?.({
+              code: "provider_warning",
+              category: "provider",
+              message: "Some visuals were replaced so your response can continue.",
+              recoverable: true,
+            });
+          }
+          return attempt(searchMedia);
+        }
       : undefined;
     const handler = createVideoHandler({
       ...videoOptions,
       streamText: (context) => {
+        lifecycle = getGenerationLifecycleSink(context);
         try {
           return interceptOpeningPlan(videoOptions.streamText(context), {
             expectOpening: fullAiVideo || !openingProvided,

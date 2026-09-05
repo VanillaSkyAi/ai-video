@@ -172,14 +172,12 @@ describe("public deterministic test kit", () => {
     const events = await collect(simulateVideoStream(videoFixtures.scenarios.invalidScene));
 
     expect(events).toContainEqual(expect.objectContaining({
-      type: "response.error",
+      type: "response.warning",
       data: {
-        error: {
-          code: "invalid_generated_part",
-          message: "Generated content was skipped",
-          recoverable: true,
+        warning: {
+          code: "provider_warning", category: "provider",
+          message: "Some generated content was skipped.", recoverable: true,
         },
-        terminal: false,
       },
     }));
     expect(events.at(-1)).toMatchObject({

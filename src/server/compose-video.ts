@@ -80,6 +80,14 @@ export function createVideo(
   const eventSource = (async function* (): AsyncGenerator<VideoEvent> {
     let state = createVideoState();
     let composition = createCompositionSession();
+    lifecycle.recoverGeneratedParts = options.invalidPartBehavior === "drop";
+    lifecycle.rejectPart = (error) => {
+      reportError(error);
+      if (options.invalidPartBehavior !== "drop") return false;
+      composition = rejectCompositionScene(composition);
+      lifecycle.reportWarning?.({ code: "provider_warning", category: "provider", message: "Some generated content was skipped.", recoverable: true });
+      return true;
+    };
     const compositionOptions = {
       maxDurationSec: input.maxDurationSec ?? 30,
       closerReserveSec,
@@ -171,13 +179,8 @@ export function createVideo(
           }
           reportError(error);
           if ((options.invalidPartBehavior ?? "fail") === "fail") throw error;
-          yield emit(events.create("response.error", {
-            error: {
-              code: "invalid_generated_part",
-              message: "Generated content was skipped",
-              recoverable: true,
-            },
-            terminal: false,
+          yield emit(events.create("response.warning", {
+            warning: { code: "provider_warning", category: "provider", message: "Some generated content was skipped.", recoverable: true },
           }));
         }
       }
@@ -241,7 +244,9 @@ export function createVideo(
       }
       try {
         if (state.config) {
-          const recovery = recoverComposition(composition, state.config, compositionOptions);
+          const recovery = options.invalidPartBehavior === "drop" && !composition.planCompleted
+            ? advanceComposition(composition, { type: "plan.complete", finishReason: "other" }, state.config, compositionOptions)
+            : recoverComposition(composition, state.config, compositionOptions);
           for (const action of recovery.actions) yield emitCompositionAction(action);
           composition = recovery.session;
         }
@@ -255,6 +260,32 @@ export function createVideo(
         }
         const error = cause instanceof Error ? cause : new Error(String(cause));
         reportError(error);
+        if (options.invalidPartBehavior === "drop" && state.config?.scenes.length &&
+          (composition.acceptedSceneCount > 0 || !requiresGeneratedScene)) {
+          const snapshot = parseVideo(state.config);
+          yield emit(events.create("response.warning", {
+            warning: { code: "plan_incomplete", category: "provider", message: "The response is ready; some content could not be completed.", recoverable: true },
+          }));
+          const completeEvent = emit(events.create("response.complete", {
+            finishReason: "other", snapshot, checksum: checksumVideo(snapshot),
+          }));
+          finish(state);
+          invokeIsolated(options.onComplete, {
+            finishReason: "other",
+            ...(provider.usage ? { usage: provider.usage } : {}),
+            ...(provider.providerMetadata !== undefined ? { providerMetadata: provider.providerMetadata } : {}),
+            ...(provider.requestedModelId ? { requestedModelId: provider.requestedModelId } : {}),
+            ...(provider.resolvedModelId ? { resolvedModelId: provider.resolvedModelId } : {}),
+            ...(timeToFirstSceneMs != null ? { timeToFirstSceneMs } : {}),
+            totalDurationMs: Math.max(0, monotonicNow() - startedAt),
+            acceptedSceneCount: composition.acceptedSceneCount,
+            rejectedSceneCount: composition.rejectedSceneCount,
+            videoDurationSec: snapshot.scenes.at(-1)?.timing.endTime ?? 0,
+            warnings: state.warnings.map(cloneWarning),
+          });
+          yield completeEvent;
+          return;
+        }
         const emptyResult = error.message === "The planner completed without adding a scene";
         const errorEvent = emit(events.create("response.error", {
           error: {

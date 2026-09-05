@@ -31,14 +31,16 @@ export function createProviderLifecycle(): {
   settle: () => Promise<VideoProviderLifecycleResult>;
 } {
   const results: Array<Promise<VideoProviderLifecycleResult>> = [];
+  const reportedWarnings: VideoProviderLifecycleResult["warnings"] = [];
   const sink: VideoGenerationLifecycleSink = {
+    reportWarning(warning) { reportedWarnings.push(warning); },
     registerProviderResult(result) {
       results.push(result);
     },
   };
   const settle = async (): Promise<VideoProviderLifecycleResult> => {
     const resolved = await Promise.all(results);
-    const warnings = resolved.flatMap((result) => result.warnings);
+    const warnings = [...reportedWarnings, ...resolved.flatMap((result) => result.warnings)];
     const uniqueWarnings = [...new Map(warnings.map((warning) => [
       `${warning.code}\u0000${warning.category}\u0000${warning.message}\u0000${warning.sceneId ?? ""}`,
       warning,

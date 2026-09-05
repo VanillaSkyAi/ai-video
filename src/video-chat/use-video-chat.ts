@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
+import { resolveVideoBrand } from "../protocol/background.js";
 import { createSceneTimeline } from "../protocol/scene-timeline.js";
 import { decodeVideoSse } from "../protocol/sse.js";
 import { getSceneDuration } from "../protocol/scene-duration.js";
@@ -18,7 +19,6 @@ import { preloadBuiltinTemplate } from "../visual-system/catalog/builtin-player.
 import { getBuiltinTemplateMetadata } from "../visual-system/catalog/builtin-metadata.js";
 import type { TemplateRegistry } from "../visual-system/catalog/kit.js";
 import { warmSceneMedia } from "../player/warm-scene-media.js";
-import { safePublicDiagnostic } from "../protocol/warnings.js";
 import type {
   VideoChatCapabilities,
   VideoChatAskOptions,
@@ -41,6 +41,8 @@ export interface VideoChatTurn {
   /** True only after the complete response has been received. */
   completed: boolean;
   opening?: string;
+  /** Concise notices for recovered optional failures. */
+  warnings?: readonly string[];
   /** Optional stock footage held behind the opening hook until playback starts. */
   openingMedia?: VideoChatMedia;
   orientation: VideoOrientation;
@@ -92,6 +94,7 @@ export interface UseVideoChatResult {
   welcome?: VideoChatWelcome;
   availableModes: readonly VideoChatMode[];
   status: VideoChatStatus;
+  warnings: readonly string[];
   error?: VideoError;
   suggestions: readonly VideoChatSuggestion[];
   caption?: string;
@@ -142,6 +145,7 @@ type SessionAction =
   | { type: "complete"; id: string; video: Video; suggestions: VideoChatSuggestion[] }
   | { type: "scene"; key: number; scene: VideoScene; index: number }
   | { type: "playback-end"; key: number }
+  | { type: "warning"; id: string; message: string }
   | { type: "error"; id: string; error: VideoError }
   | { type: "cancelled" }
   | { type: "pause" }
@@ -248,6 +252,10 @@ function reducer(state: SessionState, action: SessionAction): SessionState {
     case "playback-end":
       if (state.playerKey !== action.key) return state;
       return { ...state, status: "ended", resumeStatus: "ended", playbackEnded: true, openingSpeaking: false };
+    case "warning":
+      return { ...state, turns: replaceTurn(state.turns, action.id, (turn) => ({
+        ...turn, warnings: [...new Set([...(turn.warnings ?? []), action.message])],
+      })) };
     case "error":
       if (state.turns.at(-1)?.id !== action.id) return state;
       return {
@@ -334,30 +342,32 @@ function conversationFor(turns: readonly VideoChatTurn[]): VideoChatConversation
   }));
 }
 
+async function untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  let abort: () => void = () => undefined;
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    abort = () => reject(signal.reason ?? new DOMException("Cancelled", "AbortError"));
+    if (signal.aborted) abort();
+    else signal.addEventListener("abort", abort, { once: true });
+  });
+  try { return await Promise.race([work, cancelled]); }
+  finally { signal.removeEventListener("abort", abort); }
+}
+
 function errorFrom(cause: unknown): VideoError {
   if (cause instanceof VideoError) return cause;
   if (cause instanceof DOMException && cause.name === "AbortError") {
     return new VideoError("Video chat was cancelled", { code: "aborted", recoverable: false });
   }
-  return new VideoError(safePublicDiagnostic(
-    cause instanceof Error ? cause.message : String(cause),
-    "Video chat failed",
-  ), { code: "video_chat_failed", recoverable: false });
+  if (cause instanceof DOMException && cause.name === "TimeoutError") {
+    return new VideoError("Video chat timed out", { code: "timeout", recoverable: false });
+  }
+  return new VideoError("Video chat could not produce a playable response", { code: "video_chat_failed", recoverable: false });
 }
 
 async function responseError(response: Response): Promise<VideoError> {
-  let code = "http_error";
-  let message = `Video chat endpoint failed (${response.status})`;
-  try {
-    const body = await response.json() as { error?: { code?: unknown; message?: unknown } };
-    if (typeof body.error?.code === "string") code = body.error.code.slice(0, 80);
-    if (typeof body.error?.message === "string") {
-      message = safePublicDiagnostic(body.error.message, message);
-    }
-  } catch {
-    // Keep the status-only error for non-JSON responses.
-  }
-  return new VideoError(message, { code, status: response.status, recoverable: false });
+  return new VideoError("Video chat could not produce a playable response", {
+    code: "http_error", status: response.status, recoverable: false,
+  });
 }
 
 function pacedScene(
@@ -400,6 +410,7 @@ function prepareVisualScene(scene: VideoScene, mode: VideoChatMode): VideoScene 
 export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatResult {
   const optionsRef = useRef(options);
   optionsRef.current = options;
+  const voiceWarningRef = useRef<() => void>(() => undefined);
   const ownedVoiceRef = useRef<VideoChatVoice | undefined>(undefined);
   if (!options.voice && !ownedVoiceRef.current) {
     ownedVoiceRef.current = createVideoChatVoice({
@@ -407,6 +418,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       headers: options.headers,
       credentials: options.credentials,
       fetcher: options.fetcher,
+      onFallback: () => voiceWarningRef.current(),
     });
   }
   const voice = options.voice ?? ownedVoiceRef.current!;
@@ -561,15 +573,20 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     let terminal = false;
     let attempt = 0;
     let ready: Array<VideoScene | undefined> = [];
+    let received: VideoScene[] = [];
     let appended = 0;
 
-    const isCurrent = () => mountedRef.current && runRef.current === run && !controller.signal.aborted;
+    const isCurrent = () => mountedRef.current && runRef.current === run && !controller.signal.aborted && !terminal;
     const isOpeningCurrent = () => (
       isCurrent()
       && !terminal
       && openingRef.current === openingController
       && !openingController.signal.aborted
     );
+    const warn = (message: string) => {
+      if (isCurrent()) dispatch({ type: "warning", id, message });
+    };
+    voiceWarningRef.current = () => warn("Using browser voice for this response.");
     const flush = () => {
       if (!isCurrent()) return;
       let available = appended;
@@ -621,12 +638,13 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
 
     const speakOpening = async (text: string) => {
       try {
-        await voiceRef.current.prepare(text, { signal: openingController.signal });
         if (!isOpeningCurrent()) return;
         dispatch({ type: "opening-start", id, line: text });
+        await voiceRef.current.prepare(text, { signal: openingController.signal });
+        if (!isOpeningCurrent()) return;
         await voiceRef.current.speak(text, { signal: openingController.signal });
       } catch {
-        // A missing voice falls back inside the voice adapter; cancellation is silent.
+        if (isOpeningCurrent()) warn("Some narration is unavailable; the response will continue.");
       } finally {
         openingActive = false;
         if (isOpeningCurrent()) dispatch({ type: "opening-end", id });
@@ -665,73 +683,99 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
       let narrating: Promise<unknown> = Promise.resolve();
       let terminalError: VideoError | undefined;
 
-      for await (const event of decodeVideoSse(response.body)) {
-        if (!isCurrent() || currentAttempt !== attempt) return { video: { schemaVersion: "0.1", orientation, scenes: [], style: style! }, suggestions: [] };
-        if (event.type === "response.start") style = event.data.style;
-        if (event.type === "data.video-chat-opening") {
-          const payload = event.data && typeof event.data === "object" && !Array.isArray(event.data)
-            ? event.data as { line?: unknown; keyword?: unknown }
-            : {};
-          const line = typeof payload.line === "string" ? payload.line.trim().slice(0, 300) : "";
-          const keyword = typeof payload.keyword === "string" ? payload.keyword.trim().slice(0, 80) : "";
-          if (!openingMedia && keyword) void resolveOpeningMedia(keyword);
-          if (!openingRequested && line) {
-            spokenHook = line;
-            lines.push(line);
-            openingRequested = true;
-            openingActive = true;
-            void speakOpening(line);
+      try {
+        for await (const event of decodeVideoSse(response.body)) {
+          if (!isCurrent() || currentAttempt !== attempt) return { video: { schemaVersion: "0.1", orientation, scenes: [], style: style! }, suggestions: [] };
+          if (event.type === "response.start") style = event.data.style;
+          if (event.type === "response.warning" || (event.type === "response.error" && !event.data.terminal)) {
+            warn("Some parts were simplified so the response could continue.");
           }
-          continue;
-        }
-        if (event.type === "response.error" && event.data.terminal) {
-          terminalError = new VideoError(event.data.error.message, {
-            code: event.data.error.code,
-            requestId: event.data.snapshot ? undefined : id,
-            recoverable: event.data.error.recoverable,
-          });
-        }
-        if (event.type === "response.abort") {
-          terminalError = new VideoError(event.data.reason, { code: "aborted", recoverable: false });
-        }
-        if (event.type !== "scene.add") continue;
-        const position = event.data.position;
-        const plannedScene = event.data.scene;
-        planned[position] = plannedScene;
-        if (!currentOptions.templates?.getTemplate(plannedScene.templateId)) {
-          preloadBuiltinTemplate(plannedScene.templateId);
-        }
-        warmSceneMedia(plannedScene.variables);
+          if (event.type === "data.video-chat-opening") {
+            const payload = event.data && typeof event.data === "object" && !Array.isArray(event.data)
+              ? event.data as { line?: unknown; keyword?: unknown }
+              : {};
+            const line = typeof payload.line === "string" ? payload.line.trim().slice(0, 300) : "";
+            const keyword = typeof payload.keyword === "string" ? payload.keyword.trim().slice(0, 80) : "";
+            if (!openingMedia && keyword) void resolveOpeningMedia(keyword);
+            if (!openingRequested && line) {
+              spokenHook = line;
+              lines.push(line);
+              openingRequested = true;
+              openingActive = true;
+              void speakOpening(line);
+            }
+            continue;
+          }
+          if (event.type === "response.error" && event.data.terminal) {
+            terminalError = new VideoError("Video chat could not finish this response", {
+              code: event.data.error.code,
+              requestId: event.data.snapshot ? undefined : id,
+              recoverable: event.data.error.recoverable,
+            });
+          }
+          if (event.type === "response.abort") {
+            terminalError = new VideoError("Video chat was interrupted", { code: "aborted", recoverable: false });
+          }
+          if (event.type !== "scene.add") continue;
+          const position = event.data.position;
+          const plannedScene = event.data.scene;
+          planned[position] = plannedScene;
+          received[position] = prepareVisualScene(plannedScene, mode);
+          if (!currentOptions.templates?.getTemplate(plannedScene.templateId)) {
+            preloadBuiltinTemplate(plannedScene.templateId);
+          }
+          warmSceneMedia(plannedScene.variables);
 
-        const narrated = narrating.then(async () => {
-          const supplied = plannedScene.narration?.trim();
-          if (supplied) return supplied;
-          const narrationResponse = await request("narration", {
-            method: "POST",
-            body: JSON.stringify({ prompt, scene: plannedScene, earlier: [...lines] }),
-          }, controller.signal);
-          if (!narrationResponse.ok) return "";
-          const payload = await narrationResponse.json() as { line?: unknown };
-          return typeof payload.line === "string" ? payload.line.trim() : "";
-        }).then((line) => {
-          if (line) lines.push(line);
-          return line;
-        });
-        narrating = narrated.catch(() => "");
-        pending.push(narrated.then(async (line) => {
-          if (!isCurrent() || currentAttempt !== attempt) return;
-          const visual = prepareVisualScene(plannedScene, mode);
-          const withNarration = line ? { ...visual, narration: line } : visual;
-          const spoken = line
-            ? await voiceRef.current.prepare(line, { signal: controller.signal })
-            : undefined;
-          if (!isCurrent() || currentAttempt !== attempt) return;
-          ready[position] = pacedScene(withNarration, spoken?.seconds, currentOptions.templates);
-          flush();
-        }));
+          const narrated = narrating.then(async () => {
+            const supplied = plannedScene.narration?.trim();
+            if (supplied) return supplied;
+            const narrationResponse = await request("narration", {
+              method: "POST",
+              body: JSON.stringify({ prompt, scene: plannedScene, earlier: [...lines] }),
+            }, controller.signal);
+            if (!narrationResponse.ok) throw new Error("Narration unavailable");
+            const payload = await narrationResponse.json() as { line?: unknown };
+            const line = typeof payload.line === "string" ? payload.line.trim() : "";
+            if (!line) throw new Error("Narration unavailable");
+            return line;
+          }).catch((cause: unknown) => {
+            if (controller.signal.aborted) throw cause;
+            warn("Some narration was simplified so the response could continue.");
+            return Object.values(plannedScene.variables).filter((value): value is string => typeof value === "string" && !/^https?:/i.test(value)).join(" ").slice(0, 500);
+          }).then((line) => {
+            if (line) lines.push(line);
+            return line;
+          });
+          narrating = narrated.catch(() => "");
+          pending.push(narrated.then(async (line) => {
+            if (!isCurrent() || currentAttempt !== attempt) return;
+            const visual = prepareVisualScene(plannedScene, mode);
+            const withNarration = line ? { ...visual, narration: line } : visual;
+            const spoken = line
+              ? await voiceRef.current.prepare(line, { signal: controller.signal }).catch((cause: unknown) => {
+                if (controller.signal.aborted) throw cause;
+                warn("Some narration is unavailable; the response will continue.");
+                return undefined;
+              })
+              : undefined;
+            if (!isCurrent() || currentAttempt !== attempt) return;
+            ready[position] = pacedScene(withNarration, spoken?.seconds, currentOptions.templates);
+            flush();
+          }).catch(() => {
+            if (!isCurrent() || currentAttempt !== attempt) return;
+            ready[position] = { ...received[position]!, timing: { fixedDuration: 5 } };
+            warn("Some parts were simplified so the response could continue.");
+            flush();
+          }));
+        }
+      } catch (cause) {
+        if (controller.signal.aborted) throw cause;
+        terminalError = errorFrom(cause);
       }
       await Promise.all(pending);
-      if (terminalError) throw terminalError;
+      if (terminalError && ready.some(Boolean) && style) {
+        warn("The response was interrupted; completed scenes are still available.");
+      } else if (terminalError) throw terminalError;
       if (planned.length === 0 || ready.filter(Boolean).length === 0 || !style) {
         throw new VideoError("The video response contained no playable scenes", { code: "empty_response" });
       }
@@ -762,14 +806,15 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     try {
       let response: { video: Video; suggestions: VideoChatSuggestion[] };
       try {
-        response = await runAttempt(attempt);
+        response = await untilAborted(runAttempt(attempt), controller.signal);
       } catch (cause) {
-        if (controller.signal.aborted || timeline) throw cause;
+        if (controller.signal.aborted || timeline || spokenHook) throw cause;
         attempt += 1;
         ready = [];
+        received = [];
         appended = 0;
         style = undefined;
-        response = await runAttempt(attempt);
+        response = await untilAborted(runAttempt(attempt), controller.signal);
       }
       if (!isCurrent()) return undefined;
       planDone = true;
@@ -782,6 +827,27 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
         return undefined;
       }
       terminal = true;
+      const recovered = received.flatMap((scene, index) => scene
+        ? [ready[index] ?? { ...scene, timing: { fixedDuration: 5 } }]
+        : []);
+      if (recovered.length === 0 && spokenHook) {
+        recovered.push({ id: `${id}-opening`, templateId: "media", variables: { texts: spokenHook, mediaType: "gradient" }, narration: spokenHook, timing: { fixedDuration: Math.max(4, spokenHook.split(/\s+/u).length / 2.5) } });
+      }
+      if (recovered.length > 0) {
+        style ??= { brand: resolveVideoBrand(currentOptions.brand), density: "normal", motion: "normal", defaultBackgroundEffect: "static", defaultTextArchetype: "subtle", defaultTransition: "crossfade" };
+        openingController.abort(new DOMException("Continuing completed response", "AbortError"));
+        if (!timeline) {
+          timeline = createSceneTimeline({ style, orientation });
+          dispatch({ type: "player", id, stream: timeline.stream });
+        }
+        for (const scene of recovered.slice(appended)) timeline.add(scene);
+        timeline.complete();
+        if (timelineRef.current === timeline) timelineRef.current = undefined;
+        const video: Video = { schemaVersion: "0.1", orientation, style, scenes: recovered };
+        dispatch({ type: "warning", id, message: "The response was interrupted; completed scenes are still available." });
+        dispatch({ type: "complete", id, video, suggestions: [] });
+        return video;
+      }
       openingController.abort(new DOMException("Response failed", "AbortError"));
       timeline?.complete();
       if (timelineRef.current === timeline) timelineRef.current = undefined;
@@ -910,6 +976,7 @@ export function useVideoChat(options: UseVideoChatOptions = {}): UseVideoChatRes
     welcome: state.welcome,
     availableModes,
     status: state.status,
+    warnings: shownTurn?.warnings ?? [],
     error: state.error,
     suggestions,
     caption: state.caption,

@@ -1,5 +1,7 @@
 import {
   createElement,
+  Component,
+  type ReactNode,
   lazy,
   Suspense,
   useState,
@@ -7,7 +9,7 @@ import {
   type CSSProperties,
   type ReactElement,
 } from "react";
-import type { Video } from "../protocol/types.js";
+import type { Video, VideoScene } from "../protocol/types.js";
 import { resolveDensity } from "../visual-system/scene-templates/tokens.js";
 import {
   getDimensions,
@@ -23,6 +25,38 @@ import {
 } from "../visual-system/scene-templates/media-source.js";
 import { ExternalVideoBackdropProvider } from "../visual-system/scene-templates/external-video-backdrop.js";
 import { supportsExternalVideoBackdrop } from "../visual-system/catalog/video-backdrop-capability.js";
+
+function SafeScene({ scene }: { scene: VideoScene }): ReactElement {
+  const copy = scene.narration?.trim() || Object.values(scene.variables)
+    .filter((value): value is string => typeof value === "string" && !/^https?:/i.test(value))
+    .join(" ");
+  return <div
+    data-scene-fallback="true"
+    style={{
+      width: "100%", height: "100%", display: "grid", placeContent: "center",
+      boxSizing: "border-box", padding: "8%", background: "#090712", color: "#fff",
+      font: "500 clamp(20px, 4vw, 64px)/1.3 system-ui", overflow: "hidden",
+    }}
+  >
+    <p>{copy.slice(0, 600) || "Your response continues."}</p>
+    <small style={{ fontSize: "0.3em" }} role="status">This scene uses a simpler layout.</small>
+  </div>;
+}
+
+class SceneBoundary extends Component<
+  { scene: VideoScene; children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? <SafeScene scene={this.props.scene} /> : this.props.children;
+  }
+}
 
 const SCENE_TRANSITION_SECONDS = 0.3;
 const SceneVideoBackdrop = lazy(() => import(
@@ -204,37 +238,37 @@ function SceneLayer({
         } as CSSProperties}
       >
         {template ? (
-          <Suspense fallback={
-            <div
-              data-template-loading={range.scene.templateId}
-              style={{ position: "absolute", inset: 0 }}
-            />
-          }>
-            {createElement(template.component, {
-              variables: {
-                ...(template.defaults ?? getTemplateDefaults(template.schema!)),
-                ...range.scene.variables,
-              },
-              style: config.style,
-              progress,
-              motionProgress,
-              beatIntensity: 0,
-              width,
-              height,
-              textArchetype: range.scene.textArchetype ?? config.style.defaultTextArchetype,
-              backgroundEffect: range.scene.backgroundEffect ?? config.style.defaultBackgroundEffect,
-              safeZone: scaleSafeZone(
-                getSafeZone(config.orientation),
-                resolveDensity(config.style.density).safeZoneScale,
-              ),
-              sceneDuration: duration,
-              isPlaying: playing,
-            })}
-          </Suspense>
+          <SceneBoundary key={range.scene.id} scene={range.scene}>
+            <Suspense fallback={
+              <div
+                data-template-loading={range.scene.templateId}
+                style={{ position: "absolute", inset: 0 }}
+              />
+            }>
+              {createElement(template.component, {
+                variables: {
+                  ...(template.defaults ?? getTemplateDefaults(template.schema!)),
+                  ...range.scene.variables,
+                },
+                style: config.style,
+                progress,
+                motionProgress,
+                beatIntensity: 0,
+                width,
+                height,
+                textArchetype: range.scene.textArchetype ?? config.style.defaultTextArchetype,
+                backgroundEffect: range.scene.backgroundEffect ?? config.style.defaultBackgroundEffect,
+                safeZone: scaleSafeZone(
+                  getSafeZone(config.orientation),
+                  resolveDensity(config.style.density).safeZoneScale,
+                ),
+                sceneDuration: duration,
+                isPlaying: playing,
+              })}
+            </Suspense>
+          </SceneBoundary>
         ) : (
-          <div style={{ width, height, background: "#090712", color: "#fff" }}>
-            Unsupported template: {range.scene.templateId}
-          </div>
+          <SafeScene scene={range.scene} />
         )}
       </div>
     </ExternalVideoBackdropProvider>
@@ -281,7 +315,7 @@ export function VideoFrame({
         className={className}
         style={{ width, height, background: "#090712", color: "#fff", ...style }}
       >
-        Unsupported template: {active.scene.templateId}
+        <SafeScene scene={active.scene} />
       </div>
     );
   }

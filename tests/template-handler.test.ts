@@ -395,9 +395,9 @@ describe("createVideoHandler", () => {
       event.type === "scene.add" ? event.data.scene.id : ""
     )).toEqual(["supplied-opening", "body-1", "body-2", "payoff-1"]);
     expect(events.at(-1)).toMatchObject({
-      type: "response.error",
+      type: "response.complete",
       data: {
-        terminal: true,
+        finishReason: "other",
         snapshot: {
           scenes: [
             { id: "supplied-opening" },
@@ -471,9 +471,9 @@ describe("createVideoHandler", () => {
       event.type === "scene.add" ? event.data.scene.id : ""
     )).toEqual(["supplied-opening", "body-1"]);
     expect(events).toContainEqual(expect.objectContaining({
-      type: "response.error",
+      type: "response.warning",
       data: expect.objectContaining({
-        error: expect.objectContaining({ code: "invalid_generated_part", recoverable: true }),
+        warning: expect.objectContaining({ code: "provider_warning", recoverable: true }),
       }),
     }));
     expect(events).toContainEqual(expect.objectContaining({
@@ -866,7 +866,7 @@ describe("createVideoHandler", () => {
     expect(JSON.stringify(events)).not.toContain("private provider failure");
   });
 
-  it("does not swallow an AbortError from the application media resolver", async () => {
+  it("uses a background when a media provider aborts while the request remains active", async () => {
     const { createVideoHandler } = await import("../src/server");
     const onError = vi.fn();
     const handler = createVideoHandler({
@@ -892,9 +892,9 @@ describe("createVideoHandler", () => {
     const events = [];
     for await (const event of decodeVideoSse(response.body!)) events.push(event);
 
-    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ name: "AbortError" }));
-    expect(events.at(-1)).toMatchObject({ type: "response.error", data: { terminal: true } });
-    expect(events.some(({ type }) => type === "response.complete")).toBe(false);
+    expect(events.at(-1)).toMatchObject({ type: "response.complete" });
+    expect(events.some(({ type }) => type === "response.warning")).toBe(true);
+    expect(events.filter(event => event.type === "scene.add").at(-1)).toMatchObject({ data: { scene: { id: "later", variables: { mediaType: "gradient" } } } });
   });
 
   it("does not expose or resolve media intent for an incompatible custom media schema", async () => {

@@ -47,6 +47,22 @@ describe("VideoPlayer", () => {
     expect(view.container.querySelector('[data-template-id="bigNumber"]')).not.toBeNull();
   });
 
+  it.each(["missing", "throws"])("keeps scene content playable when a renderer %s", async (failure) => {
+    const { VideoPlayer } = await import("../src/react");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const templates = createRenderTemplateRegistry({ templates: failure === "missing" ? [] : [defineTemplate({
+      id: "broken", schema: { type: "object", properties: {}, additionalProperties: true },
+      component: () => { throw new Error("private renderer failure"); },
+    })] });
+    const video: Video = { schemaVersion: "0.1", orientation: "landscape", style: TEST_VIDEO_STYLE,
+      scenes: [{ id: "safe", templateId: "broken", variables: {}, narration: "The response remains available.", timing: { fixedDuration: 4 } }],
+    };
+    const view = render(createElement(VideoPlayer, { video, templates, autoPlay: false }));
+    expect(view.getByText("The response remains available.")).toBeDefined();
+    expect(view.container.textContent).not.toMatch(/private|Unsupported template/);
+    consoleError.mockRestore();
+  });
+
   it("exposes an opt-in sound control for native scene video audio", async () => {
     vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
