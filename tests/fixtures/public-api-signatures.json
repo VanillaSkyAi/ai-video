@@ -305,7 +305,7 @@
       "interface VideoBrandColors {\n    primary: string;\n    secondary: string;\n    foreground: string;\n    surface: string;\n    surfaceElevated: string;\n    muted: string;\n}",
       "interface VideoBrandInput {\n    name?: string;\n    logoUrl?: string;\n    font?: string;\n    scriptFont?: string;\n    background?: VideoBackgroundInput;\n    colors?: Partial<VideoBrandColors>;\n}",
       "interface VideoCapabilities {\n    templates?: string[];\n    extensions?: string[];\n}",
-      "interface VideoChatMediaContext {\n    purpose: \"response\" | \"welcome\" | \"suggestion\";\n    orientation: VideoOrientation;\n    generatedLook?: string;\n    signal: AbortSignal;\n    requestId?: string;\n    scene?: Readonly<VideoScene>;\n    templateId?: string;\n    preferredType?: \"image\" | \"video\" | \"any\";\n}",
+      "interface VideoChatMediaContext {\n    purpose: \"response\" | \"welcome\" | \"suggestion\";\n    orientation: VideoOrientation;\n    generatedLook?: string;\n    signal: AbortSignal;\n    requestId?: string;\n    scene?: Readonly<VideoScene>;\n    templateId?: string;\n    preferredType?: \"image\" | \"video\" | \"any\";\n    fallbackQuery?: string;\n}",
       "interface VideoChatSpeechContext {\n    text: string;\n    signal: AbortSignal;\n}",
       "interface VideoChatSpeechResult {\n    audio: Uint8Array | ArrayBuffer;\n    mediaType?: string;\n}",
       "interface VideoChatTextContext {\n    task: VideoChatTextTask;\n    systemPrompt: string;\n    userPrompt: string;\n    maxOutputTokens: number;\n    signal: AbortSignal;\n}",

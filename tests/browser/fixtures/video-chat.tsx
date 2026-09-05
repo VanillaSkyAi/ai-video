@@ -4,9 +4,18 @@ import { VideoChat, type VideoChatVoice } from "../../../src/react";
 
 // Predictable silent voice keeps this browser test independent of OS voices.
 // The production voice fallback is exercised separately by the voice suite.
+const holdOpening = new URLSearchParams(location.search).has("hold-opening");
+let releaseOpening = () => {};
+let firstLine = true;
 const voice: VideoChatVoice = {
   prepare: async () => ({ seconds: 1 }),
   speak: async (_text, { signal }) => new Promise<void>((resolve) => {
+    if (holdOpening && firstLine) {
+      firstLine = false;
+      releaseOpening = resolve;
+      signal.addEventListener("abort", () => resolve(), { once: true });
+      return;
+    }
     const timer = setTimeout(resolve, 250);
     signal.addEventListener("abort", () => { clearTimeout(timer); resolve(); }, { once: true });
   }),
@@ -14,5 +23,8 @@ const voice: VideoChatVoice = {
 };
 
 createRoot(document.getElementById("root")!).render(
-  <VideoChat options={{ endpoint: "/api/video-chat", mode: "full", voice }} />,
+  <>
+    {holdOpening && <button onClick={() => releaseOpening()}>Finish opening</button>}
+    <VideoChat options={{ endpoint: "/api/video-chat", mode: "full", voice }} />
+  </>,
 );

@@ -17,6 +17,7 @@ describe("starter stock recovery", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
@@ -75,5 +76,70 @@ describe("starter stock recovery", () => {
     const { findStockFootage } = await import("../starters/video-chat/stock");
     expect(await findStockFootage("ocean", "landscape", AbortSignal.abort())).toBeNull();
     expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("stock search selection and total deadline", () => {
+  beforeEach(() => { vi.resetModules(); vi.stubEnv("PEXELS_API_KEY", "mock-stock-key"); });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
+
+  it("accepts documented Vimeo external MP4s but rejects unrelated locations", async () => {
+    const allowed = "https://player.vimeo.com/external/123.hd.mp4?s=test";
+    const links = ["https://player.vimeo.com/video/123", "https://player.vimeo.com.evil.invalid/external/123.mp4", "https://player.vimeo.com/external/123.html", allowed];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ videos: links.map(link => ({ video_files: [{ link, width: 1280, height: 720 }] })) })));
+    expect(await lookup()).toEqual({ url: allowed, type: "video" });
+  });
+
+  it("tries broader video before photos when descriptive metadata clearly misses", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(Response.json({ videos: [{ ...clip, url: "https://www.pexels.com/video/city-traffic-123/" }] }))
+      .mockResolvedValueOnce(Response.json({ videos: [{ ...clip, url: "https://www.pexels.com/video/medieval-castle-456/" }] }));
+    vi.stubGlobal("fetch", fetcher);
+    const { findStockFootage } = await import("../starters/video-chat/stock");
+    expect(await findStockFootage("Minecraft castle", "landscape", new AbortController().signal, "medieval castle")).toEqual({ url: videoUrl, type: "video" });
+    expect(fetcher.mock.calls.map(call => new URL(call[0]).searchParams.get("query"))).toEqual(["Minecraft castle", "medieval castle"]);
+    expect(fetcher.mock.calls.every(call => new URL(call[0]).pathname === "/v1/videos/search")).toBe(true);
+  });
+
+  it("accepts unknown metadata and deduplicates equivalent fallback queries", async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ videos: [{ ...clip, url: "https://www.pexels.com/video/123/", tags: [] }] }));
+    vi.stubGlobal("fetch", fetcher);
+    const { findStockFootage } = await import("../starters/video-chat/stock");
+    expect(await findStockFootage("ocean", "landscape", new AbortController().signal, "OCEAN")).toEqual({ url: videoUrl, type: "video" });
+    expect(await lookup()).toEqual({ url: videoUrl, type: "video" });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses photo alt to skip clear mismatches", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(Response.json({ videos: [] })).mockResolvedValueOnce(Response.json({ photos: [
+      { alt: "A city highway", src: { large: "https://images.pexels.com/city.jpg" } },
+      { alt: "Ocean waves", src: { large: photoUrl } },
+    ] })));
+    expect(await lookup()).toEqual({ url: photoUrl, type: "image" });
+  });
+
+  it("bounds the whole search including ignored cancellation during a broader response body", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn().mockImplementationOnce(() => new Promise(resolve => setTimeout(() => resolve(Response.json({ videos: [] })), 2000)))
+      .mockResolvedValueOnce({ ok: true, json: () => new Promise(() => {}) });
+    vi.stubGlobal("fetch", fetcher);
+    const { findStockFootage } = await import("../starters/video-chat/stock");
+    const pending = findStockFootage("ocean", "landscape", new AbortController().signal, "sea");
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(await pending).toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls[1][1].signal.aborted).toBe(true);
+  });
+
+  it("returns promptly when outer cancellation is ignored by fetch", async () => {
+    const fetcher = vi.fn(() => new Promise(() => {}));
+    vi.stubGlobal("fetch", fetcher);
+    const { findStockFootage } = await import("../starters/video-chat/stock");
+    const controller = new AbortController();
+    const pending = findStockFootage("ocean", "landscape", controller.signal);
+    controller.abort();
+    expect(await pending).toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });

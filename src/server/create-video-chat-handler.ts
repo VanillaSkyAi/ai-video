@@ -96,6 +96,8 @@ export interface VideoChatMediaContext {
   scene?: Readonly<VideoScene>;
   templateId?: string;
   preferredType?: "image" | "video" | "any";
+  /** Optional broader subject for atmospheric opening stock, not instructional footage. */
+  fallbackQuery?: string;
 }
 
 export type VideoChatMediaResolver = (
@@ -150,6 +152,7 @@ interface SuggestionSubject {
 interface OpeningSubject {
   line: string;
   keyword: string;
+  fallbackKeyword?: string;
   firstShot?: VideoChatFirstShot;
 }
 
@@ -307,6 +310,7 @@ function readOpeningPlanLine(line: string): OpeningSubject | undefined {
       type?: unknown;
       spokenHook?: unknown;
       mediaKeyword?: unknown;
+      fallbackKeyword?: unknown;
       firstShot?: unknown;
     };
     if (!parsed || parsed.type !== VIDEO_CHAT_OPENING_PLAN_TYPE) return undefined;
@@ -314,6 +318,7 @@ function readOpeningPlanLine(line: string): OpeningSubject | undefined {
     return {
       line: boundedWords(parsed.spokenHook, 9, 300),
       keyword: boundedWords(parsed.mediaKeyword, 4, 80),
+      ...(boundedWords(parsed.fallbackKeyword, 4, 80) ? { fallbackKeyword: boundedWords(parsed.fallbackKeyword, 4, 80) } : {}),
       ...(firstShot ? { firstShot } : {}),
     };
   } catch {
@@ -494,6 +499,7 @@ function streamVideoChatOpening(
           data: {
             line: opening.line,
             ...(opening.keyword ? { keyword: opening.keyword } : {}),
+            ...(opening.fallbackKeyword ? { fallbackKeyword: opening.fallbackKeyword } : {}),
           },
         });
         sequence += 1;
@@ -907,8 +913,9 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
     try {
       if (action === "opening-media") {
         const value = record(body, "request");
-        allowedKeys(value, ["keyword", "orientation"], "request");
+        allowedKeys(value, ["keyword", "fallbackKeyword", "orientation"], "request");
         const keyword = boundedString(value.keyword, "request.keyword", 80);
+        const fallbackQuery = value.fallbackKeyword == null ? undefined : boundedString(value.fallbackKeyword, "request.fallbackKeyword", 80);
         const orientation = value.orientation ?? "landscape";
         if (orientation !== "portrait" && orientation !== "landscape") {
           throw new Error("request.orientation must be portrait or landscape");
@@ -917,6 +924,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
         try {
           const raw = await withDeadline((signal) => searchMedia(keyword, {
             purpose: "response",
+            ...(fallbackQuery ? { fallbackQuery } : {}),
             orientation,
             signal,
           }), 3_000, request.signal);

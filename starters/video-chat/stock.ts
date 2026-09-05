@@ -1,26 +1,10 @@
-/**
- * Stock footage for the modes that do not generate any.
- *
- * A rendered card on a brand gradient is the least a template can look like,
- * and templates-only mode was every scene that way. A stock search costs a few
- * hundred milliseconds and nothing per request, so unlike a generated clip it
- * never lands on the critical path - the difference between cards on gradients
- * and cards over real footage is close to free.
- *
- * Ported from the site's playground, trimmed to what a video chat needs. Every URL
- * that comes back is checked against the host it must come from: the planner
- * asks for a subject, and what a search returns is not something to trust into
- * a page unexamined.
- */
 import type { VideoOrientation } from "@vanillaskyai/video";
 
-const VIDEO_SEARCH = "https://api.pexels.com/videos/search";
+const VIDEO_SEARCH = "https://api.pexels.com/v1/videos/search";
 const PHOTO_SEARCH = "https://api.pexels.com/v1/search";
 const MAX_KEYWORD_LENGTH = 80;
-// Shorter than the shot deadline by two orders of magnitude, deliberately: a
-// scene with no footage is a scene on a gradient, and that is a better outcome
-// than a response that waits.
-const LOOKUP_TIMEOUT_MS = 4_000;
+// One budget covers specific/broader video searches and photo recovery.
+const LOOKUP_TIMEOUT_MS = 3_000;
 
 interface StockMedia {
   url: string;
@@ -53,7 +37,7 @@ function trustedUrl(value: unknown, host: string): string | undefined {
   if (typeof value !== "string") return undefined;
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:" || url.hostname !== host || url.username || url.password) return undefined;
+    if (url.protocol !== "https:" || url.hostname !== host || url.username || url.password || url.port) return undefined;
     return url.toString();
   } catch {
     return undefined;
@@ -63,7 +47,9 @@ function trustedUrl(value: unknown, host: string): string | undefined {
 function pickVideoFile(files: unknown, orientation: VideoOrientation): string | undefined {
   const usable = entries(files).flatMap((value) => {
     const file = record(value);
-    const link = trustedUrl(file.link, "videos.pexels.com");
+    const direct = trustedUrl(file.link, "videos.pexels.com");
+    const external = trustedUrl(file.link, "player.vimeo.com");
+    const link = direct ?? (external && /^\/external\/[a-zA-Z0-9._-]+\.mp4$/.test(new URL(external).pathname) ? external : undefined);
     const { width, height } = file;
     if (!link || typeof width !== "number" || typeof height !== "number"
       || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return [];
@@ -83,7 +69,7 @@ async function search(url: string, apiKey: string, signal: AbortSignal): Promise
   try {
     const response = await fetch(url, {
       headers: { Authorization: apiKey },
-      signal: AbortSignal.any([signal, AbortSignal.timeout(LOOKUP_TIMEOUT_MS)]),
+      signal,
     });
     if (!response.ok || signal.aborted) return null;
     const payload: unknown = await response.json();
@@ -98,36 +84,71 @@ async function search(url: string, apiKey: string, signal: AbortSignal): Promise
   }
 }
 
-/**
- * Find footage for one beat. Video first, a photograph if there is none.
- *
- * Returns null rather than throwing when there is nothing to show: the scene
- * falls back to the brand gradient, which is what it looked like before.
- */
-export async function findStockFootage(subject: string, orientation: VideoOrientation, signal: AbortSignal): Promise<StockMedia | null> {
+/** Metadata is a weak mismatch filter, never visual verification. Numeric URLs
+ * and missing descriptions are unknown and retain the provider's search ranking. */
+function matchesMetadata(item: Record<string, unknown>, keyword: string): boolean {
+  let description = typeof item.alt === "string" ? item.alt : "";
+  if (!description) {
+    const page = trustedUrl(item.url, "www.pexels.com");
+    if (page) description = new URL(page).pathname.replace(/^\/(?:video|photo)\//, "");
+  }
+  const words = (value: string) => normalizeKeyword(value).toLowerCase().split(/[\s-]+/)
+    .filter(word => /\p{L}/u.test(word) && !["a", "an", "the", "of", "in", "on", "with", "and", "video", "photo", "free", "footage"].includes(word));
+  const labels = words(description);
+  const requested = words(keyword);
+  return labels.length === 0 || requested.length === 0 || requested.some(word => labels.includes(word));
+}
+
+/** Video queries precede photos. All work shares one deadline, including body
+ * parsing, even if a custom fetch implementation ignores its abort signal. */
+export async function findStockFootage(subject: string, orientation: VideoOrientation, signal: AbortSignal, fallbackSubject?: string): Promise<StockMedia | null> {
   const apiKey = process.env.PEXELS_API_KEY;
   const keyword = normalizeKeyword(subject);
   if (!apiKey || !keyword || signal.aborted) return null;
-
-  const params = new URLSearchParams({ query: keyword, orientation, per_page: "3", page: "1" });
-  const videos = record(await search(`${VIDEO_SEARCH}?${params}`, apiKey, signal));
-  if (signal.aborted) return null;
-  for (const value of entries(videos.videos)) {
-    const video = record(value);
-    const url = pickVideoFile(video.video_files, orientation);
-    if (!url) continue;
-    const posterUrl = trustedUrl(video.image, "images.pexels.com");
-    return { url, type: "video", ...(posterUrl ? { posterUrl } : {}) };
-  }
-
-  const photos = record(await search(`${PHOTO_SEARCH}?${params}`, apiKey, signal));
-  if (signal.aborted) return null;
-  for (const value of entries(photos.photos)) {
-    const source = record(record(value).src);
-    for (const candidate of [source.large2x, source.large]) {
-      const url = trustedUrl(candidate, "images.pexels.com");
-      if (url) return { url, type: "image" };
+  const keywords = [keyword];
+  const fallback = normalizeKeyword(fallbackSubject ?? "");
+  if (fallback && fallback.toLowerCase() !== keyword.toLowerCase()) keywords.push(fallback);
+  const controller = new AbortController();
+  let finish!: (value: null) => void;
+  const stopped = new Promise<null>(resolve => { finish = resolve; });
+  const abort = () => { controller.abort(); finish(null); };
+  signal.addEventListener("abort", abort, { once: true });
+  const timer = setTimeout(abort, LOOKUP_TIMEOUT_MS);
+  const active = controller.signal;
+  const lookup = async (): Promise<StockMedia | null> => {
+    for (const query of keywords) {
+      const params = new URLSearchParams({ query, orientation, per_page: "3", page: "1" });
+      const videos = record(await search(`${VIDEO_SEARCH}?${params}`, apiKey, active));
+      if (active.aborted) return null;
+      for (const value of entries(videos.videos)) {
+        const video = record(value);
+        if (!matchesMetadata(video, query)) continue;
+        const url = pickVideoFile(video.video_files, orientation);
+        if (!url) continue;
+        const posterUrl = trustedUrl(video.image, "images.pexels.com");
+        return { url, type: "video", ...(posterUrl ? { posterUrl } : {}) };
+      }
     }
+    for (const query of keywords) {
+      const params = new URLSearchParams({ query, orientation, per_page: "3", page: "1" });
+      const photos = record(await search(`${PHOTO_SEARCH}?${params}`, apiKey, active));
+      if (active.aborted) return null;
+      for (const value of entries(photos.photos)) {
+        const photo = record(value);
+        if (!matchesMetadata(photo, query)) continue;
+        const source = record(photo.src);
+        for (const candidate of [source.large2x, source.large]) {
+          const url = trustedUrl(candidate, "images.pexels.com");
+          if (url) return { url, type: "image" };
+        }
+      }
+    }
+    return null;
+  };
+  try {
+    return await Promise.race([lookup(), stopped]);
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", abort);
   }
-  return null;
 }

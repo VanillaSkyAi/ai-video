@@ -99,7 +99,7 @@ describe("createVideoChatHandler", () => {
         streamCalls += 1;
         systemPrompt = prompt;
         return (async function* () {
-          yield '{"type":"video-chat.opening","spokenHook":"The Moon turns, perfectly matching its orbit.","mediaKeyword":"moon orbit earth"}\n';
+          yield '{"type":"video-chat.opening","spokenHook":"The Moon turns, perfectly matching its orbit.","mediaKeyword":"moon orbit earth","fallbackKeyword":"moon night sky"}\n';
           yield* plannedResponse()();
         })();
       },
@@ -135,6 +135,7 @@ describe("createVideoChatHandler", () => {
       data: {
         line: "The Moon turns, perfectly matching its orbit.",
         keyword: "moon orbit earth",
+        fallbackKeyword: "moon night sky",
       },
     });
     expect(streamCalls).toBe(1);
@@ -225,26 +226,26 @@ describe("createVideoChatHandler", () => {
 
   it("resolves a streamed opening keyword into stock footage separately", async () => {
     const createVideoChatHandler = await loadCreateVideoChatHandler();
-    const mediaCalls: Array<{ query: string; purpose: string }> = [];
+    const mediaCalls: Array<{ query: string; purpose: string; fallbackQuery?: string }> = [];
     const handler = createVideoChatHandler({
       authorize: "none",
       heartbeatMs: false,
       streamText: plannedResponse(),
       generateText: async () => "unused",
-      searchMedia: async (query: string, { purpose }: { purpose: string }) => {
-        mediaCalls.push({ query, purpose });
+      searchMedia: async (query: string, { purpose, fallbackQuery }: { purpose: string; fallbackQuery?: string }) => {
+        mediaCalls.push({ query, purpose, fallbackQuery });
         return { url: "https://media.example/moon.mp4", type: "video" };
       },
     });
 
     const media = await handler(new Request("https://app.example/api/video-chat?action=opening-media", {
       method: "POST",
-      body: JSON.stringify({ keyword: "moon orbit earth", orientation: "landscape" }),
+      body: JSON.stringify({ keyword: "moon orbit earth", fallbackKeyword: "moon night sky", orientation: "landscape" }),
     }));
     expect(await media.json()).toEqual({
       media: { url: "https://media.example/moon.mp4", type: "video" },
     });
-    expect(mediaCalls).toEqual([{ query: "moon orbit earth", purpose: "response" }]);
+    expect(mediaCalls).toEqual([{ query: "moon orbit earth", purpose: "response", fallbackQuery: "moon night sky" }]);
   });
 
   it("keeps generated-video spend limits on the server and rejects the removed mixed mode", async () => {

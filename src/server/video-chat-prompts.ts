@@ -11,10 +11,11 @@ export function createVideoChatResponseInstructions(
     "The input is a prompt from a user. Respond as a short, coherent video.",
     "Honor the requested purpose and tone. A story should feel like a story, a recommendation should be useful, an explanation should be clear, and a creative request should not be turned into a lecture.",
     fullAiVideo
-      ? 'Your first output line must be exactly one host-consumed JSON object: {"type":"video-chat.opening","spokenHook":"6-9 words","mediaKeyword":"2-4 concrete words","firstShot":{"text":"2-7 words","narration":"10-16 spoken words","mediaKeyword":"2-8 concrete words"}}. This leading object is the one explicit exception to the standard plan-part list and is consumed before plan validation.'
+      ? 'Your first output line must be exactly one host-consumed JSON object: {"type":"video-chat.opening","spokenHook":"6-9 words","mediaKeyword":"2-4 concrete words","fallbackKeyword":"2-4 broader concrete words","firstShot":{"text":"2-7 words","narration":"10-16 spoken words","mediaKeyword":"2-8 concrete words"}}. This leading object is the one explicit exception to the standard plan-part list and is consumed before plan validation.'
       : openingAlreadyProvided
         ? "The host has already started the supplied OPENING ALREADY SPOKEN. Start directly with scene.add plan parts; do not emit a video-chat.opening object."
-        : 'Your first output line must be exactly one host-consumed JSON object: {"type":"video-chat.opening","spokenHook":"6-9 words","mediaKeyword":"2-4 concrete words"}. This leading object is the one explicit exception to the standard plan-part list and is consumed before plan validation.',
+        : 'Your first output line must be exactly one host-consumed JSON object: {"type":"video-chat.opening","spokenHook":"6-9 words","mediaKeyword":"2-4 concrete words","fallbackKeyword":"2-4 broader concrete words"}. This leading object is the one explicit exception to the standard plan-part list and is consumed before plan validation.',
+    "For the opening only, fallbackKeyword names a broader real-world subject that can provide atmosphere if the specific stock search misses. It must not pretend to demonstrate specialized instructions. For example, Minecraft castle can broaden to medieval castle for atmosphere. Do not broaden body-scene subjects into misleading demonstrations.",
     fullAiVideo && openingAlreadyProvided
       ? "Copy the supplied OPENING ALREADY SPOKEN exactly into spokenHook; do not replace or paraphrase it."
       : undefined,
