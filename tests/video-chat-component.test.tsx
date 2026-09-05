@@ -97,7 +97,8 @@ describe("VideoChat", () => {
   it("still shows an error when no playable response can be produced", async () => {
     const { VideoChat } = await import("../src/react");
     render(<VideoChat options={{ fetcher: chatFetcher() }} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Invent a surreal bedtime story" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Prompt" }), { target: { value: "Explain the ocean" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask", exact: true }));
     expect((await screen.findByRole("status")).textContent).toBeTruthy();
   });
 
