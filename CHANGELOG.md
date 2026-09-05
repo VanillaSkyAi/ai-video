@@ -4,6 +4,8 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+## 0.8.5
+
 - Align Settings section headings above their option containers with consistent spacing.
 
 - Keep generated follow-up prompts to one concise idea, at most eight words and sixty characters, for readable mobile cards.
