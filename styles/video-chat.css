@@ -938,7 +938,7 @@
 
 .vanillasky-video-chat .settings input[type="checkbox"]:checked::after { background: #fafaff; transform: translateX(15px); }
 
-.vanillasky-video-chat .settings .visual-options { display: grid; gap: 4px; padding: 4px; border: 1px solid rgb(255 255 255 / 6%); border-radius: 16px; background: rgb(0 0 0 / 10%); }
+.vanillasky-video-chat .settings .visual-choices { display: grid; gap: 4px; padding: 4px; border: 1px solid rgb(255 255 255 / 6%); border-radius: 16px; background: rgb(0 0 0 / 10%); }
 
 .vanillasky-video-chat .settings .choice-row { min-height: 52px; padding: 9px 10px; border: 1px solid transparent; border-radius: 12px; transition: background 150ms ease, border-color 150ms ease; }
 
@@ -952,7 +952,7 @@
 
 .vanillasky-video-chat .settings input[type="radio"]:checked::after { content: ""; position: absolute; left: 5px; top: 3px; width: 4px; height: 7px; border: solid #25283d; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
 
-.vanillasky-video-chat .settings .style-options { display: flex; flex-wrap: wrap; gap: 5px; padding: 5px; border-radius: 16px; background: rgb(0 0 0 / 15%); }
+.vanillasky-video-chat .settings .style-choices { display: flex; flex-wrap: wrap; gap: 5px; padding: 5px; border-radius: 16px; background: rgb(0 0 0 / 15%); }
 
 .vanillasky-video-chat .settings .style-options label { flex: 1 1 70px; min-height: 40px; justify-content: center; padding: 8px 10px; border: 1px solid transparent; border-radius: 11px; }
 
@@ -1129,3 +1129,5 @@
 .vanillasky-video-chat .recovery-notice { pointer-events: auto; display: flex; align-items: center; gap: 12px; width: min(560px, 100%); padding: 8px 10px 8px 18px; color: var(--vs-fg); background: var(--vs-surface-pop); border: 1px solid var(--vs-border); border-radius: 24px; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
 .vanillasky-video-chat .recovery-notice p { flex: 1; margin: 0; font-size: 14px; line-height: 1.5; }
 .vanillasky-video-chat .recovery-notice .round { flex: 0 0 44px; width: 44px; height: 44px; }
+
+.vanillasky-video-chat .session-new { margin-bottom: 20px; background: var(--vs-surface-hover); border-color: rgb(221 224 255 / 12%); }

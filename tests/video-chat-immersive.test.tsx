@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { UseVideoChatResult } from "../src/video-chat/use-video-chat";
 import { VideoChat } from "../src/video-chat/video-chat";
@@ -111,4 +111,51 @@ it("offers SDK discovery without leaving the current conversation", () => {
   fireEvent.click(about);
   expect(screen.queryByRole("region", { name: "About VanillaSky" })).toBeNull();
   expect(session.current.reset).not.toHaveBeenCalled();
+});
+
+
+it("restores the follow-up input after playback, keeps it visible through late suggestions, and hides again on replay", () => {
+  vi.useFakeTimers();
+  try {
+    const { container, rerender } = render(<VideoChat />);
+    const inputVisible = () => container.querySelector(".panel")?.getAttribute("data-input-visible");
+    act(() => vi.advanceTimersByTime(3000));
+    expect(inputVisible()).toBe("false");
+
+    session.current = { ...session.current, playbackEnded: true, speaking: false, status: "ended" };
+    rerender(<VideoChat />);
+    expect(inputVisible()).toBe("true");
+    expect(document.activeElement).not.toBe(screen.getByRole("textbox", { name: "Prompt" }));
+    act(() => vi.advanceTimersByTime(5000));
+    expect(inputVisible()).toBe("true");
+
+    session.current = { ...session.current, suggestions: [{ prompt: "Why does the Moon pull on water?", media: null }], caption: "Then the tide falls." };
+    rerender(<VideoChat />);
+    act(() => vi.advanceTimersByTime(5000));
+    expect(inputVisible()).toBe("true");
+
+    session.current = { ...session.current, playbackEnded: false, speaking: true, status: "playing", playerKey: 1 };
+    rerender(<VideoChat />);
+    act(() => vi.advanceTimersByTime(3000));
+    expect(inputVisible()).toBe("false");
+  } finally {
+    cleanup();
+    vi.useRealTimers();
+  }
+});
+
+it("does not let a final caption hide the input after playback has already ended", () => {
+  vi.useFakeTimers();
+  try {
+    session.current = { ...session.current, caption: undefined, shownTurn: { ...session.current.shownTurn!, opening: undefined } };
+    const { container, rerender } = render(<VideoChat />);
+    session.current = { ...session.current, playbackEnded: true, speaking: false, status: "ended", caption: "The final words arrive." };
+    rerender(<VideoChat />);
+    act(() => vi.advanceTimersByTime(5000));
+    expect(container.querySelector(".panel")?.getAttribute("data-input-visible")).toBe("true");
+    expect(document.activeElement).not.toBe(screen.getByRole("textbox", { name: "Prompt" }));
+  } finally {
+    cleanup();
+    vi.useRealTimers();
+  }
 });

@@ -21,6 +21,35 @@ function plannedResponse() {
 }
 
 describe("createVideoChatHandler", () => {
+  it("keeps follow-up cards concise without cutting questions mid-sentence", async () => {
+    const create = await loadCreateVideoChatHandler();
+    const searched: string[] = [];
+    const handler = create({
+      authorize: "none", streamText: plannedResponse(),
+      generateText: async ({ systemPrompt }: { systemPrompt: string }) => {
+        expect(systemPrompt).toContain("8 words");
+        expect(systemPrompt).toContain("60 characters");
+        return JSON.stringify({suggestions: [
+          {prompt: "What happens when atoms don't have enough electrons to be stable, and how do they gain or lose them?", keyword:"electrons"},
+          {prompt: "a".repeat(61), keyword:"long"},
+          {prompt: "a b c d e f g h i", keyword:"many"},
+          null,
+          {prompt: "  How do atoms   gain electrons?  ", keyword:"atom"},
+          {prompt: "Why do atoms bond?", keyword:"molecule"},
+        ]});
+      },
+      searchMedia: async (query: string) => { searched.push(query); return null; },
+    });
+    const response = await handler(new Request("https://app.example/api/video-chat?action=suggestions", {
+      method:"POST", body:JSON.stringify({prompt:"Explain atoms", lines:[]}),
+    }));
+    expect(await response.json()).toEqual({suggestions:[
+      {prompt:"How do atoms gain electrons?",media:null},
+      {prompt:"Why do atoms bond?",media:null},
+    ]});
+    expect(searched).toEqual(["atom","molecule"]);
+  });
+
   it("uses the selected cloud film without a provider lookup by default", async () => {
     const create = await loadCreateVideoChatHandler();
     let lookups = 0;

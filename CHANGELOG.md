@@ -6,6 +6,12 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 - Redesign the bar-chart template with proportional horizontal bars, exact values, restrained motion, and space below the comparison for subtitles. Preserve existing variables and explicit brand backgrounds.
 
+- Align Settings section headings above their option containers with consistent spacing.
+
+- Keep generated follow-up prompts to one concise idea, at most eight words and sixty characters, for readable mobile cards.
+
+- Combine new conversations and history in one Sessions menu, and keep the follow-up input visible after playback ends.
+
 ## 0.8.4
 
 - Use a curated cloud timelapse for the default welcome screen, while preserving host-selected welcome searches.

@@ -148,6 +148,8 @@ export function VideoChat({ options = {}, className, welcomeTitle, generatedVide
 
   const newSession = useCallback(() => {
     if (chat.turns.length === 0) {
+      setHistoryOpen(false);
+      setSettingsOpen(false);
       inputRef.current?.focus();
       return;
     }
@@ -210,8 +212,8 @@ export function VideoChat({ options = {}, className, welcomeTitle, generatedVide
     if (speak) listen.toggle();
   };
   const controls = useImmersiveControls(
-    status === "narrating" || (Boolean(line) && status !== "paused"),
-    alwaysShowControls || captionsExpanded || editing || historyOpen || settingsOpen || listen.listening || listen.thinking || Boolean(chat.error || listen.error),
+    !chat.playbackEnded && (status === "narrating" || (Boolean(line) && status !== "paused")),
+    chat.playbackEnded || alwaysShowControls || captionsExpanded || editing || historyOpen || settingsOpen || listen.listening || listen.thinking || Boolean(chat.error || listen.error),
     captionsOn && Boolean(line),
   );
   const captionControls = useImmersiveControls(Boolean(line), captionsExpanded, false);
@@ -243,23 +245,17 @@ export function VideoChat({ options = {}, className, welcomeTitle, generatedVide
     <header className="chrome" {...controlEvents}>
       <div className="session-brand"><Logo /></div>
       <div className="group">
-        <button
-          type="button"
-          className="round"
-          aria-label="New session"
-          onClick={newSession}
-        ><Plus /><span className="nav-label">New session</span></button>
         {<button
           ref={historyButtonRef}
           type="button"
           className="pill"
           aria-expanded={historyOpen}
-          aria-label="History"
+          aria-label="Sessions"
           aria-haspopup="dialog"
           aria-controls={historyId}
           onClick={() => { setHistoryOpen((open) => !open); setSettingsOpen(false); }}
         >
-          <Replay /><span className="nav-label">History</span>
+          <Replay /><span className="nav-label">Sessions</span>
         </button>}
       </div>
       <div className="group">
@@ -316,8 +312,9 @@ export function VideoChat({ options = {}, className, welcomeTitle, generatedVide
         </div>}
       </div>
 
-      {historyOpen && <nav ref={historyRef} id={historyId} className="sheet-popover history" role="dialog" aria-modal="true" aria-label="History">
-        <div className="popover-heading"><h2>History</h2><button type="button" className="round" aria-label="Close history" onClick={closeHistory}><Close /></button></div>
+      {historyOpen && <nav ref={historyRef} id={historyId} className="sheet-popover history" role="dialog" aria-modal="true" aria-label="Sessions">
+        <div className="popover-heading"><h2>Sessions</h2><button type="button" className="round" aria-label="Close sessions" onClick={closeHistory}><Close /></button></div>
+        <button type="button" className="history-row session-new" aria-label="New session" onClick={newSession}><Plus /><span className="prompt">New session<small>Start a fresh conversation</small></span></button>
         <h3 className="section-label">Current session</h3>
         {chat.turns.length === 0 && <p className="history-empty">Your questions will appear here.</p>}
         {chat.turns.map((turn, index) => <button key={turn.id} type="button"
@@ -353,17 +350,21 @@ export function VideoChat({ options = {}, className, welcomeTitle, generatedVide
         </fieldset>
         <fieldset className="visual-options">
           <legend>Video creation</legend>
+          <div className="visual-choices">
           {availableModes.map((option) => <label className="choice-row" key={option.id}>
             <input type="radio" name={visualsName} checked={option.id === selectedMode.id} onChange={() => setModeId(option.id)} />
             <span><strong>{option.id === "full" ? generatedVideoLabel ?? option.label : option.label}</strong><small>{option.id === "full" ? generatedVideoDescription ?? option.note : option.note}</small></span>
           </label>)}
+          </div>
         </fieldset>
         <fieldset className="style-options">
           <legend>Video style</legend>
+          <div className="style-choices">
           {themes.map((option) => <label key={option.id}>
             <input type="radio" name={styleName} checked={option.id === themeId} onChange={() => setThemeId(option.id)} />
             <span><strong>{option.label}</strong></span>
           </label>)}
+          </div>
         </fieldset>
         <p className="settings-note">Creation and style changes apply to your next question.</p>
         <nav className="developer-links" aria-label="Build with VanillaSky">
