@@ -1,3 +1,4 @@
+import { MEDIA_RECOVERY_NOTICE } from "../video-chat/recovery";
 import type {
   VideoBrandInput,
   VideoOrientation,
@@ -124,6 +125,8 @@ export interface VideoChatHandlerOptions extends Pick<
   generateVideo?: VideoChatMediaResolver;
   /** Maximum generated-video attempts per response, including failures. Defaults to 5. */
   maxGeneratedVideos?: number;
+  /** Generated media deadline in milliseconds, 1–120000. Defaults to 15000. Host providers must honor cancellation. */
+  generateVideoTimeoutMs?: number;
   /** Trusted application guidance appended to the general-purpose response brief. */
   instructions?: string;
   /** Application-owned prompts and visual searches shown before the first turn. */
@@ -607,6 +610,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
     allowCredentials,
     mediaConcurrency = 5,
     maxGeneratedVideos = 5,
+    generateVideoTimeoutMs = 15_000,
   } = options;
   // Forward only the chat contract, including for untyped JavaScript callers.
   const videoOptions = {
@@ -623,6 +627,7 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
   if (!Number.isFinite(maxAudioBytes) || maxAudioBytes <= 0) throw new Error("maxAudioBytes must be positive");
   if (!Number.isFinite(maxBodyBytes) || maxBodyBytes <= 0) throw new Error("maxBodyBytes must be positive");
 
+  if (!Number.isSafeInteger(generateVideoTimeoutMs) || generateVideoTimeoutMs < 1 || generateVideoTimeoutMs > 120_000) throw new Error("generateVideoTimeoutMs must be an integer from 1 to 120000");
   if (!Number.isSafeInteger(maxGeneratedVideos) || maxGeneratedVideos < 0) throw new Error("maxGeneratedVideos must be a nonnegative safe integer");
 
   const capabilities: VideoChatCapabilities = {
@@ -688,13 +693,13 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
           };
           if (fullAiVideo) {
             const generated = generatedAttempts < maxGeneratedVideos
-              ? (generatedAttempts++, await attempt(generateVideo, 15_000))
+              ? (generatedAttempts++, await attempt(generateVideo, generateVideoTimeoutMs))
               : null;
             if (generated) return remember(generated);
             lifecycle?.reportWarning?.({
               code: "provider_warning",
               category: "provider",
-              message: "Some visuals were replaced so your response can continue.",
+              message: MEDIA_RECOVERY_NOTICE,
               recoverable: true,
             });
           }

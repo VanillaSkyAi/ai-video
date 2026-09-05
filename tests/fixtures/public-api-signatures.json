@@ -219,7 +219,7 @@
           "type"
         ],
         "declaration": [
-          "interface VideoChatHandlerOptions extends Pick<VideoHandlerOptions, \"templates\" | \"streamText\" | \"includeRawProviderData\" | \"mediaConcurrency\" | \"allowedOrigins\" | \"authorize\" | \"maxBodyBytes\" | \"heartbeatMs\" | \"onError\" | \"onWarning\" | \"onComplete\" | \"invalidPartBehavior\" | \"requireCloser\" | \"allowCredentials\"> {\n    generateText: VideoChatTextGenerator;\n    generateSpeech?: VideoChatSpeechGenerator;\n    transcribe?: VideoChatTranscriber;\n    searchMedia?: VideoChatMediaResolver;\n    generateVideo?: VideoChatMediaResolver;\n    maxGeneratedVideos?: number;\n    instructions?: string;\n    welcome?: VideoChatWelcomeOptions;\n    maxAudioBytes?: number;\n}"
+          "interface VideoChatHandlerOptions extends Pick<VideoHandlerOptions, \"templates\" | \"streamText\" | \"includeRawProviderData\" | \"mediaConcurrency\" | \"allowedOrigins\" | \"authorize\" | \"maxBodyBytes\" | \"heartbeatMs\" | \"onError\" | \"onWarning\" | \"onComplete\" | \"invalidPartBehavior\" | \"requireCloser\" | \"allowCredentials\"> {\n    generateText: VideoChatTextGenerator;\n    generateSpeech?: VideoChatSpeechGenerator;\n    transcribe?: VideoChatTranscriber;\n    searchMedia?: VideoChatMediaResolver;\n    generateVideo?: VideoChatMediaResolver;\n    maxGeneratedVideos?: number;\n    generateVideoTimeoutMs?: number;\n    instructions?: string;\n    welcome?: VideoChatWelcomeOptions;\n    maxAudioBytes?: number;\n}"
         ]
       },
       "VideoChatMode": {
@@ -401,7 +401,7 @@
           "value"
         ],
         "declaration": [
-          "declare function VideoChat({ options, className, welcomeTitle }: VideoChatProps): react.JSX.Element;"
+          "declare function VideoChat({ options, className, welcomeTitle, generatedVideoLabel, generatedVideoDescription, showRecoveryNotice }: VideoChatProps): react.JSX.Element;"
         ]
       },
       "VideoChatAskOptions": {
@@ -465,7 +465,7 @@
           "type"
         ],
         "declaration": [
-          "interface VideoChatProps {\n    options?: UseVideoChatOptions;\n    className?: string;\n    welcomeTitle?: ReactNode;\n}"
+          "interface VideoChatProps {\n    options?: UseVideoChatOptions;\n    className?: string;\n    welcomeTitle?: ReactNode;\n    generatedVideoLabel?: string;\n    generatedVideoDescription?: string;\n    showRecoveryNotice?: boolean;\n}"
         ]
       },
       "VideoChatStatus": {

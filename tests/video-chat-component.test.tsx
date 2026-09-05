@@ -67,7 +67,7 @@ describe("VideoChat", () => {
     expect(screen.queryByRole("tab")).toBeNull();
   });
 
-  it("keeps recoverable diagnostics out of the default UI while preserving the completed answer", async () => {
+  it.each([false, true])("shows a dismissible recovery notice only when opted in (%s)", async (showRecoveryNotice) => {
     const { VideoChat } = await import("../src/react");
     const { checksumVideo } = await import("../src/protocol/checksum");
     const { TEST_VIDEO_STYLE } = await import("./semantic-brand-fixture");
@@ -81,7 +81,7 @@ describe("VideoChat", () => {
       { type: "response.complete", data: { finishReason: "stop", snapshot, checksum: checksumVideo(snapshot) } },
     ];
     const response = new Response(parts.map((part, sequence) => `data: ${JSON.stringify({ protocolVersion: "0.5", eventId: `recover:${sequence}`, runId: "recover", sequence, ...part })}\n\n`).join(""), { headers: { "content-type": "text/event-stream", "x-vanillasky-video-stream": "0.5" } });
-    render(<VideoChat options={{
+    render(<VideoChat showRecoveryNotice={showRecoveryNotice} options={{
       fetcher: async (input, init) => new URL(String(input), "https://app.example").searchParams.get("action") === "response"
         ? response.clone()
         : baseFetcher(input, init),
@@ -90,8 +90,23 @@ describe("VideoChat", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Invent a surreal bedtime story" }));
     fireEvent.click(await screen.findByRole("button", { name: "Expand subtitles" }));
     await waitFor(() => expect(screen.getByRole("region", { name: "Expanded subtitles" }).textContent).toContain("The ocean brings a new wave"));
+    if (showRecoveryNotice) {
+      expect(screen.getByRole("status").textContent).toContain("Some visuals were replaced");
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss notice" }));
+    }
     expect(screen.queryByRole("status")).toBeNull();
     expect(document.body.textContent).not.toMatch(/simplified|private-provider-detail|Some visuals/);
+  });
+
+  it("uses host copy only for the generated video option", async () => {
+    const { VideoChat } = await import("../src/react");
+    const base = chatFetcher();
+    render(<VideoChat generatedVideoLabel="AI preview" generatedVideoDescription="One clip, then stock" options={{ fetcher: async (input, init) => new URL(String(input), "https://app.example").searchParams.get("action") === "capabilities" ? Response.json({ templates: true, generatedVideo: true, modes: ["templates", "full"] }) : base(input, init) }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    expect(await screen.findByText("AI preview")).toBeTruthy();
+    expect(screen.getByText("One clip, then stock")).toBeTruthy();
+    expect(screen.getByText("Templates only")).toBeTruthy();
+    expect(screen.queryByText("Full AI video")).toBeNull();
   });
 
   it("still shows an error when no playable response can be produced", async () => {

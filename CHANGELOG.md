@@ -4,6 +4,10 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+## 0.8.3
+
+- Allow hosts to bound generated-video waiting up to two minutes, describe limited generated-video offerings in Settings, and opt into a dismissible media fallback notice.
+
 ## 0.8.2
 
 - Adds Docs and GitHub links plus an inline About section to the default VideoChat Settings, keeping developer discovery within the shared interface.

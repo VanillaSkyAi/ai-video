@@ -1,3 +1,4 @@
+import { MEDIA_RECOVERY_NOTICE } from "./recovery";
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { VideoOrientation } from "../protocol/types.js";
 import { VideoPlayer } from "../player/video-player.js";
@@ -63,10 +64,17 @@ export interface VideoChatProps {
   className?: string;
   /** Replaces the default two-line welcome heading without changing the interaction. */
   welcomeTitle?: ReactNode;
+  /** Host-owned name for the generated-video choice in Settings. Does not change server capabilities. */
+  generatedVideoLabel?: string;
+  /** Explain the host's generated-video offering, including preview limits. */
+  generatedVideoDescription?: string;
+  /** Show a dismissible safe notice when generated visuals fall back. Defaults to false. */
+  showRecoveryNotice?: boolean;
 }
 
 /** A complete voice-and-video chat interface backed by createVideoChatHandler. */
-export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatProps) {
+export function VideoChat({ options = {}, className, welcomeTitle, generatedVideoLabel, generatedVideoDescription, showRecoveryNotice = false }: VideoChatProps) {
+  const [dismissedNoticeTurn, setDismissedNoticeTurn] = useState<string>();
   const [draft, setDraft] = useState("");
   const [savedSessions, setSavedSessions] = useState<Array<{ id: string; turns: readonly VideoChatTurn[] }>>([]);
   const [themeId, setThemeId] = useState(defaultTheme.id);
@@ -347,7 +355,7 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
           <legend>Video creation</legend>
           {availableModes.map((option) => <label className="choice-row" key={option.id}>
             <input type="radio" name={visualsName} checked={option.id === selectedMode.id} onChange={() => setModeId(option.id)} />
-            <span><strong>{option.label}</strong><small>{option.note}</small></span>
+            <span><strong>{option.id === "full" ? generatedVideoLabel ?? option.label : option.label}</strong><small>{option.id === "full" ? generatedVideoDescription ?? option.note : option.note}</small></span>
           </label>)}
         </fieldset>
         <fieldset className="style-options">
@@ -385,6 +393,10 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
             </div>
           </div>
         </div>
+        {showRecoveryNotice && chat.shownTurn && dismissedNoticeTurn !== chat.shownTurn.id && chat.warnings.includes(MEDIA_RECOVERY_NOTICE) && !chat.error && <div className="recovery-notice">
+          <p role="status">{MEDIA_RECOVERY_NOTICE}</p>
+          <button type="button" className="round" aria-label="Dismiss notice" onClick={() => setDismissedNoticeTurn(chat.shownTurn?.id)}><Close /></button>
+        </div>}
         {(chat.error || listen.error) && <p className="error" role="status"><Warning /><span>{chat.error?.message ?? listen.error}</span></p>}
         <div ref={composerRef} className="conversation-composer" data-editing={editing} {...controlEvents}>
           {(listen.listening || listen.thinking) && <div className="composer-meta"><span role="status">{listen.listening ? "Listening… Tap the mic to finish, then review and send." : "Turning your words into a draft…"}</span></div>}
