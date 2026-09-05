@@ -102,7 +102,7 @@ it("offers SDK discovery without leaving the current conversation", () => {
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toContain("noopener");
   }
-  const about = screen.getByRole("button", { name: "About", exact: true });
+  const about = screen.getByRole("button", { name: "About" });
   expect(about.getAttribute("aria-expanded")).toBe("false");
   expect(screen.queryByRole("region", { name: "About VanillaSky" })).toBeNull();
   fireEvent.click(about);
