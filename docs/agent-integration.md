@@ -16,8 +16,7 @@ Then prompt: `Use $vanillasky to set up and verify a general-purpose video chat 
 The skill follows this public path in an empty npm project:
 
 ```bash
-npm install @vanillaskyai/video
-npx vanillasky init
+npx @vanillaskyai/video init
 npx vanillasky doctor
 npm run dev
 ```

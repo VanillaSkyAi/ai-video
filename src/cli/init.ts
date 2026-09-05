@@ -7,7 +7,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { safeProjectPath } from "./safe-path.js";
 import { effectivelyIgnoresLocalEnvironment } from "./gitignore.js";
@@ -30,6 +30,8 @@ type JsonObject = Record<string, unknown>;
 export interface InitVideoChatOptions {
   cwd: string;
   starterRoot?: string;
+  /** Package spec supplied by npx so blank-folder init preserves its exact artifact. */
+  sdkSpec?: string;
   installDependencies?: (cwd: string) => void | Promise<void>;
 }
 
@@ -65,7 +67,18 @@ function stringMap(value: unknown): Record<string, string> {
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
 }
 
-function mergedManifest(cwd: string, starterRoot: string): string {
+function resolvedSdkSpec(starterRoot: string, invokedSpec: string | undefined): string | undefined {
+  const spec = invokedSpec?.trim();
+  if (!spec) return undefined;
+  if (spec === "@vanillaskyai/video" || spec.startsWith("@vanillaskyai/video@")) {
+    const packageManifest = readJson(resolve(starterRoot, "../..", "package.json"));
+    return typeof packageManifest.version === "string" ? packageManifest.version : undefined;
+  }
+  if (spec.startsWith("file:")) return spec;
+  return isAbsolute(spec) ? `file:${spec}` : undefined;
+}
+
+function mergedManifest(cwd: string, starterRoot: string, invokedSpec?: string): string {
   const destination = join(cwd, "package.json");
   const existing = existsSync(destination) ? readJson(destination) : {};
   const starter = readJson(join(starterRoot, "package.json"));
@@ -84,7 +97,9 @@ function mergedManifest(cwd: string, starterRoot: string): string {
   if (Object.prototype.hasOwnProperty.call(existing, "type") && existing.type !== "module") {
     throw new Error(`package.json type ${String(existing.type)} is incompatible with the video-chat starter. Run init in a new npm project.`);
   }
-  const sdkVersion = existingDependencies["@vanillaskyai/video"] ?? starterDependencies["@vanillaskyai/video"];
+  const sdkVersion = existingDependencies["@vanillaskyai/video"]
+    ?? resolvedSdkSpec(starterRoot, invokedSpec)
+    ?? starterDependencies["@vanillaskyai/video"];
   if (!sdkVersion) throw new Error("Install @vanillaskyai/video before running vanillasky init.");
   const dependencies = {
     ...starterDependencies,
@@ -152,7 +167,7 @@ export async function initVideoChatApp(options: InitVideoChatOptions): Promise<I
   for (const path of SCAFFOLD_FILES) {
     planned.set(path, readFileSync(join(starterRoot, path), "utf8"));
   }
-  planned.set("package.json", mergedManifest(cwd, starterRoot));
+  planned.set("package.json", mergedManifest(cwd, starterRoot, options.sdkSpec));
   planned.set(".gitignore", mergeGitignore(
     existsSync(join(cwd, ".gitignore")) ? readFileSync(join(cwd, ".gitignore"), "utf8") : undefined,
   ));

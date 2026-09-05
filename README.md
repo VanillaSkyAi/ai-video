@@ -14,8 +14,7 @@ trusted templates, validation, streaming, voice timing, and player.
 ## Start on localhost
 
 ```bash
-npm install @vanillaskyai/video
-npx vanillasky init
+npx @vanillaskyai/video init
 ```
 
 Add `ANTHROPIC_API_KEY` to the generated, ignored `.env.local`, then run:

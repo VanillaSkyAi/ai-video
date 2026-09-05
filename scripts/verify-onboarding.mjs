@@ -4,7 +4,7 @@ import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { parseNpmPackJson } from "./lib/parse-npm-pack-json.mjs";
@@ -146,10 +146,13 @@ try {
     });
     installSpec = candidateArtifact.path;
   }
-  run("npm", ["install", "--no-audit", "--no-fund", installSpec], app);
+  run("npx", ["--yes", "--package", installSpec, "vanillasky", "init"], app);
   cli = join(app, "node_modules", "@vanillaskyai", "video", "bin", "vanillasky.js");
-  const init = runCli(["init"]);
-  if (!init.output.includes("Video chat initialized")) throw new Error(`Packed init failed:\n${init.output}`);
+  if (!existsSync(cli)) throw new Error("Scoped npx init did not install the VanillaSky CLI in the generated app");
+  const initializedManifest = JSON.parse(readFileSync(join(app, "package.json"), "utf8"));
+  if (isAbsolute(installSpec) && initializedManifest.dependencies?.["@vanillaskyai/video"] !== `file:${installSpec}`) {
+    throw new Error("Scoped npx init did not preserve the exact packed candidate dependency");
+  }
   if (existsSync(join(app, "vanillasky"))) throw new Error("Default onboarding unexpectedly copied templates");
   const generatedClient = readFileSync(join(app, "src", "main.tsx"), "utf8");
   const generatedServer = readFileSync(join(app, "server.ts"), "utf8");

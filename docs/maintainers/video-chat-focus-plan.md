@@ -18,8 +18,7 @@ modes only:
 The canonical path already exists:
 
 ```bash
-npm install @vanillaskyai/video
-npx vanillasky init
+npx @vanillaskyai/video init
 # add keys to .env.local
 npm run dev
 ```

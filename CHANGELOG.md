@@ -4,6 +4,11 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Makes blank-folder onboarding one safe scoped command:
+  `npx @vanillaskyai/video init`. Init now pins registry installs to the exact
+  SDK version that ran it and preserves an exact local tarball during candidate
+  verification instead of silently replacing it with an older npm artifact.
+
 - Keeps video-chat responses running when a text provider labels an ordinary
   scene with an unsupported placement hint. The provider adapter drops that
   harmless hint while preserving `placement: "closer"` and strict protocol

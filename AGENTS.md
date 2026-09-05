@@ -47,7 +47,7 @@ and verify the smallest relevant suite before broad gates.
 ## Consumer integrations
 
 Use the root README, `docs/agent-integration.md`, or the optional `vanillasky`
-skill for ordinary integrations. Start with `npm install`, `vanillasky init`,
+skill for ordinary integrations. Start with `npx @vanillaskyai/video init`,
 `vanillasky doctor`, and the default `VideoChat`. Keep the packaged templates
 and browser voice until that complete experience works. Add optional providers
 or switch to `useVideoChat` only when the application needs them. Use the
