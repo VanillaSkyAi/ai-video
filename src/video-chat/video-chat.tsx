@@ -73,6 +73,7 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
   const [modeId, setModeId] = useState<VideoChatMode>(options.mode ?? defaultMode.id);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [captionsOn, setCaptionsOn] = useState(true);
   const [captionsExpanded, setCaptionsExpanded] = useState(false);
   const [alwaysShowControls, setAlwaysShowControls] = useState(false);
@@ -357,6 +358,13 @@ export function VideoChat({ options = {}, className, welcomeTitle }: VideoChatPr
           </label>)}
         </fieldset>
         <p className="settings-note">Creation and style changes apply to your next question.</p>
+        <nav className="developer-links" aria-label="Build with VanillaSky">
+          <p className="section-label">Build with VanillaSky</p>
+          <a href="https://github.com/VanillaSkyAi/video/blob/main/docs/getting-started.md" target="_blank" rel="noopener noreferrer">Docs<span aria-hidden="true">↗</span></a>
+          <button type="button" aria-expanded={aboutOpen} aria-controls={`${instanceId}-about`} onClick={() => setAboutOpen((open) => !open)}>About<span aria-hidden="true">{aboutOpen ? "−" : "+"}</span></button>
+          <div id={`${instanceId}-about`} className="developer-about" role="region" aria-label="About VanillaSky" hidden={!aboutOpen}><p>VanillaSky is an open-source SDK for conversations that answer in video. Developers connect their own AI providers through their application server.</p></div>
+          <a href="https://github.com/VanillaSkyAi/video" target="_blank" rel="noopener noreferrer">GitHub<span aria-hidden="true">↗</span></a>
+        </nav>
       </div>}
     </div>
 

@@ -4,6 +4,10 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+## 0.8.2
+
+- Adds Docs and GitHub links plus an inline About section to the default VideoChat Settings, keeping developer discovery within the shared interface.
+
 ## 0.8.1
 
 - Gives the default `VideoChat` an immersive video canvas, floating voice and text input, contextual playback controls, readable on-video subtitles, and unified dark settings and history. Controls yield to the first subtitle and return on interaction; the stage adapts across desktop and mobile.
