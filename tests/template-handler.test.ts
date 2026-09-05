@@ -142,7 +142,7 @@ const pacingKit = createServerTemplateRegistry({
 
 describe("createVideoHandler", () => {
   it("requires an explicit authorization policy before constructing a public handler", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     expect(() => createVideoHandler({
       heartbeatMs: false,
       streamText: async function* () { yield '{"type":"plan.complete"}\n'; },
@@ -150,7 +150,7 @@ describe("createVideoHandler", () => {
   });
 
   it("keeps the required built-in nine-word CTA readable after a 29-second body request", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       heartbeatMs: false,
@@ -189,7 +189,7 @@ describe("createVideoHandler", () => {
   });
 
   it("reserves a readable final ask instead of clipping it below its minimum", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     let systemPrompt = "";
     const handler = createVideoHandler({
       authorize: "none",
@@ -245,7 +245,7 @@ describe("createVideoHandler", () => {
   });
 
   it("allocates a supplied opening within the same deterministic closer budget", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       templates: pacingKit,
@@ -281,7 +281,7 @@ describe("createVideoHandler", () => {
   });
 
   it("continues consuming after an over-budget body scene so a later ask can land", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       templates: pacingKit,
@@ -324,7 +324,7 @@ describe("createVideoHandler", () => {
   });
 
   it("holds an explicitly placed payoff emitted early and appends it after every body scene", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       templates: pacingKit,
@@ -367,7 +367,7 @@ describe("createVideoHandler", () => {
   });
 
   it("appends a reserved payoff to the playable snapshot when the provider fails late", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       templates: pacingKit,
@@ -411,7 +411,7 @@ describe("createVideoHandler", () => {
   });
 
   it("marks a standard handler plan partial when it completes without a closer", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       templates: pacingKit,
@@ -444,7 +444,7 @@ describe("createVideoHandler", () => {
   });
 
   it("rejects a body-only template explicitly placed as the closer", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       templates: pacingKit,
@@ -483,7 +483,7 @@ describe("createVideoHandler", () => {
   });
 
   it("uses the trusted built-in metadata and validation when no registry is configured", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     let systemPrompt = "";
     const handler = createVideoHandler({
       authorize: "none",
@@ -511,7 +511,7 @@ describe("createVideoHandler", () => {
   });
 
   it("warns when a bar chart mixes values on a misleading scale", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       heartbeatMs: false,
@@ -539,7 +539,7 @@ describe("createVideoHandler", () => {
   });
 
   it("composes the kit prompt, capabilities, validator, and app-owned text provider", async () => {
-    const api = await import("../src/server");
+    const api = await import("../src/server/create-video-handler");
     expect(api.createVideoHandler).toBeTypeOf("function");
 
     let providerContext: { systemPrompt: string; userPrompt: string; signal: AbortSignal } | undefined;
@@ -575,7 +575,7 @@ describe("createVideoHandler", () => {
   });
 
   it("treats configured templates as overrides while keeping untouched built-ins", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     let systemPrompt = "";
     const handler = createVideoHandler({
       authorize: "none",
@@ -604,7 +604,7 @@ describe("createVideoHandler", () => {
   });
 
   it("rejects an automatic opening when a media override breaks its reserved input contract", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const streamText = vi.fn(async function* () { yield '{"type":"plan.complete"}\n'; });
     const templates = createServerTemplateRegistry({
       templates: [{
@@ -643,7 +643,7 @@ describe("createVideoHandler", () => {
   });
 
   it("shows the provider only templates negotiated for this request", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     let systemPrompt = "";
     const handler = createVideoHandler({
       authorize: "none",
@@ -670,7 +670,7 @@ describe("createVideoHandler", () => {
   });
 
   it("fails closed when a stale host-resolved media policy is configured", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
 
     expect(() => createVideoHandler({
       authorize: "none",
@@ -684,7 +684,7 @@ describe("createVideoHandler", () => {
   });
 
   it("resolves bounded media intent on later scenes without leaking the query", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const resolveMedia = vi.fn(async () => ({
       url: "https://media.example.test/team.mp4",
       type: "video" as const,
@@ -758,7 +758,7 @@ describe("createVideoHandler", () => {
   });
 
   it("falls back to a gradient when the configured resolver finds no safe asset", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       heartbeatMs: false,
@@ -790,7 +790,7 @@ describe("createVideoHandler", () => {
   });
 
   it("uses the asset-free runtime opening before resolving a generated media scene", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       heartbeatMs: false,
@@ -835,7 +835,7 @@ describe("createVideoHandler", () => {
   });
 
   it("falls back to a gradient when the application media resolver fails", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       heartbeatMs: false,
@@ -867,7 +867,7 @@ describe("createVideoHandler", () => {
   });
 
   it("uses a background when a media provider aborts while the request remains active", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const onError = vi.fn();
     const handler = createVideoHandler({
       authorize: "none",
@@ -898,7 +898,7 @@ describe("createVideoHandler", () => {
   });
 
   it("does not expose or resolve media intent for an incompatible custom media schema", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const resolveMedia = vi.fn(async () => ({
       url: "https://media.example.test/should-not-resolve.jpg",
       type: "image" as const,
@@ -936,7 +936,7 @@ describe("createVideoHandler", () => {
   });
 
   it("uses safe prompt and validator overrides without exposing provider ownership", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const allowMediaUrl = vi.fn(() => true);
     let systemPrompt = "";
     const handler = createVideoHandler({
@@ -963,7 +963,7 @@ describe("createVideoHandler", () => {
   });
 
   it("selects the trusted knowledge contract from validated VideoInput", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const prompts: string[] = [];
     const handler = createVideoHandler({
       authorize: "none",
@@ -994,7 +994,7 @@ describe("createVideoHandler", () => {
   });
 
   it("rejects unauthorized schema-backed media in a complete scene", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       templates: mediaKit,
@@ -1022,7 +1022,7 @@ describe("createVideoHandler", () => {
   });
 
   it("rejects a fabricated quote through the schema-driven handler", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       templates: quoteKit,
@@ -1046,7 +1046,7 @@ describe("createVideoHandler", () => {
   });
 
   it("requires an actual supplied image for a screenshot scene", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const handler = createVideoHandler({
       authorize: "none",
       templates: screenshotKit,

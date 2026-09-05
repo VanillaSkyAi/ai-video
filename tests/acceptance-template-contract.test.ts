@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ACCEPTANCE_FIXTURES } from "../scripts/acceptance/fixtures";
+import { ACCEPTANCE_FIXTURES, replayParts } from "../scripts/acceptance/fixtures";
 import { getTemplate } from "../src/visual-system/scene-templates/registry";
 
 describe("acceptance fixture template contract", () => {
@@ -45,7 +45,7 @@ describe("acceptance fixture template contract", () => {
 
   it("provides every required variable declared by each bundled template", () => {
     for (const fixture of ACCEPTANCE_FIXTURES) {
-      for (const part of fixture.replayParts) {
+      for (const part of replayParts(fixture)) {
         if (part.type !== "scene.add") continue;
 
         const template = getTemplate(part.scene.templateId);

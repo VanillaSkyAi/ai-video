@@ -2,71 +2,49 @@
 
 # Errors and recovery
 
-Render errors in normal application UI outside the video. Never show stack traces, provider details, raw deltas, or protocol diagnostics inside a scene.
+`VideoChat` preserves the opening and accepted scenes when an optional scene,
+provider, or stream fails. It shows concise non-fatal status notices and keeps
+the answer playable. A fatal error is shown only when no playable response can
+be produced. Never put provider details or stack traces in the interface.
 
-| Boundary | Example codes | Host response |
-| --- | --- | --- |
-| HTTP | `unauthorized`, `origin_forbidden`, `body_too_large` | Fix session/policy; do not retry blindly |
-| Input | `invalid_json`, `invalid_request`, `secret_field` | Correct client request |
-| Protocol | invalid sequence/checksum/scene | Stop the stream and record a safe diagnostic |
-| Generation | `generation_failed` | Hold current scene, end cleanly, offer retry |
-| Generated part | `invalid_generated_part` | Keep accepted scenes; inspect the private server log |
-| Resume | `invalid_cursor`, `resume_unavailable` | Restart only before visible output or from valid storage |
+## Recovery by boundary
 
-```tsx
-import { VideoError } from "@vanillaskyai/video/react";
+| Failure | Result |
+| --- | --- |
+| Invalid planner scene | Skip the part and accept later valid scenes |
+| Generated footage | Try stock media, then a safe template |
+| Stock lookup or candidate | Continue with another candidate or template |
+| Template renderer | Isolate the failed scene with a safe visual |
+| Missing narration | Continue with scene text |
+| Generated speech | Use browser voice |
+| Late stream failure | Keep playable opening and completed scenes |
+| Unauthorized or invalid request without playable output | Show a safe error |
 
-try {
-  const completed = await video.generate({ input });
-  await saveVideo(completed);
-} catch (error) {
-  if (error instanceof VideoError) {
-    logSafeFailure({
-      code: error.code,
-      status: error.status,
-      requestId: error.requestId,
-      runId: error.runId,
-    });
-  }
-}
-```
+For a custom interface, render `chat.warnings` as status messages and
+`chat.error` as an error. Notices are also retained on the corresponding
+`VideoChatTurn.warnings`. Keep `chat.playerProps` mounted while showing notices.
+Check `turn.completed` before persisting it as completed conversation context;
+a cancelled or partial visible turn is not automatically a completed turn.
 
-`generate()` resolves only for `response.complete`. A terminal
-`response.error` or `response.abort` rejects it. The hook still retains the
-latest validated `video.video`, and its player stream still receives terminal
-events, so an application may keep already accepted scenes visible while it
-offers a retry. If the planner already supplied a validated reserved closer,
-the runtime appends it to that playable terminal snapshot before reporting a
-late provider failure; it never invents or rewrites closer copy during recovery.
+`VideoError` exposes actionable public fields: `code`, `message`, optional HTTP
+`status`, `requestId`, `runId`, and `recoverable`. Log only safe codes and IDs
+from the client. The server's `onError` observer receives internal diagnostics;
+redact credentials, source data, provider payloads, and signed URLs before logging.
+Observer failures are isolated from response generation.
 
-Both a server `response.abort` and an explicit `video.abort(reason)` keep
-`video.status` at `aborted`; `video.error` contains the same safe typed abort
-reported by the rejected `generate()` promise.
+## Cancellation and retries
 
-`VideoError` preserves only actionable public context: the server's safe
-`code` and `message`, HTTP `status` when available, `requestId`, `runId`, and
-`recoverable`. Do not replace those fields with raw provider errors.
+`chat.cancel()` cancels the current work while preserving available output.
+Replacing a prompt aborts its old providers and speech. The host must forward
+`signal` to every provider callback and own deadlines, quotas, and retry budgets.
+The chat retries once only before playback. Never silently restart generation
+after the viewer has begun watching, and do not replay paid generation requests
+without a deliberate idempotency and spend policy.
 
-Abort replaced compositions and client disconnects. Retry provider throttles or transient failures only within an explicit request/time budget and only before visible output unless you have validated resume storage. Never silently restart after the viewer has begun watching.
+The server drops invalid generated parts by default. `invalidPartBehavior: "fail"`
+is an explicit strict policy; ordinary chat should retain the resilient default.
+`onComplete` runs after a `response.complete`, including a recovered playable
+response. Fatal errors, disconnects, and explicit aborts do not call it.
 
-Log safe codes with request/run IDs and latency. Keep private provider messages in server logs through `onError`; redact source, personalization, keys, tokens, and signed URLs.
-
-Live acceptance artifacts use stable failure categories: `network`,
-`authentication`, `model_not_found`, `rate_limit`, `provider`, `planner_parse`,
-`scene_validation`, or `unknown`. Before diagnosing the SDK, probe the provider
-with one minimal request using the same server-only credential and model. Check
-DNS/proxy access, credential validity, model availability, account/rate limits,
-and timeout settings in that order. Never copy raw provider payloads, streamed
-deltas, prompts, or credentials into browser errors or CI artifacts.
-
-Server handlers drop invalid generated parts by default. Each rejection calls
-`onError` with the full internal reason, while the browser receives only the
-recoverable `invalid_generated_part` diagnostic. Set `invalidPartBehavior: "fail"`
-only when fail-fast generation is an intentional compatibility requirement.
-
-`onComplete` runs exactly once only after `response.complete`. Terminal errors,
-client disconnects, explicit aborts, and host timeouts do not call it;
-`onError` receives internal failures, while cancellation remains a safe
-`response.abort`. Abort and timeout signals always propagate to `streamText`.
-The host owns timeout construction and retry policy. Do not retry invisibly
-after any scene has reached the viewer.
+Automated regression and acceptance tests use mocked providers. See
+[Testing](testing.md) and the [chat acceptance gate](https://github.com/VanillaSkyAi/video/blob/main/docs/maintainers/acceptance.md).

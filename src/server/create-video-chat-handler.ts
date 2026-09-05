@@ -102,9 +102,12 @@ export type VideoChatMediaResolver = (
   context: VideoChatMediaContext,
 ) => ResolvedMedia | null | Promise<ResolvedMedia | null>;
 
-export interface VideoChatHandlerOptions extends Omit<
+export interface VideoChatHandlerOptions extends Pick<
   VideoHandlerOptions,
-  "allowMediaUrl" | "basePrompt" | "maxResolvedMedia" | "narrate" | "resolveMedia"
+  | "templates" | "streamText" | "includeRawProviderData" | "mediaConcurrency"
+  | "allowedOrigins" | "authorize" | "maxBodyBytes" | "heartbeatMs"
+  | "onError" | "onWarning" | "onComplete" | "invalidPartBehavior"
+  | "requireCloser" | "allowCredentials"
 > {
   /** Generate the small non-streaming text tasks around the visual plan. */
   generateText: VideoChatTextGenerator;
@@ -594,8 +597,19 @@ export function createVideoChatHandler(options: VideoChatHandlerOptions): VideoC
     allowedOrigins,
     allowCredentials,
     mediaConcurrency = 5,
-    ...videoOptions
   } = options;
+  // Forward only the chat contract, including for untyped JavaScript callers.
+  const videoOptions = {
+    templates: options.templates,
+    streamText: options.streamText,
+    includeRawProviderData: options.includeRawProviderData,
+    heartbeatMs: options.heartbeatMs,
+    onError: options.onError,
+    onWarning: options.onWarning,
+    onComplete: options.onComplete,
+    invalidPartBehavior: options.invalidPartBehavior,
+    requireCloser: options.requireCloser,
+  };
   if (!Number.isFinite(maxAudioBytes) || maxAudioBytes <= 0) throw new Error("maxAudioBytes must be positive");
   if (!Number.isFinite(maxBodyBytes) || maxBodyBytes <= 0) throw new Error("maxBodyBytes must be positive");
 

@@ -1,4 +1,4 @@
-[← Documentation home](../README.md) · [Previous: Branding and personalization](branding-and-personalization.md) · [Next: Custom templates →](custom-templates.md)
+[← Documentation home](../README.md) · [Previous: Customization](customization.md) · [Next: Custom templates →](custom-templates.md)
 
 # Media, voice, and audio
 
@@ -132,4 +132,4 @@ interaction before audible playback on many devices.
 - Preload the next asset and keep the current visual when media is late.
 - Return a safe fallback instead of leaving the response waiting forever.
 
-[← Documentation home](../README.md) · [Previous: Branding and personalization](branding-and-personalization.md) · [Next: Custom templates →](custom-templates.md)
+[← Documentation home](../README.md) · [Previous: Customization](customization.md) · [Next: Custom templates →](custom-templates.md)

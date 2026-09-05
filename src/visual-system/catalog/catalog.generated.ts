@@ -45,7 +45,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -64,7 +64,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -149,7 +149,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "reactionTag": {
           "type": "string",
           "title": "Reaction tag",
-          "description": "Pexels meme search intent. Pick from the punchline/problem copy first, then the overall video topic.",
+          "description": "Stock-media search intent. Pick from the punchline/problem copy first, then the overall video topic.",
           "enum": [
             "launch",
             "productLaunch",
@@ -190,7 +190,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaUrl": {
           "type": "string",
           "title": "Reaction clip",
-          "description": "Resolved Pexels MP4 URL.",
+          "description": "Resolved stock-video URL.",
           "format": "uri",
           "default": ""
         },
@@ -398,7 +398,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -417,7 +417,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -569,7 +569,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -588,7 +588,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -703,7 +703,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -722,7 +722,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -883,7 +883,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "default": ""
         },
         "mediaType": {
@@ -901,7 +901,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -1075,7 +1075,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "default": ""
         },
         "mediaType": {
@@ -1093,7 +1093,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -1191,7 +1191,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -1210,7 +1210,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -1333,7 +1333,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -1352,7 +1352,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -1480,7 +1480,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -1499,7 +1499,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -1605,7 +1605,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -1624,7 +1624,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -1928,7 +1928,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -1947,7 +1947,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -2103,7 +2103,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -2122,7 +2122,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -2226,7 +2226,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -2245,7 +2245,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -2353,7 +2353,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -2372,7 +2372,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -2454,7 +2454,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -2473,7 +2473,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -2557,7 +2557,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -2576,7 +2576,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -2828,7 +2828,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -2847,7 +2847,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -2959,7 +2959,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -2978,7 +2978,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -3098,7 +3098,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -3117,7 +3117,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -3237,7 +3237,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -3256,7 +3256,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -3351,7 +3351,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "default": ""
         },
         "mediaType": {
@@ -3369,7 +3369,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },
@@ -3472,7 +3472,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaKeyword": {
           "type": "string",
           "title": "Background search keyword",
-          "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+          "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
           "format": "stock-media-keyword",
           "default": ""
         },
@@ -3491,7 +3491,7 @@ export const GENERATED_BUILTIN_TEMPLATE_CATALOG = [
         "mediaPoster": {
           "type": "string",
           "title": "Background poster image",
-          "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+          "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
           "format": "uri",
           "default": ""
         },

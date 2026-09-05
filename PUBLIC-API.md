@@ -62,6 +62,9 @@ a request, renders React, imports a provider, or accesses browser globals.
 ### Values
 
 - `getVideoDuration(video: Video): number`
+- `getSceneDuration(scene, metadata)`
+- `getSceneDurationBounds(scene, metadata)`
+- `getSpokenDuration(text)`
 - `parseVideo(value: unknown): Video`
 - `resolveVideoBrand(input?: VideoBrandInput): VideoBrand`
 - `VideoValidationError`
@@ -72,17 +75,17 @@ a request, renders React, imports a provider, or accesses browser globals.
 - `VideoAudio`
 - `VideoBackground`
 - `VideoBrand`
-- `VideoInput`
+- `VideoBrandInput`
 - `VideoOrientation`
 - `VideoScene`
 - `VideoStyle`
 - `VideoStyleOptions`
-- `VideoSuppliedMedia`
 - `VideoStatus`
 - `VideoValidationErrorCode`
+- `SceneDurationBounds`
 
 `VideoState` remains internal protocol reducer state. Browser consumers use the
-normalized fields returned by `useVideo` instead.
+normalized fields returned by `useVideoChat` instead.
 
 ## Server
 
@@ -93,7 +96,6 @@ provider-neutral text-delta escape hatch.
 ### Values
 
 - `createVideoChatHandler(options)`
-- `createVideoHandler(options)`
 - `createServerTemplateRegistry(options)`
 
 ### Types
@@ -104,10 +106,6 @@ provider-neutral text-delta escape hatch.
 - `VideoChatMode`
 - `VideoChatWelcomeOptions`
 - `VideoChatWelcomePrompt`
-- `VideoHandlerOptions`
-- `MediaResolver`
-- `MediaResolverContext`
-- `ResolvedMedia`
 - `ServerTemplateRegistry`
 - `ServerTemplateMetadata`
 - `VideoFinishReason`
@@ -152,37 +150,20 @@ playable scenes on an interrupted plan, emitting non-fatal warnings. Explicit
 - Every action applies the same authorization, origin, request-size,
   cancellation, safe-error, and server-only-provider boundaries.
 
-`createVideoHandler` remains the lower-level video composition route:
+The chat handler requires `authorize`; `authorize: "none"` is only for an
+intentionally non-public in-process/test handler. All provider callbacks receive
+cancellation signals. The application owns authentication, origins, request
+limits, provider credentials, deadlines, and retry budgets.
 
-- `authorize` is required for HTTP handlers. Use `authorize: "none"` only for
-  an intentionally non-public in-process/test handler.
-- `streamText` receives the generated system prompt, grounded user prompt, and
-  the request `AbortSignal`.
-- `resolveMedia` is an optional application-owned resolver. It receives a
-  bounded semantic query only when configured, and returns an approved image
-  or video URL plus an optional poster before the scene is validated or sent
-  to the browser. Provider clients, keys, metadata, and unresolved queries
-  remain server-only.
-- `invalidPartBehavior` is `"drop" | "fail"`. A behavior selector is never
-  named like a callback.
-- `requireCloser` defaults to `true` on `createVideoHandler`. The planner marks
-  one `scene.add` with `placement: "closer"`; the runtime reserves it and emits
-  it last. Specialized deterministic or test handlers may opt out explicitly.
-- `onWarning` receives safe typed warnings.
-- `onComplete` receives one server-only `VideoGenerationSummary` after an
-  actual `response.complete`; errors and aborts do not invoke it.
-- `onError` receives the full internal server error. Client responses remain
-  redacted and typed separately.
-- Provider usage, raw usage, provider metadata, and model identifiers remain
-  server-side unless the host deliberately persists them.
-- Provider-native usage and metadata require the bounded
-  `includeRawProviderData` opt-in.
-- `snapshotRetention` opts into individually bounded source, instructions, or
-  supplied-media URL metadata; all are omitted by default.
-- Provider credentials, provider selection, authentication, rate limiting,
-  provider retries, logging, and tracing remain host-owned.
-- Request cancellation always reaches the provider through `AbortSignal`.
-- Callback failures are isolated and never alter the video response.
+`onWarning` receives safe typed diagnostics; `onComplete` receives a server-only
+`VideoGenerationSummary` after an actual `response.complete`, including recovered
+playable responses. `onError` receives private internal errors. Observer failures
+do not change playback. Provider metadata remains server-side, with raw usage
+and metadata requiring the bounded `includeRawProviderData` opt-in.
+
+The handler exposes chat-relevant policy, template, and provider options only.
+Standalone soundtrack selection, snapshot-retention overrides, and durable
+stream replay are not public chat options.
 
 ## React
 
@@ -191,7 +172,6 @@ playable scenes on an interrupted plan, emitting non-fatal warnings. Explicit
 - `VideoChat(props)`
 - `useVideoChat(options?)`
 - `createVideoChatVoice(options?)`
-- `useVideo(options?)`
 - `VideoPlayer`
 - `VideoError`
 
@@ -212,8 +192,6 @@ playable scenes on an interrupted plan, emitting non-fatal warnings. Explicit
 - `VideoChatVoice`
 - `VideoChatPreparedSpeech`
 - `CreateVideoChatVoiceOptions`
-- `UseVideoOptions`
-- `UseVideoResult`
 - `VideoPlaybackMode`
 - `VideoPlayerProps`
 - `VideoErrorOptions`
@@ -274,49 +252,28 @@ scene. Each `VideoChatTurn` exposes `openingMedia` and `completed`, so
 custom interfaces can render the same handoff while partial or cancelled
 responses remain visible without being mistaken for conversation context.
 
-`UseVideoResult` has this conceptual shape:
-
-```ts
-interface UseVideoResult {
-  generate(input: VideoInput): Promise<Video>;
-  abort(reason?: string): void;
-  video?: Video;
-  status: VideoStatus;
-  error?: VideoError;
-  warnings: readonly VideoWarning[];
-  playerProps: VideoPlayerProps;
-}
-```
-
 `VideoPlayer` accepts either streaming player props or a completed saved video:
 
 ```tsx
-<VideoPlayer {...video.playerProps} />
+<VideoPlayer {...chat.playerProps} />
 <VideoPlayer video={savedVideo} />
 ```
 
 Built-in renderers are always available, so a streaming `VideoPlayer` does not
 require a template registry. `playerProps` is a spread-ready player binding; it
-contains the customer registry supplied to `useVideo` when one exists, but it
+contains the customer registry supplied to `useVideoChat` when one exists, but it
 does not expose the built-in planning catalog. Import `builtinTemplates` from
 `@vanillaskyai/video/templates/catalog` for labels, schemas, selection guidance,
 and other React-free metadata.
 
-Set `playbackMode="autoplay-after-interaction"` for chat feeds: the first
-soundtrack waits on a visible scene-one poster, and later streams on the same
-mounted player autoplay with sound after the first successful viewer start.
-`manual`, `muted-autoplay`, and `autoplay-with-sound` cover the other browser
-startup policies.
+The chat owns playback startup, speech, and synchronization. Custom saved-video
+players may choose a `VideoPlaybackMode` to match browser autoplay rules.
 
 Set `nativeMediaAudio={{ volume: 0.85 }}` when scene video files contain an
 embedded audio track. The active clip's audio becomes a second layer alongside
 the video's continuous `audio` soundtrack. Both follow the player's master
 mute control; `nativeMediaAudio.volume` and serialized `audio.volume` set their
 independent mix levels. Incoming preroll videos remain muted until active.
-
-`VideoInput.opening` accepts custom copy, uses the deterministic fallback when
-omitted, and accepts `false` when the application owns transient loading UI and
-wants the completed video to begin with the first generated scene.
 
 Saved-video playback performs no generation request. `VideoPlayerBinding` and
 the internal reducer state are not public types.
@@ -442,9 +399,8 @@ from `/server` without crossing a React type boundary.
   fail before any renderer runs; they are never rendered partially.
 - Raw prompts, provider payloads, and credentials are never retained by
   default.
-- Raw source, instructions, and the supplied-media URL index are opt-in and
-  bounded. Hosts own the database, storage, tenant policy, deletion, and media
-  URL expiry.
+- Chat snapshots omit raw source, instructions, and the supplied-media URL
+  index. Hosts own storage, tenant policy, deletion, and media URL expiry.
 - Replay through `<VideoPlayer video={savedVideo} />` never calls an LLM.
 - Completion checksums detect accidental drift only; they do not provide
   authenticity, authorization, or tenancy security.
@@ -456,5 +412,5 @@ from `/server` without crossing a React type boundary.
 - Hosted persistence.
 - OpenTelemetry integration.
 - Automatic factual verification or scene repair.
-- `useVideo(initialVideo)`.
+- Standalone video generation hooks, handlers, narration, and timeline factories.
 - Undocumented API aliases.

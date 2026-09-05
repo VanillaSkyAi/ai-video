@@ -101,7 +101,7 @@ mkdir /tmp/vanillasky-consumer && cd /tmp/vanillasky-consumer
 npm init -y
 npm install @vanillaskyai/video@latest
 npm ls @vanillaskyai/video --depth=0
-node -e "import('@vanillaskyai/video/react').then(m => { if (!m.useVideo || !m.VideoPlayer) process.exit(1); console.log('React runtime exports verified') })"
+node -e "import('@vanillaskyai/video/react').then(m => { if (!m.useVideoChat || !m.VideoChat || !m.VideoPlayer) process.exit(1); console.log('React runtime exports verified') })"
 ```
 
 Confirm the installed artifact contains its reviewed README, public API,

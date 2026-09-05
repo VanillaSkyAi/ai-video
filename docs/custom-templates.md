@@ -1,4 +1,4 @@
-[← Documentation home](../README.md) · [Previous: Branding and personalization](branding-and-personalization.md) · [Next: Motion and effects →](motion-and-effects.md)
+[← Documentation home](../README.md) · [Previous: Customization](customization.md) · [Next: Motion and effects →](motion-and-effects.md)
 
 # Custom templates
 
@@ -190,7 +190,6 @@ Start from the generated file or one of the packaged references:
 | --- | --- |
 | One headline and supporting line | [Minimal text](../examples/custom-template/minimal-text.tsx) |
 | One exact metric and its change | [Structured data](../examples/custom-template/structured-data.tsx) |
-| An application-supplied image | [Supplied media](../examples/custom-template/supplied-media.tsx) |
 
 The [reference comparison](../examples/custom-template/README.md) explains when
 to choose each. Copy a file into `vanillasky/templates/`, change its ID and
@@ -213,17 +212,26 @@ selection, and validator. Import it in the route that connects your model:
 
 ```ts
 // src/video-route.ts
-import { streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/video/server";
+import { generateText, streamText } from "ai";
+import { createVideoChatHandler } from "@vanillaskyai/video/server";
 import { videoModel } from "./video-model";
 import { templates } from "../vanillasky/server";
 
-export const handleVideo = createVideoHandler({
+export const handleVideoChat = createVideoChatHandler({
   templates,
   authorize: (request) => {
     if (process.env.VANILLASKY_LOCAL_DEMO !== "1") return false;
     const hostname = new URL(request.url).hostname;
     return hostname === "localhost" || hostname === "127.0.0.1";
+  },
+  generateText: async ({ systemPrompt, userPrompt, signal }) => {
+    const result = await generateText({
+      model: videoModel,
+      system: systemPrompt,
+      prompt: userPrompt,
+      abortSignal: signal,
+    });
+    return result.text;
   },
   streamText: ({ systemPrompt, userPrompt, signal }) => streamText({
     model: videoModel,
@@ -242,19 +250,13 @@ check before deployment, as shown in
 Use the browser registry for generation and playback:
 
 ```tsx
-// src/video-composer.tsx
-import { VideoPlayer, useVideo } from "@vanillaskyai/video/react";
+// src/video-chat.tsx
+import { VideoChat } from "@vanillaskyai/video/react";
+import "@vanillaskyai/video/video-chat.css";
 import { templates } from "../vanillasky";
 
-export function VideoComposer() {
-  const video = useVideo({ templates });
-
-  return <>
-    <button onClick={() => void video.generate({ input: "Grounded answer" })}>
-      Generate
-    </button>
-    <VideoPlayer {...video.playerProps} />
-  </>;
+export function App() {
+  return <VideoChat options={{ templates }} />;
 }
 ```
 
@@ -311,8 +313,7 @@ export function TemplatePreview() {
 
 Change the saved variables to each named example, inspect both orientations,
 and play the scene to inspect its full progress range. This is also the
-production replay path for a completed video saved from
-`await video.generate(...)`.
+production replay path for a completed chat turn saved from `chat.turns`.
 
 ## Schema and grounding
 
@@ -330,14 +331,17 @@ Useful formats add grounding behavior:
 - `grounded-stat` marks numeric statistical evidence for the planner; it does
   not compare the value against raw input at runtime;
 - `grounded-quote` requires the quote to exist verbatim in the input;
-- `supplied-image` requires an image URL listed in `VideoInput.suppliedMedia`;
-- `uri` applies the supplied-media or server URL policy to an approved URL;
+- `uri` validates approved media URLs restored by the server;
 - `stock-media-keyword` is only for hosts that resolve stock media before a
   scene is committed.
 
 Templates whose core proof needs a real statistic can add
-`"x-vanillasky": { "requiresStat": true }`. See the structured-data and
-supplied-media references for complete examples.
+`"x-vanillasky": { "requiresStat": true }`. See the structured-data reference for a complete example.
+
+For media-backed chat scenes, copy the built-in `media` template and keep its
+`mediaKeyword`, `mediaUrl`, and `mediaType` contract. Configure `searchMedia` on
+the chat handler so the server resolves semantic searches into approved assets.
+The chat request does not accept a separate supplied-media input list.
 
 The automatic `opening` uses the built-in `media` variables (`texts` and
 `mediaType: "gradient"`). If you replace `media` while using automatic
@@ -353,5 +357,5 @@ trusted template and fills its declared schema; it never writes executable UI
 code.
 
 For the exact request path and source locations, see
-[Architecture](architecture.md). For media policies and supplied-media input,
+[Architecture](architecture.md). For media policies and provider callbacks,
 see [Media and audio](media-and-audio.md).

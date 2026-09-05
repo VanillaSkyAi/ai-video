@@ -1,13 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 describe("public API", () => {
+  it("limits chat options to the supported conversation contract", () => {
+    type Options = import("../src/server").VideoChatHandlerOptions;
+    expectTypeOf<Extract<keyof Options,
+      "selectAudio" | "snapshotRetention" | "replay" | "createRunId" |
+      "allowMediaUrl" | "basePrompt" | "maxResolvedMedia" | "narrate" | "resolveMedia"
+    >>().toEqualTypeOf<never>();
+  });
   it("keeps the root limited to universal runtime helpers", async () => {
     expect(Object.keys(await import("../src/index"))).toEqual([
       "VideoValidationError",
       "getVideoDuration",
       "resolveVideoBrand",
       "parseVideo",
-      "createSceneTimeline",
       "getSceneDuration",
       "getSceneDurationBounds",
       "getSpokenDuration",
@@ -18,7 +24,6 @@ describe("public API", () => {
     expect(Object.keys(api).sort()).toEqual([
       "createServerTemplateRegistry",
       "createVideoChatHandler",
-      "createVideoHandler",
     ]);
   });
 
@@ -29,8 +34,6 @@ describe("public API", () => {
       "VideoError",
       "VideoPlayer",
       "createVideoChatVoice",
-      "useNarration",
-      "useVideo",
       "useVideoChat",
     ]);
     const error = new api.VideoError("safe", { code: "video_failed" });

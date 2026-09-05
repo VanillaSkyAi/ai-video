@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { parseNpmPackJson } from "./lib/parse-npm-pack-json.mjs";
 import { selectPackedArtifact } from "./lib/release-integrity.mjs";
@@ -218,6 +218,42 @@ try {
     transcription: false,
     modes: ["templates"],
   })) throw new Error(`Initialized capability fallback drifted: ${JSON.stringify(initializedCapabilities)}`);
+  // Exercise the unchanged initialized UI with the exact installed server package.
+  const { createVideoChatHandler } = await import(pathToFileURL(join(app, "node_modules/@vanillaskyai/video/dist/server.js")).href);
+  const responseRequests = [];
+  const mockedChat = createVideoChatHandler({
+    authorize: "none", heartbeatMs: false,
+    streamText: ({ userPrompt }) => (async function* () {
+      const followUp = userPrompt.includes("Give me an analogy");
+      yield JSON.stringify({ type: "video-chat.opening", spokenHook: "Let us explore the Moon.", mediaKeyword: "moon" }) + "\n";
+      yield JSON.stringify({ type: "scene.add", placement: "closer", scene: {
+        id: followUp ? "analogy" : "moon", templateId: "media",
+        variables: { texts: followUp ? "Walk around a friend while facing them." : "The Moon rotates once per orbit.", mediaType: "gradient" },
+        narration: followUp ? "Walk around a friend while facing them." : "The Moon rotates once per orbit.",
+        timing: { fixedDuration: 3 },
+      } }) + "\n";
+      yield JSON.stringify({ type: "plan.complete" }) + "\n";
+    })(),
+    generateText: async ({ task }) => task === "suggestions" ? "[]" : "The Moon rotates once per orbit.",
+  });
+  await welcomePage.route("**/api/video-chat**", async (route) => {
+    const request = route.request();
+    if (new URL(request.url()).searchParams.get("action") === "response") responseRequests.push(request.postDataJSON());
+    const response = await mockedChat(new Request(request.url(), {
+      method: request.method(), headers: request.headers(), ...(request.method() === "POST" ? { body: request.postData() } : {}),
+    }));
+    await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
+  });
+  await welcomePage.getByRole("button", { name: "Turn the voice off", exact: true }).click();
+  await welcomePage.getByPlaceholder("Ask anything…").fill("Why does the Moon show one face?");
+  await welcomePage.getByRole("button", { name: "Ask", exact: true }).click();
+  await welcomePage.getByText("The Moon rotates once per orbit.", { exact: true }).first().waitFor();
+  await welcomePage.locator("textarea").fill("Give me an analogy");
+  await welcomePage.getByRole("button", { name: "Ask", exact: true }).click();
+  await welcomePage.getByText("Walk around a friend while facing them.", { exact: true }).first().waitFor();
+  if (responseRequests.length !== 2 || !JSON.stringify(responseRequests[1].conversation).includes("Why does the Moon show one face?")) {
+    throw new Error("Initialized chat did not retain follow-up context");
+  }
   if (welcomeErrors.length) throw new Error(`Initialized browser errors: ${welcomeErrors.join(" | ")}`);
   await welcomeBrowser.close();
   welcomeBrowser = undefined;
@@ -263,18 +299,20 @@ try {
   }
 
   writeFileSync(join(app, "src", "App.tsx"), `import { useEffect, useState } from "react";
-import { VideoPlayer, useVideo } from "@vanillaskyai/video/react";
+import { VideoPlayer, useVideoChat } from "@vanillaskyai/video/react";
 
 const stable = (value: unknown): string => Array.isArray(value) ? "[" + value.map(stable).join(",") + "]" : value && typeof value === "object" ? "{" + Object.keys(value).sort().map((key) => JSON.stringify(key) + ":" + stable((value as Record<string, unknown>)[key])).join(",") + "}" : JSON.stringify(value);
 const checksum = (value: unknown) => { let hash = 0x811c9dc5; for (const character of stable(value)) { hash ^= character.charCodeAt(0); hash = Math.imul(hash, 0x01000193) >>> 0; } return "fnv1a32:" + hash.toString(16).padStart(8, "0"); };
 const fetcher: typeof fetch = async (_url, init) => {
+  const action = new URL(String(_url), "http://localhost").searchParams.get("action");
+  if (action !== "response") return Response.json(action === "capabilities" ? { templates: true, modes: ["templates"] } : action === "narration" ? { line: "A useful customer metric." } : { suggestions: [] });
   const request = JSON.parse(String(init?.body));
-  const subject = String(request.input.input).split(" ")[0];
+  const subject = String(request.prompt).split(" ")[0];
   const scene = { id: "result", templateId: "bigNumber", variables: { texts: subject + "'s quarter", value: 142, label: "customer conversations" }, timing: { fixedDuration: 10, startTime: 0, endTime: 10 } };
   const style = { brand: { font: "Inter", scriptFont: "Caveat", background: { type: "gradient", colors: ["#8711C1", "#2167E3"] }, colors: { primary: "#00E5A0", secondary: "#006BE5", foreground: "#FFFFFF", surface: "#0A0A14", surfaceElevated: "#14152A", muted: "#A7A6B0" } } };
   const snapshot = { schemaVersion: "0.1", orientation: "portrait", scenes: [scene], style };
   const events = [
-    { protocolVersion: "0.5", type: "response.start", eventId: "run:0", runId: "run", sequence: 0, data: { requestId: request.requestId, format: { orientation: "portrait" }, style, capabilities: request.capabilities } },
+    { protocolVersion: "0.5", type: "response.start", eventId: "run:0", runId: "run", sequence: 0, data: { requestId: "fixture", format: { orientation: "portrait" }, style, capabilities: request.capabilities } },
     { protocolVersion: "0.5", type: "scene.add", eventId: "run:1", runId: "run", sequence: 1, data: { scene, position: 0 } },
     { protocolVersion: "0.5", type: "response.complete", eventId: "run:2", runId: "run", sequence: 2, data: { finishReason: "stop", snapshot, checksum: checksum(snapshot) } },
   ];
@@ -283,16 +321,16 @@ const fetcher: typeof fetch = async (_url, init) => {
 
 export default function App() {
   const [input, setInput] = useState("Acme completed 142 customer conversations.");
-  const video = useVideo({ endpoint: "/api/video", fetcher });
-  const generate = (source: string) => video.generate({ input: source });
+  const video = useVideoChat({ endpoint: "/api/video-chat", fetcher, initialMuted: true });
+  const generate = (source: string) => video.ask(source);
   useEffect(() => {
     void generate(input);
   }, []);
   return <main>
     <label>Input <textarea aria-label="Input" value={input} onChange={(event) => setInput(event.target.value)} /></label>
     <button onClick={() => generate(input)}>Generate</button>
-    <output data-testid="status">{video.status === "complete" ? "Complete:" + video.video?.scenes.length + ":" + input.split(" ")[0] : video.status}</output>
-    <VideoPlayer {...video.playerProps} />
+    <output data-testid="status">{video.currentTurn?.completed ? "Complete:" + video.currentTurn.video?.scenes.length + ":" + input.split(" ")[0] : video.status + (video.error ? ":" + video.error.message : "")}</output>
+    {video.playerProps && <VideoPlayer key={video.playerKey} {...video.playerProps} />}
   </main>;
 }
 `);
@@ -445,7 +483,7 @@ export { templates as serverTemplates } from "../vanillasky/server";
       finalStatus: await page.getByTestId("status").textContent(),
     }, null, 2)}\n`);
   }
-  console.log("Fresh Vite onboarding passed exact packed CLI ownership, strict generated-source compilation, input-only defaults, lazy streaming playback, recomposition, and browser error checks.");
+  console.log("Fresh Vite onboarding passed exact packed CLI ownership, strict generated-source compilation, chat defaults, follow-up context, lazy playback, custom-template setup, and browser error checks.");
 } finally {
   if (welcomeBrowser) await welcomeBrowser.close();
   if (welcomeServer) {

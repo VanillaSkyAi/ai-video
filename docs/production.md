@@ -59,7 +59,7 @@ can begin while the planner streams later scenes.
 - Treat late media as a fallback case, not a reason to freeze playback.
 - Keep the current scene and its narration during recoverable generation gaps.
 - End cleanly on a terminal error and show an application retry control.
-- Retry only before visible output or from an explicit validated resume point.
+- Retry only before visible output; preserve accepted scenes after playback starts.
 
 ## Measure the stages
 
@@ -106,6 +106,6 @@ npm test
 - [ ] Both orientations render and narration stays synchronized.
 - [ ] A packed-artifact consumer and deterministic browser chat pass.
 - [ ] One bounded real-provider run meets the product's latency and quality target.
-- [ ] Stored responses replay exactly and application-owned export is verified.
+- [ ] Completed stored responses parse and replay correctly.
 
 [← Documentation home](../README.md) · [Previous: Errors and recovery](errors.md)

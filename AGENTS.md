@@ -50,9 +50,8 @@ Use the root README, `docs/agent-integration.md`, or the optional `vanillasky`
 skill for ordinary integrations. Start with `npx @vanillaskyai/video init`,
 `vanillasky doctor`, and the default `VideoChat`. Keep the packaged templates
 and browser voice until that complete experience works. Add optional providers
-or switch to `useVideoChat` only when the application needs them. Use the
-lower-level `createVideoHandler`, `useVideo`, and `VideoPlayer` path only for an
-explicit non-chat integration.
+or switch to `useVideoChat` only when the application needs them. Use `VideoPlayer` with `parseVideo` to replay saved completed chat responses.
+Do not introduce a second generation client or a standalone composition API.
 
 Only for an explicit cold-start evaluation, follow
 `docs/maintainers/cold-start-evaluation.md`. Keep evaluation findings separate

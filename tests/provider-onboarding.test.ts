@@ -85,14 +85,15 @@ describe("canonical provider onboarding", () => {
     expect(verifier).not.toMatch(/const (?:production|development)Port = 43\d{2}/);
   });
 
-  it("keeps live provider acceptance explicitly gated and separate from deterministic CI", () => {
+  it("uses deterministic chat acceptance without obsolete live scripts", () => {
     const packageManifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")) as {
       scripts: Record<string, string>;
     };
     const audit = readFileSync(resolve(root, "docs", "maintainers", "provider-onboarding.md"), "utf8");
 
-    expect(packageManifest.scripts["acceptance:live"]).toBe("tsx scripts/acceptance/run-live.ts");
+    expect(packageManifest.scripts["acceptance:chat"]).toBe("tsx scripts/acceptance/run.ts");
+    expect(packageManifest.scripts["acceptance:live"]).toBeUndefined();
     expect(packageManifest.scripts["verify:nextjs"]).toBe("node scripts/verify-nextjs-onboarding.mjs");
-    expect(audit).toContain("Deterministic CI does not read real provider credentials");
+    expect(audit).toMatch(/Automated checks must not read real provider\s+credentials or spend generation credits/);
   });
 });

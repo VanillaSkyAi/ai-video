@@ -32,7 +32,7 @@ function plan(sceneCount: number) {
 }
 
 async function run(options: { scenes: number; maxResolvedMedia?: number; opening?: string | false }) {
-  const { createVideoHandler } = await import("../src/server");
+  const { createVideoHandler } = await import("../src/server/create-video-handler");
   let calls = 0;
   const warnings: Array<{ code: string; message: string }> = [];
   const handler = createVideoHandler({
@@ -115,7 +115,7 @@ describe("media budget", () => {
   // resolve media while still telling the planner to keep media off the
   // opening beat films nothing, which is exactly what happened.
   it("tells the planner the first scene may carry media, when it may", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const prompts: string[] = [];
     const handler = createVideoHandler({
       authorize: "none",
@@ -150,7 +150,7 @@ describe("media budget", () => {
   // A narrated video otherwise costs a round trip per scene, chained, because
   // each line is written knowing the ones before it.
   it("asks the planner for the spoken line only when the host wants it", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const prompts: string[] = [];
     const run = (narrate: boolean) => createVideoHandler({
       authorize: "none",

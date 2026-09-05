@@ -7,10 +7,10 @@ describe("packed package verification", () => {
     const script = readFileSync(new URL("../scripts/verify-packed-package.mjs", import.meta.url), "utf8");
 
     expect(script).toContain('join(serverConsumer, "root.mjs")');
-    expect(script).toContain("VideoValidationError,createSceneTimeline,getSceneDuration,getSceneDurationBounds,getSpokenDuration,getVideoDuration,parseVideo,resolveVideoBrand");
+    expect(script).toContain("VideoValidationError,getSceneDuration,getSceneDurationBounds,getSpokenDuration,getVideoDuration,parseVideo,resolveVideoBrand");
     expect(script).toContain('schemaVersion: "0.1"');
-    expect(script).toContain("fnv1a32:de1aa1a5");
-    expect(script).toContain("Packed terminal snapshot lost its default opening");
+    expect(script).toContain("Packed response omitted its checksum");
+    expect(script).toContain("Packed terminal snapshot lost its completed scene");
     expect(script).toContain('pathname === "/api/video"');
     expect(script).toContain("generationRequests !== 0");
     expect(script).toContain("selectedArtifact.integrity");
@@ -125,9 +125,10 @@ describe("packed package verification", () => {
 
     expect(script).toContain("VideoState is internal");
     expect(script).toContain("VideoPlayerBinding is internal");
-    expect(script).toContain("hook.state");
-    expect(script).toContain("hook.config");
-    expect(script).toContain("handlerOptions.onInvalidPart");
+    expect(script).toContain("UseVideoResult is no longer public");
+    expect(script).toContain("VideoInput is no longer public");
+    expect(script).toContain("chatHandlerOptions.replay");
+    expect(script).toContain("chatHandlerOptions.onInvalidPart");
     expect(script).toContain("VideoPlanner is internal");
     expect(script).toContain("VideoPlanPart is internal");
     expect(script).toContain("VideoEvent is internal");
@@ -198,7 +199,7 @@ describe("packed package verification", () => {
   it("copies, syncs, checks, strictly compiles, and previews the packaged custom references", () => {
     const script = readFileSync(new URL("../scripts/verify-packed-package.mjs", import.meta.url), "utf8");
 
-    for (const file of ["minimal-text.tsx", "structured-data.tsx", "supplied-media.tsx"]) {
+    for (const file of ["minimal-text.tsx", "structured-data.tsx"]) {
       expect(script).toContain(file);
     }
     expect(script).toContain('join(packageRoot, "examples", "custom-template")');
@@ -207,10 +208,9 @@ describe("packed package verification", () => {
     expect(script).toContain("noUnusedLocals: true");
     expect(script).toContain('data-template-id="minimal-text"');
     expect(script).toContain('data-template-id="structured-data"');
-    expect(script).toContain('data-template-id="supplied-media"');
-    expect(script).toContain("naturalWidth");
+    expect(script).not.toContain("supplied-media.tsx");
+    expect(script).toContain("36 deterministic renders");
     expect(script).toContain("Guided onboarding helped more users reach value.");
-    expect(script).toContain("The dashboard reflects the grounded result described in the answer.");
   });
 
   it("runs every documented template command through the packed CLI", () => {

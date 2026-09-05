@@ -45,7 +45,7 @@ function fakeVoice() {
 
 describe("useNarration", () => {
   it("speaks a scene's line when that scene begins", async () => {
-    const { useNarration } = await import("../src/react");
+    const { useNarration } = await import("../src/player/use-narration");
     const voice = fakeVoice();
     const { result } = renderHook(() => useNarration({ voice }));
 
@@ -54,7 +54,7 @@ describe("useNarration", () => {
   });
 
   it("says nothing for a scene with no line", async () => {
-    const { useNarration } = await import("../src/react");
+    const { useNarration } = await import("../src/player/use-narration");
     const voice = fakeVoice();
     const { result } = renderHook(() => useNarration({ voice }));
 
@@ -63,7 +63,7 @@ describe("useNarration", () => {
   });
 
   it("stops the previous line when the picture moves on", async () => {
-    const { useNarration } = await import("../src/react");
+    const { useNarration } = await import("../src/player/use-narration");
     const voice = fakeVoice();
     const { result } = renderHook(() => useNarration({ voice }));
 
@@ -75,7 +75,7 @@ describe("useNarration", () => {
   });
 
   it("does not repeat a line when the same scene is reported again", async () => {
-    const { useNarration } = await import("../src/react");
+    const { useNarration } = await import("../src/player/use-narration");
     const voice = fakeVoice();
     const { result } = renderHook(() => useNarration({ voice }));
 
@@ -85,7 +85,7 @@ describe("useNarration", () => {
   });
 
   it("speaks it again when the video loops back to it", async () => {
-    const { useNarration } = await import("../src/react");
+    const { useNarration } = await import("../src/player/use-narration");
     const voice = fakeVoice();
     const { result } = renderHook(() => useNarration({ voice }));
 
@@ -96,7 +96,7 @@ describe("useNarration", () => {
   });
 
   it("reports whether it is speaking, so a page can wait before asking again", async () => {
-    const { useNarration } = await import("../src/react");
+    const { useNarration } = await import("../src/player/use-narration");
     const voice = fakeVoice();
     const { result } = renderHook(() => useNarration({ voice }));
 
@@ -109,7 +109,7 @@ describe("useNarration", () => {
   });
 
   it("goes quiet when interrupted, and stays quiet until the next scene", async () => {
-    const { useNarration } = await import("../src/react");
+    const { useNarration } = await import("../src/player/use-narration");
     const voice = fakeVoice();
     const { result } = renderHook(() => useNarration({ voice }));
 
@@ -120,7 +120,7 @@ describe("useNarration", () => {
   });
 
   it("says nothing at all while disabled", async () => {
-    const { useNarration } = await import("../src/react");
+    const { useNarration } = await import("../src/player/use-narration");
     const voice = fakeVoice();
     const { result } = renderHook(() => useNarration({ voice, enabled: false }));
 
@@ -129,7 +129,7 @@ describe("useNarration", () => {
   });
 
   it("stops speaking when the player goes away", async () => {
-    const { useNarration } = await import("../src/react");
+    const { useNarration } = await import("../src/player/use-narration");
     const voice = fakeVoice();
     const { result, unmount } = renderHook(() => useNarration({ voice }));
 

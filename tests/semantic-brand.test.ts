@@ -270,7 +270,6 @@ describe("semantic brand flow", () => {
       "src/player/video-player.tsx",
       "src/visual-system/template-context.ts",
       "src/visual-system/scene-templates/tokens.ts",
-      "docs/branding-and-personalization.md",
       "docs/customization.md",
       "scripts/acceptance/fixtures.ts",
       "scripts/verify-packed-package.mjs",
