@@ -3,7 +3,6 @@ export { buildVideoUserPrompt } from "./server/prompts/user-prompt.js";
 export { createVideoSystemPrompt, DEFAULT_VIDEO_SYSTEM_PROMPT, VIDEO_PLAN_INSTRUCTION } from "./server/prompts/system-prompt.js";
 export { createTextDeltaVideoPlanner } from "./server/model/text-stream.js";
 export { createVideoEventFactory } from "./protocol/events.js";
-export { streamVideo } from "./player/stream-video.js";
 export {
   parseVideoEvent,
   parseVideoPlanPart,
@@ -58,8 +57,4 @@ export type {
   VideoState,
   VideoStatus,
 } from "./protocol/state.js";
-export type {
-  RemoteVideoRun,
-  StreamVideoOptions,
-} from "./player/stream-video.js";
 export type { TextDeltaVideoPlannerOptions } from "./server/model/text-stream.js";

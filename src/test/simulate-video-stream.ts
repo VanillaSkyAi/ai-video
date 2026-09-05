@@ -1,4 +1,4 @@
-import type { VideoInput } from "../index.js";
+import type { VideoInput } from "../protocol/types.js";
 import { cloneValue } from "./clone.js";
 import { videoFixtures } from "./fixtures.js";
 import { createMockVideoPlanner } from "./mock-video-planner.js";

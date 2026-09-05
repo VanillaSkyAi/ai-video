@@ -7,7 +7,7 @@ The SDK validates protocol shape; your application still owns identity, authoriz
 ## Required server controls
 
 - Authenticate the user and tenant before reading the prompt body.
-- `createVideoChatHandler` and the lower-level `createVideoHandler` require an
+- `createVideoChatHandler` requires an
   explicit `authorize` policy. The
   `authorize: "none"` escape hatch is for intentionally non-public in-process
   tests only; do not use it on a billable generation route.

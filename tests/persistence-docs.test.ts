@@ -17,10 +17,8 @@ describe("persistence documentation contract", () => {
     expect(guide).toContain('from "@vanillaskyai/video/react"');
     expect(guide).not.toContain(["@vanillaskyai", "sdk"].join("/"));
     expect(guide).toContain("unsupported_video_version");
-    expect(guide).toContain("16,384");
-    expect(guide).toContain("4,096");
-    expect(guide).toContain("16 URLs");
-    expect(guide).toContain("2,048");
+    expect(guide).toContain("turn.completed");
+    expect(guide).not.toContain("snapshotRetention");
     expect(guide).toMatch(/host owns.*database.*storage/is);
     expect(guide).toMatch(/URL expiry/is);
     expect(guide).toMatch(/not.*authenticity/is);

@@ -1,10 +1,9 @@
+import { createVideoHandler, type VideoHandlerOptions } from "../src/server/create-video-handler";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { createVideo, createVideoRequest, decodeVideoSse } from "../src/internal";
 import {
-  createVideoHandler,
   type VideoGenerationSummary,
-  type VideoHandlerOptions,
   type VideoProviderUsage,
   type VideoWarning,
 } from "../src/server";

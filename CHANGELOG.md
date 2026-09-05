@@ -12,6 +12,40 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 - Keeps template rendering failures local to a scene, and lets stock searches
   recover from failed lookups or malformed candidates.
 
+### Breaking changes
+
+The supported generation path is now video chat. Removes `useVideo`,
+`createVideoHandler`, `useNarration`, `createSceneTimeline`, their public types,
+and generic root input types. Chat handler options no longer expose standalone
+soundtrack selection, snapshot-retention overrides, or durable-stream replay.
+The old one-shot integration is no longer available:
+
+```tsx
+const video = useVideo({ endpoint: "/api/video" });
+await video.generate({ input: "Explain the Moon's orbit" });
+```
+
+### Adoption
+
+Use `npx @vanillaskyai/video init` for the complete app. Existing custom hosts
+mount `createVideoChatHandler` with `streamText` and `generateText`, then render
+the packaged chat:
+
+```tsx
+import { VideoChat } from "@vanillaskyai/video/react";
+import "@vanillaskyai/video/video-chat.css";
+
+export function App() {
+  return <VideoChat options={{ endpoint: "/api/video-chat" }} />;
+}
+```
+
+Use `useVideoChat` for a custom interface, `createVideoChatVoice` for a custom
+voice, and `parseVideo` plus `VideoPlayer` for saved completed responses. Pass
+custom registries to the chat handler and `VideoChat` options. Persist completed
+`chat.turns` video values instead of one-shot `generate()` results. Saved `Video`
+JSON, including existing soundtrack data, keeps its current storage contract.
+
 ## 0.7.1
 
 - Keeps Full AI video responses running when a text provider repeats narration

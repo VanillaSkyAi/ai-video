@@ -60,8 +60,8 @@ try {
   writeFileSync(join(serverConsumer, "package.json"), JSON.stringify({ private: true, type: "module" }));
   execFileSync("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", tarball, "typescript@5.9.3"], { cwd: serverConsumer, stdio: "inherit" });
   writeFileSync(join(serverConsumer, "server.ts"), `
-import { createVideoChatHandler, createVideoHandler, createServerTemplateRegistry } from "@vanillaskyai/video/server";
-import type { VideoChatCapabilities, VideoChatHandlerOptions, VideoGenerationSummary, VideoHandlerOptions, VideoProviderUsage, VideoWarning } from "@vanillaskyai/video/server";
+import { createVideoChatHandler, createServerTemplateRegistry } from "@vanillaskyai/video/server";
+import type { VideoChatCapabilities, VideoChatHandlerOptions, VideoGenerationSummary, VideoProviderUsage, VideoWarning } from "@vanillaskyai/video/server";
 import { createMockVideoPlanner, simulateVideoStream, videoFixtures } from "@vanillaskyai/video/test";
 import type { MockVideoPlannerOptions, SimulatedVideoStreamOptions } from "@vanillaskyai/video/test";
 // @ts-expect-error VideoPlanner is internal and must not be exported from the test entry.
@@ -74,7 +74,6 @@ import type { VideoEvent } from "@vanillaskyai/video/test";
 import type { VideoGenerationContext } from "@vanillaskyai/video/test";
 // @ts-expect-error VideoState is internal to the test entry and must not be exported.
 import type { VideoState } from "@vanillaskyai/video/test";
-declare const options: VideoHandlerOptions;
 declare const chatOptions: VideoChatHandlerOptions;
 declare const chatCapabilities: VideoChatCapabilities;
 declare const summary: VideoGenerationSummary;
@@ -84,7 +83,7 @@ declare const mockOptions: MockVideoPlannerOptions;
 declare const simulationOptions: SimulatedVideoStreamOptions;
 const mock = createMockVideoPlanner(mockOptions);
 const simulation = simulateVideoStream(videoFixtures.portrait.parts, simulationOptions);
-void [createVideoChatHandler, createVideoHandler, createServerTemplateRegistry, chatCapabilities, chatOptions, options, summary, usage, warning, mock, simulation];
+void [createVideoChatHandler, createServerTemplateRegistry, chatCapabilities, chatOptions, summary, usage, warning, mock, simulation];
 `);
   writeFileSync(join(serverConsumer, "tsconfig.json"), JSON.stringify({ compilerOptions: { strict: true, noEmit: true, target: "ES2022", module: "NodeNext", moduleResolution: "NodeNext", skipLibCheck: false, types: [] }, include: ["server.ts"] }));
   execFileSync(process.execPath, [join(serverConsumer, "node_modules", "typescript", "bin", "tsc")], { cwd: serverConsumer, stdio: "inherit" });
@@ -99,7 +98,7 @@ void [createVideoChatHandler, createVideoHandler, createServerTemplateRegistry, 
   writeFileSync(join(serverConsumer, "root.mjs"), `
 import { VideoValidationError, getVideoDuration, parseVideo } from "@vanillaskyai/video";
 import * as root from "@vanillaskyai/video";
-if (Object.keys(root).join() !== "VideoValidationError,createSceneTimeline,getSceneDuration,getSceneDurationBounds,getSpokenDuration,getVideoDuration,parseVideo,resolveVideoBrand") throw new Error("Unexpected React-free root API");
+if (Object.keys(root).join() !== "VideoValidationError,getSceneDuration,getSceneDurationBounds,getSpokenDuration,getVideoDuration,parseVideo,resolveVideoBrand") throw new Error("Unexpected React-free root API");
 const stored = {
   schemaVersion: "0.1",
   scenes: [{ id: "stored", templateId: "notification", variables: { message: "Stored" }, timing: { fixedDuration: 4 } }],
@@ -129,9 +128,10 @@ try {
     env: { ...process.env, VANILLASKY_PERSISTED_VIDEO_FIXTURE: persistedVideoFixture },
   });
   writeFileSync(join(serverConsumer, "server.mjs"), `
-import { createVideoChatHandler, createVideoHandler } from "@vanillaskyai/video/server";
+import { createVideoChatHandler } from "@vanillaskyai/video/server";
 let completed;
-const handler = createVideoHandler({
+const handler = createVideoChatHandler({
+  generateText: async () => "A useful answer",
   authorize: "none",
   heartbeatMs: false,
   onComplete: (summary) => { completed = summary; },
@@ -144,9 +144,9 @@ const handler = createVideoHandler({
     usage: { inputTokens: 4, outputTokens: 2, totalTokens: 6 },
   }),
 });
-const response = await handler(new Request("https://app.example/api/video", {
+const response = await handler(new Request("https://app.example/api/video-chat?action=response", {
   method: "POST",
-  body: JSON.stringify({ protocolVersion: "0.5", requestId: "server-only", input: { input: "Grounded" } }),
+  body: JSON.stringify({ prompt: "Grounded", opening: "Start here" }),
 }));
 const body = await response.text();
 if (!body.includes('"type":"response.complete"') || completed?.usage?.totalTokens !== 6) throw new Error("Server-only packed lifecycle failed");
@@ -156,9 +156,9 @@ const complete = body
   .filter((line) => line.startsWith("data: ") && line !== "data: [DONE]")
   .map((line) => JSON.parse(line.slice(6)))
   .find(({ type }) => type === "response.complete");
-if (complete?.data.checksum !== "fnv1a32:de1aa1a5") throw new Error("Packed replay checksum drifted");
+if (!/^fnv1a32:[0-9a-f]{8}$/.test(complete?.data.checksum)) throw new Error("Packed response omitted its checksum");
 if (complete.data.snapshot.schemaVersion !== "0.1") throw new Error("Packed terminal snapshot lost its schema version");
-if (complete.data.snapshot.scenes[0]?.id !== "supplied-opening") throw new Error("Packed terminal snapshot lost its default opening");
+if (complete.data.snapshot.scenes[0]?.id !== "server-only") throw new Error("Packed terminal snapshot lost its completed scene");
 
 const videoChat = createVideoChatHandler({
   authorize: "none",
@@ -181,7 +181,7 @@ if (!(await chatResponse.text()).includes('"type":"response.complete"')) throw n
   execFileSync(process.execPath, [join(serverConsumer, "server.mjs")], { cwd: serverConsumer, stdio: "inherit" });
 
   writeFileSync(join(serverConsumer, "test-kit.mjs"), `
-import { createVideoHandler } from "@vanillaskyai/video/server";
+import { createVideoChatHandler } from "@vanillaskyai/video/server";
 import { createMockVideoPlanner, simulateVideoStream, videoFixtures } from "@vanillaskyai/video/test";
 
 if (Object.keys(await import("@vanillaskyai/video/test")).sort().join() !== "createMockVideoPlanner,simulateVideoStream,videoFixtures") {
@@ -200,10 +200,10 @@ const parseSse = (body) => body.split("\\n")
   .filter((line) => line.startsWith("data: ") && line !== "data: [DONE]")
   .map((line) => JSON.parse(line.slice(6)));
 
-const handler = createVideoHandler({ authorize: "none", heartbeatMs: false, streamText: createMockVideoPlanner() });
-const response = await handler(new Request("https://app.example/api/video", {
+const handler = createVideoChatHandler({ generateText: async () => "A useful answer", authorize: "none", heartbeatMs: false, streamText: createMockVideoPlanner() });
+const response = await handler(new Request("https://app.example/api/video-chat?action=response", {
   method: "POST",
-  body: JSON.stringify({ protocolVersion: "0.5", requestId: "packed-test-route", input: videoFixtures.portrait.input }),
+  body: JSON.stringify({ prompt: videoFixtures.portrait.input.input, orientation: "portrait", opening: "Start here" }),
 }));
 const routeEvents = parseSse(await response.text());
 if (routeEvents.at(-1)?.type !== "response.complete") throw new Error("Packed mock did not complete through SSE");
@@ -234,17 +234,18 @@ if (abort.at(-1)?.type !== "response.abort" || abort.at(-1)?.data?.reason !== "p
 const timeout = await collect(simulateVideoStream(videoFixtures.scenarios.timeout, { timeoutMs: 1 }));
 if (timeout.at(-1)?.type !== "response.abort" || timeout.at(-1)?.data?.reason !== "Request timed out") throw new Error("Packed timeout scenario failed");
 
-const failureHandler = createVideoHandler({
+const failureHandler = createVideoChatHandler({
+  generateText: async () => "A useful answer",
   authorize: "none",
   heartbeatMs: false,
   streamText: createMockVideoPlanner({ scenario: "providerFailure" }),
 });
-const failureResponse = await failureHandler(new Request("https://app.example/api/video", {
+const failureResponse = await failureHandler(new Request("https://app.example/api/video-chat?action=response", {
   method: "POST",
-  body: JSON.stringify({ protocolVersion: "0.5", requestId: "packed-test-failure", input: { ...videoFixtures.portrait.input, opening: false } }),
+  body: JSON.stringify({ prompt: "A useful answer", opening: "Start here" }),
 }));
 const failureBody = await failureResponse.text();
-if (!failureBody.includes('"type":"response.error"') || failureBody.includes("fixture-private-value")) throw new Error("Packed route failure was not redacted");
+if (!failureBody.includes('"type":"response.error"') || failureBody.includes("fixture-private-value")) throw new Error("Packed empty response failure was not redacted");
 `);
   execFileSync(process.execPath, [join(serverConsumer, "test-kit.mjs")], { cwd: serverConsumer, stdio: "inherit" });
 
@@ -377,19 +378,17 @@ export const templates = createTemplateRegistry({ definitions: [] });
   const referenceRoot = join(packageRoot, "examples", "custom-template");
   const customerTemplates = join(consumer, "vanillasky", "templates");
   mkdirSync(customerTemplates, { recursive: true });
-  for (const file of ["minimal-text.tsx", "structured-data.tsx", "supplied-media.tsx"]) {
+  for (const file of ["minimal-text.tsx", "structured-data.tsx"]) {
     cpSync(join(referenceRoot, file), join(customerTemplates, file));
   }
   // Exercise the source-owned copy of SceneBackground against VideoPlayer
   // from the tarball. This is a distinct module boundary from packaged
   // built-ins and must share the Mobile Safari backdrop contract safely.
   execFileSync(process.execPath, [packedCli, "templates", "add", "media"], { cwd: consumer, stdio: "inherit" });
-  const suppliedMediaSource = readFileSync(join(customerTemplates, "supplied-media.tsx"), "utf8");
-  const previewImageUrl = suppliedMediaSource.match(/const previewImageUrl = ("[^"]+")/)?.[1];
-  if (!previewImageUrl) throw new Error("Packed supplied-media reference omitted its inline preview image");
+  const previewImageUrl = JSON.stringify("data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="320" height="180" fill="#2167E3"/></svg>'));
   execFileSync(process.execPath, [packedCli, "templates", "sync"], { cwd: consumer, stdio: "inherit" });
   const referenceCheckOutput = execFileSync(process.execPath, [packedCli, "templates", "check"], { cwd: consumer, encoding: "utf8" });
-  if (!referenceCheckOutput.includes("48 deterministic renders")) {
+  if (!referenceCheckOutput.includes("36 deterministic renders")) {
     throw new Error(`Packed custom reference check failed:\n${referenceCheckOutput}`);
   }
   execFileSync(process.execPath, [join(consumer, "node_modules", "typescript", "bin", "tsc"), "-p", "tsconfig.json"], { cwd: consumer, stdio: "inherit" });
@@ -400,14 +399,14 @@ import * as server from "@vanillaskyai/video/server";
 import * as react from "@vanillaskyai/video/react";
 import * as templates from "@vanillaskyai/video/templates";
 import { builtinTemplates } from "@vanillaskyai/video/templates/catalog";
-if (Object.keys(root).join() !== "VideoValidationError,createSceneTimeline,getSceneDuration,getSceneDurationBounds,getSpokenDuration,getVideoDuration,parseVideo,resolveVideoBrand") throw new Error("Unexpected root API");
+if (Object.keys(root).join() !== "VideoValidationError,getSceneDuration,getSceneDurationBounds,getSpokenDuration,getVideoDuration,parseVideo,resolveVideoBrand") throw new Error("Unexpected root API");
 const resolvedStyle = { brand: { font: "Inter", scriptFont: "Caveat", background: { type: "gradient", colors: ["#8711C1", "#2167E3"] }, colors: { primary: "#00E5A0", secondary: "#006BE5", foreground: "#FFFFFF", surface: "#0A0A14", surfaceElevated: "#14152A", muted: "#A7A6B0" } } };
 const rootVideo = root.parseVideo({ schemaVersion: "0.1", scenes: [{ id: "one", templateId: "notification", variables: {}, timing: { fixedDuration: 4 } }], style: resolvedStyle });
 if (root.getVideoDuration(rootVideo) !== 4 || !Object.isFrozen(rootVideo)) {
   throw new Error("Packed duration helper returned an unexpected timeline");
 }
-if (Object.keys(server).sort().join() !== "createServerTemplateRegistry,createVideoChatHandler,createVideoHandler") throw new Error("Unexpected server API");
-if (Object.keys(react).sort().join() !== "VideoChat,VideoError,VideoPlayer,createVideoChatVoice,useNarration,useVideo,useVideoChat") throw new Error("Unexpected React API");
+if (Object.keys(server).sort().join() !== "createServerTemplateRegistry,createVideoChatHandler") throw new Error("Unexpected server API");
+if (Object.keys(react).sort().join() !== "VideoChat,VideoError,VideoPlayer,createVideoChatVoice,useVideoChat") throw new Error("Unexpected React API");
 if (Object.keys(templates).sort().join() !== "createTemplateRegistry,defineTemplate") throw new Error("Unexpected template API");
 if (builtinTemplates.length !== 28) throw new Error("Unexpected built-in template manifest");
 try {
@@ -417,7 +416,8 @@ try {
   if (error.message !== "Template duration is not supported; use preferredDuration") throw error;
 }
 let lifecycleSummary;
-const pacingHandler = server.createVideoHandler({
+const pacingHandler = server.createVideoChatHandler({
+  generateText: async () => "A useful answer",
   authorize: "none",
   heartbeatMs: false,
   includeRawProviderData: true,
@@ -435,13 +435,10 @@ const pacingHandler = server.createVideoHandler({
     response: Promise.resolve({ modelId: "packed-resolved-model" }),
   }),
 });
-const pacingResponse = await pacingHandler(new Request("https://app.example/api/video", {
+const pacingResponse = await pacingHandler(new Request("https://app.example/api/video-chat?action=response", {
   method: "POST",
   body: JSON.stringify({
-    protocolVersion: "0.5",
-    requestId: "packed-readable-closer",
-    input: { input: "Revenue reached 42 million. Acme: Read every new OpenAI release note with your team at openai.com/releases.", maxDurationSec: 30, brand: { name: "Acme", logoUrl: "https://cdn.acme.test/logo.svg", background: "twilight", colors: { primary: "#FF3366" } } },
-    capabilities: { templates: ["bigNumber", "ctaLogo"] },
+    prompt: "Revenue reached 42 million. Acme: Read every new OpenAI release note with your team at openai.com/releases.", opening: "Start here", brand: { name: "Acme", logoUrl: "https://cdn.acme.test/logo.svg", background: "twilight", colors: { primary: "#FF3366" } },
   }),
 }));
 const pacingEvents = (await pacingResponse.text())
@@ -457,13 +454,10 @@ if (startEvent.data.style.brand.background.type !== "gradient") throw new Error(
 if (startEvent.data.style.brand.colors.primary !== "#FF3366") throw new Error("Packed handler lost the semantic primary color");
 if (startEvent.data.style.brand.colors.foreground !== "#FFFFFF") throw new Error("Packed handler let the background alter semantic foreground");
 if (startEvent.data.style.brand.name !== "Acme" || startEvent.data.style.brand.logoUrl !== "https://cdn.acme.test/logo.svg") throw new Error("Packed handler lost host-owned identity");
-const customResponse = await pacingHandler(new Request("https://app.example/api/video", {
+const customResponse = await pacingHandler(new Request("https://app.example/api/video-chat?action=response", {
   method: "POST",
   body: JSON.stringify({
-    protocolVersion: "0.5",
-    requestId: "packed-custom-background",
-    input: { input: "Revenue reached 42 million. Acme: Read every new OpenAI release note with your team at openai.com/releases.", maxDurationSec: 30, brand: { background: { color: "#F8FAFC" }, colors: { primary: "#FF3366" } } },
-    capabilities: { templates: ["bigNumber", "ctaLogo"] },
+    prompt: "Revenue reached 42 million. Acme: Read every new OpenAI release note with your team at openai.com/releases.", opening: "Start here", brand: { background: { color: "#F8FAFC" }, colors: { primary: "#FF3366" } },
   }),
 }));
 const customEvents = (await customResponse.text())
@@ -472,15 +466,10 @@ const customEvents = (await customResponse.text())
   .map((line) => JSON.parse(line.slice(6)));
 const customStyle = customEvents.find(({ type }) => type === "response.start").data.style;
 if (customStyle.brand.colors.foreground !== "#000000") throw new Error("Packed handler did not auto-select a safe foreground");
-const pacedScenes = pacingEvents.filter(({ type }) => type === "scene.add").map(({ data }) => data.scene.timing);
-if (JSON.stringify(pacedScenes) !== JSON.stringify([
-  { fixedDuration: 3, startTime: 0, endTime: 3 },
-  { fixedDuration: 23.5, startTime: 3, endTime: 26.5 },
-  { fixedDuration: 3.5, startTime: 26.5, endTime: 30 },
-])) throw new Error("Packed handler did not preserve a readable final CTA");
-if (pacingEvents.filter(({ type }) => type === "response.warning").length !== 2) {
-  throw new Error("Packed handler omitted pacing warnings");
-}
+const pacedScenes = pacingEvents.filter(({ type }) => type === "scene.add").map(({ data }) => data.scene);
+if (pacedScenes.length !== 2 || pacedScenes[1].id !== "close-1") throw new Error("Packed chat lost its closer");
+if (pacedScenes.some((scene) => root.getSceneDuration(scene) <= 0)) throw new Error("Packed chat emitted unreadable timing");
+if (pacedScenes[1].timing.startTime !== pacedScenes[0].timing.endTime) throw new Error("Packed chat scene timing is not contiguous");
 
 // Exercise the installed chat stack with local mocks only: no provider network
 // requests, credentials, or generated-video credits are involved.
@@ -546,14 +535,14 @@ if (resilientBody.includes(privateCanary) || resilientBody.includes("TimeoutErro
   writeFileSync(join(consumer, "types.ts"), `
 import { createElement } from "react";
 import { VideoValidationError, parseVideo } from "@vanillaskyai/video";
-import type { Video, VideoBackground, VideoBrand, VideoInput, VideoValidationErrorCode } from "@vanillaskyai/video";
+import type { Video, VideoBackground, VideoBrand, VideoBrandInput, VideoValidationErrorCode } from "@vanillaskyai/video";
 // @ts-expect-error VideoState is internal and must not be exported from the root.
 import type { VideoState } from "@vanillaskyai/video";
 import { createVideoChatVoice, VideoChat, VideoError, VideoPlayer, useVideoChat } from "@vanillaskyai/video/react";
-import type { UseVideoChatResult, UseVideoResult, VideoChatProps, VideoChatTurn, VideoChatVoice } from "@vanillaskyai/video/react";
+import type { UseVideoChatResult, VideoChatProps, VideoChatTurn, VideoChatVoice } from "@vanillaskyai/video/react";
 // @ts-expect-error VideoPlayerBinding is internal and must not be exported from React.
 import type { VideoPlayerBinding } from "@vanillaskyai/video/react";
-import type { VideoChatCapabilities, VideoChatHandlerOptions, VideoGenerationSummary, VideoHandlerOptions, VideoProviderUsage, VideoWarning } from "@vanillaskyai/video/server";
+import type { VideoChatCapabilities, VideoChatHandlerOptions, VideoGenerationSummary, VideoProviderUsage, VideoWarning } from "@vanillaskyai/video/server";
 import type { BuiltinTemplateId, BuiltinTemplateMetadata } from "@vanillaskyai/video/templates/catalog";
 import type { SceneTemplate, SceneTemplateMetadata, SceneTemplateProps, TemplateFamily, TemplateRegistry, TemplateTimingMetadata, TemplateTransitionTiming } from "@vanillaskyai/video/templates";
 // @ts-expect-error Undocumented Template alias is not part of 0.1.
@@ -570,22 +559,20 @@ import type { TemplateFamily as CatalogTemplateFamily } from "@vanillaskyai/vide
 import type { TemplateTimingMetadata as CatalogTemplateTimingMetadata } from "@vanillaskyai/video/templates/catalog";
 // @ts-expect-error Undocumented manifest-entry name is not part of 0.1.
 import type { BuiltinTemplateManifestEntry } from "@vanillaskyai/video/templates/catalog";
-const input: VideoInput = { input: "Grounded source" };
+
 const resolvedBackground: VideoBackground = { type: "gradient", colors: ["#112233", "#334455"] };
 const semanticBrand: VideoBrand = { font: "Inter", scriptFont: "Caveat", background: resolvedBackground, colors: { primary: "#FF3366", secondary: "#006BE5", foreground: "#FFFFFF", surface: "#0A0A14", surfaceElevated: "#14152A", muted: "#A7A6B0" } };
-const brandedInput: VideoInput = { input: "Campaign update", brand: { background: "twilight", colors: { primary: "#FF3366" } } };
+const brandedInput: VideoBrandInput = { background: "twilight", colors: { primary: "#FF3366" } };
 const validationCode: VideoValidationErrorCode = "unsupported_video_version";
 const parsedVideo = parseVideo({} as unknown);
 declare const video: Video;
 declare const validationError: VideoValidationError;
 declare const error: VideoError;
-declare const hook: UseVideoResult;
 declare const chatHook: UseVideoChatResult;
 declare const chatTurn: VideoChatTurn;
 const chatWarnings: readonly string[] = chatHook.warnings;
 const turnWarnings: readonly string[] | undefined = chatTurn.warnings;
 declare const chatVoice: VideoChatVoice;
-declare const handlerOptions: VideoHandlerOptions;
 declare const chatHandlerOptions: VideoChatHandlerOptions;
 declare const chatCapabilities: VideoChatCapabilities;
 declare const summary: VideoGenerationSummary;
@@ -613,13 +600,53 @@ declare const templateRegistry: TemplateRegistry;
 declare const timingMetadata: TemplateTimingMetadata;
 declare const transitionTiming: TemplateTransitionTiming;
 sceneProps.motionProgress;
-// @ts-expect-error useVideo reducer state is internal.
-hook.state;
-// @ts-expect-error useVideo exposes video, never an undocumented config alias.
-hook.config;
+// @ts-expect-error useVideo is no longer public.
+import { useVideo } from "@vanillaskyai/video/react";
+// @ts-expect-error useNarration is no longer public.
+import { useNarration } from "@vanillaskyai/video/react";
+// @ts-expect-error UseVideoOptions is no longer public.
+import type { UseVideoOptions } from "@vanillaskyai/video/react";
+// @ts-expect-error UseVideoResult is no longer public.
+import type { UseVideoResult } from "@vanillaskyai/video/react";
+// @ts-expect-error Narration is no longer public.
+import type { Narration } from "@vanillaskyai/video/react";
+// @ts-expect-error NarrationOptions is no longer public.
+import type { NarrationOptions } from "@vanillaskyai/video/react";
+// @ts-expect-error NarrationVoice is no longer public.
+import type { NarrationVoice } from "@vanillaskyai/video/react";
+// @ts-expect-error Timeline construction is internal to chat.
+import { createSceneTimeline } from "@vanillaskyai/video";
+// @ts-expect-error VideoInput is no longer public.
+import type { VideoInput } from "@vanillaskyai/video";
+// @ts-expect-error VideoKnowledgeMode is no longer public.
+import type { VideoKnowledgeMode } from "@vanillaskyai/video";
+// @ts-expect-error VideoSuppliedMedia is no longer public.
+import type { VideoSuppliedMedia } from "@vanillaskyai/video";
+// @ts-expect-error SceneTimeline is no longer public.
+import type { SceneTimeline } from "@vanillaskyai/video";
+// @ts-expect-error SceneTimelineOptions is no longer public.
+import type { SceneTimelineOptions } from "@vanillaskyai/video";
+// @ts-expect-error Standalone video generation is no longer public.
+import { createVideoHandler } from "@vanillaskyai/video/server";
+// @ts-expect-error VideoHandlerOptions is no longer public.
+import type { VideoHandlerOptions } from "@vanillaskyai/video/server";
+// @ts-expect-error MediaResolver is no longer public.
+import type { MediaResolver } from "@vanillaskyai/video/server";
+// @ts-expect-error MediaResolverContext is no longer public.
+import type { MediaResolverContext } from "@vanillaskyai/video/server";
+// @ts-expect-error ResolvedMedia is no longer public.
+import type { ResolvedMedia } from "@vanillaskyai/video/server";
+// @ts-expect-error Chat does not select soundtracks.
+chatHandlerOptions.selectAudio;
+// @ts-expect-error Chat does not retain source metadata.
+chatHandlerOptions.snapshotRetention;
+// @ts-expect-error Durable generation reconnect is not a chat option.
+chatHandlerOptions.replay;
+// @ts-expect-error Chat owns run identity.
+chatHandlerOptions.createRunId;
 // @ts-expect-error Handler behavior selectors are not callback-shaped.
-handlerOptions.onInvalidPart;
-void [input, brandedInput, resolvedBackground, semanticBrand, video.schemaVersion, parsedVideo, validationCode, validationError.code, hook.video, hook.warnings, chatHook.playerProps, chatWarnings, turnWarnings, createdChatVoice, videoChatProps, packedVideoChat, PackedChatTypeProbe, handlerOptions.invalidPartBehavior, chatHandlerOptions.generateText, chatCapabilities.modes, summary, usage, warning, error.code, error.status, error.requestId, error.runId, savedPlayer, builtinId, builtinMetadata, family, sceneTemplate, sceneMetadata, sceneProps, templateRegistry, timingMetadata, transitionTiming];
+chatHandlerOptions.onInvalidPart;
+void [brandedInput, resolvedBackground, semanticBrand, video.schemaVersion, parsedVideo, validationCode, validationError.code, chatHook.playerProps, chatWarnings, turnWarnings, createdChatVoice, videoChatProps, packedVideoChat, PackedChatTypeProbe, chatHandlerOptions.invalidPartBehavior, chatHandlerOptions.generateText, chatCapabilities.modes, summary, usage, warning, error.code, error.status, error.requestId, error.runId, savedPlayer, builtinId, builtinMetadata, family, sceneTemplate, sceneMetadata, sceneProps, templateRegistry, timingMetadata, transitionTiming];
 `);
   writeFileSync(join(consumer, "types-tsconfig.json"), JSON.stringify({ compilerOptions: { strict: true, noEmit: true, target: "ES2022", module: "NodeNext", moduleResolution: "NodeNext", skipLibCheck: false }, include: ["types.ts"] }));
   execFileSync(process.execPath, [join(consumer, "node_modules", "typescript", "bin", "tsc"), "-p", "types-tsconfig.json"], { cwd: consumer, stdio: "inherit" });
@@ -641,7 +668,6 @@ const video = {
   scenes: [
     { id: "text", templateId: "minimal-text", variables: { headline: "Customer health", detail: "Activation is up 18%." }, timing: { fixedDuration: 2 } },
     { id: "data", templateId: "structured-data", variables: { label: "Activation", current: 58, previous: 41, unit: "%", explanation: "Guided onboarding helped more users reach value." }, timing: { fixedDuration: 2 } },
-    { id: "media", templateId: "supplied-media", variables: { imageUrl: ${previewImageUrl}, headline: "See the change in context.", caption: "The dashboard reflects the grounded result described in the answer." }, timing: { fixedDuration: 2 } },
     { id: "builtin", templateId: "bigNumber", variables: { value: "42", label: "retention" }, timing: { fixedDuration: 1 } },
   ],
   style: { brand: { font: "Inter", scriptFont: "Caveat", background: { type: "gradient", colors: ["#8711C1", "#2167E3"] }, colors: { primary: "#00E5A0", secondary: "#006BE5", foreground: "#FFFFFF", surface: "#0A0A14", surfaceElevated: "#14152A", muted: "#A7A6B0" } } },
@@ -735,18 +761,6 @@ createRoot(document.getElementById("root")).render(mediaProbe
     await page.getByRole("button", { name: "Play video response" }).click();
     await page.waitForSelector('[data-template-id="structured-data"]', { timeout: 5_000 });
     await page.getByText("Guided onboarding helped more users reach value.").waitFor({ timeout: 5_000 });
-    await page.waitForSelector('[data-template-id="supplied-media"]', { timeout: 5_000 });
-    await page.getByText("The dashboard reflects the grounded result described in the answer.").waitFor({ timeout: 5_000 });
-    const mediaImage = page.locator('[data-template-id="supplied-media"] img');
-    await mediaImage.waitFor({ timeout: 5_000 });
-    const mediaLoaded = await mediaImage.evaluate((image) => {
-      if (image.complete) return image.naturalWidth > 0;
-      return new Promise((resolveImage) => {
-        image.addEventListener("load", () => resolveImage(image.naturalWidth > 0), { once: true });
-        image.addEventListener("error", () => resolveImage(false), { once: true });
-      });
-    });
-    if (!mediaLoaded) throw new Error("Packed supplied-media reference image did not decode");
     await page.waitForSelector('[data-template-id="bigNumber"]', { timeout: 5_000 });
     await page.getByText("retention").waitFor({ timeout: 5_000 });
     try {

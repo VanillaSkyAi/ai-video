@@ -104,8 +104,7 @@ MP4/WebM export remains application-owned.
 | Change or add providers | [Provider integration](docs/provider-integration.md) |
 | Customize the interface | [Customization](docs/customization.md) |
 | Understand prompts and grounding | [Prompt and input](docs/prompt-and-input.md) |
-| Add brand or viewer context | [Branding and personalization](docs/branding-and-personalization.md) |
-| Add media or soundtrack audio | [Media and soundtrack audio](docs/media-and-audio.md) |
+| Add media or voice | [Media and voice](docs/media-and-audio.md) |
 | Persist and replay results | [Persistence and replay](docs/persistence.md) |
 | Test routes and streams | [Test integrations](docs/testing.md) |
 | Deploy securely | [Production](docs/production.md) · [Security](docs/security.md) |

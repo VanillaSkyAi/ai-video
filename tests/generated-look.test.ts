@@ -14,7 +14,7 @@ const LOOK = "Hand-drawn cel animation on ivory, rough ink contours, flat cobalt
 
 describe("generated look", () => {
   it("reaches the media resolver as part of the style", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     const seen: Array<string | undefined> = [];
     const handler = createVideoHandler({
       authorize: "none",
@@ -47,7 +47,7 @@ describe("generated look", () => {
   });
 
   it("is absent when the application did not ask for one", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     let seen: string | undefined | "unset" = "unset";
     const handler = createVideoHandler({
       authorize: "none",

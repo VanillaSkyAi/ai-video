@@ -29,25 +29,13 @@ or export pipeline when an encoded file is required.
 
 ## Input
 
-`VideoInput` is the factual and creative boundary:
+The viewer sends a prompt with bounded completed conversation turns. The server
+adds trusted application `instructions`, template capabilities, and the selected
+visual mode. `VideoChat` options control brand, style, orientation, and custom
+templates. Exact facts belong in the authorized prompt or conversation; secrets
+and provider configuration stay on the server.
 
-- `input`: raw source material such as a roadmap update, launch brief, article,
-  curated set of articles, metrics, events, notes, or an AI answer. It may be
-  short, but the planner is designed to distill larger sources into a concise
-  video rather than represent every fact;
-- `knowledgeMode`: `input-only` by default, or `general` when stable model
-  knowledge may supplement the request;
-- `instructions`: optional creative direction that cannot override facts;
-- `opening`: optional custom copy for the deterministic opening; omission uses
-  `Creating your video...`, while `false` lets the host render loading UI
-  without adding an opening scene to the video;
-- `personalization`: application-defined fields such as name, role, account,
-  period, goal, or onboarding partner;
-- `brand`: an optional background preset plus name, logo, font, surfaces, and
-  advanced exact tokens;
-- `suppliedMedia`: approved images or videos with a role and description;
-- `audio`: omit for automatic selection, pass `{ src }`, or use `false` for silence;
-- `orientation` and `maxDurationSec`: composition constraints.
+See [Prompt and conversation input](prompt-and-input.md) for the request contract.
 
 ## Template kit
 
@@ -72,20 +60,10 @@ another streaming text model.
 The planner does not create public event IDs, checksums, or final
 snapshots. The runtime owns those guarantees.
 
-`createVideoHandler` asks the planner to emit one early
-`scene.add` with `placement: "closer"` after the first playable body scene.
-That placement is planner-only: the runtime holds the validated closer,
-reserves its readable duration while later body scenes stream, and appends it
-last without persisting `placement` into the completed `Video`.
-
-| Boundary | Type | Owner |
-| --- | --- | --- |
-| Planner parts | Internal validated plan data | Server/provider adapter |
-| Values read from `response.stream` | `VideoEvent` | SDK runtime |
-| Terminal editable result | `Video` via `response.result` | SDK reducer |
-
-A planner must never yield `VideoEvent` envelopes. It yields plan
-parts; the runtime validates them and creates the public event metadata.
+The internal composition pipeline can reserve a validated closing scene and
+append it after the body. Planner parts are internal data; applications connect
+text callbacks to `createVideoChatHandler` and let the SDK own event envelopes,
+sequence IDs, and final snapshots.
 
 ## Event stream
 
@@ -93,21 +71,19 @@ The runtime emits ordered protocol events:
 
 ```text
 response.start
-audio.set             optional, before any scene
-scene.add             supplied opening
+data.video-chat-opening short spoken hook
 scene.add             generated body
 scene.add             generated body
 scene.add             reserved closer
 response.complete     exact terminal snapshot
 ```
 
-Network transport uses SSE. Direct in-process integrations expose the same
-events as an async iterable.
+Network transport uses SSE. Test utilities can simulate protocol events in process.
 
 ## Playback and buffering
 
 The player renders the first committed scene and continues through the known
-timeline. Audio can loop during a generation gap. A media-bearing scene should
+timeline. The chat holds its current visual during a generation gap. A media-bearing scene should
 not be committed until its asset is ready; start generated content with a
 typography-led scene so useful playback does not wait on media lookup.
 
@@ -124,8 +100,8 @@ complete storage contract.
 ## Completion snapshot
 
 `response.complete` contains the exact reduced `Video` plus a
-checksum. Persist the snapshot when you need replay, resume, export, analytics,
-or an editing handoff. The event log can also be persisted and revalidated.
+checksum. The chat retains the completed video on its turn for application-owned replay
+and storage. A partial playable answer may complete with non-fatal warnings.
 
 Read the complete [Protocol 0.5](reference/protocol.md) and the separate
 [persisted Video 0.1 contract](persistence.md).

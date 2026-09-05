@@ -1,10 +1,3 @@
-export {
-  createVideoHandler,
-  type MediaResolver,
-  type MediaResolverContext,
-  type ResolvedMedia,
-} from "./server/create-video-handler.js";
-export type { VideoHandlerOptions } from "./server/create-video-handler.js";
 export { createVideoChatHandler } from "./server/create-video-chat-handler.js";
 export type {
   VideoChatCapabilities,

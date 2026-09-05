@@ -10,7 +10,7 @@ import { clipText } from "../src/server/bound-variables";
  * five-scene answer kept arriving with three.
  */
 async function plan(texts: string) {
-  const { createVideoHandler } = await import("../src/server");
+  const { createVideoHandler } = await import("../src/server/create-video-handler");
   const warnings: Array<{ code: string; message: string }> = [];
   const handler = createVideoHandler({
     authorize: "none",

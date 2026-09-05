@@ -35,8 +35,9 @@ headers, and an optional custom voice. Provider capabilities are discovered
 from the server. Use `useVideoChat()` only when the application needs to own the
 entire interface.
 
-The sections below customize lower-level, one-shot video composition. They are
-not required for the default chat.
+Pass the following visual settings through `VideoChat` or `useVideoChat` options.
+Keep viewer context in the prompt and completed conversation turns; use the
+server handler’s `instructions` for trusted product guidance.
 
 ## Background and semantic brand
 
@@ -96,35 +97,17 @@ These are defaults, not generated CSS. A validated scene may still select a
 more appropriate text or background treatment when its trusted template allows
 it.
 
-## Personalization
-
-`personalization` accepts JSON-safe application fields. Include only values the
-viewer is allowed to see. The system prompt treats them as context, not as
-instructions.
-
-Good fields include `firstName`, `role`, `accountName`, `period`, `goal`,
-`locale`, and `onboardingPartner`. Keep facts in `input` as well when they must
-appear in the story.
-
 ## Opening
 
-`VideoPlayer` automatically shows a brand-colored generation cover until the
-first validated scene arrives. The cover is player state, not video content: it
-is never written to the event log, replay, or export.
-
-The opening is deterministic and should not wait for an LLM or remote media.
-Omit it to use `Creating your video...`, or supply one concise custom sentence:
+The planner streams a short spoken hook before the scenes. The chat holds that
+opening until its speech finishes and the first scene is ready. A selected
+suggestion can start with its prewritten opening and already-loaded media:
 
 ```ts
-opening: "Your Q2 customer impact recap is ready."
+await chat.ask(card.prompt, { opening: card.opening, openingMedia: card.media });
 ```
 
-Pass `opening: false` to omit the persisted opening and show application-owned
-loading UI until the first generated scene arrives.
-
-Use `opening` only for a genuine opening that should remain in the completed
-response. VanillaSky infers the scene ID, `media` template, gradient variables,
-and three-second timing. Keep generic loading state in the host UI instead.
+Openings and scene narration share the chat voice and pause/mute controls.
 
 ## Aspect ratio and responsive layout
 
@@ -138,31 +121,11 @@ should display landscape on desktop and portrait on mobile without changing the
 saved response, pass `orientation="auto"` to `VideoPlayer`; it responds
 to its container width. See [responsive orientation](responsive-orientation.md).
 
-## Supplied media
+## Media and voice
 
-Provide approved media with semantic descriptions:
-
-```ts
-suppliedMedia: [{
-  id: "product-dashboard",
-  url: "https://cdn.example.com/dashboard.png",
-  type: "image",
-  description: "Activation dashboard after the Q2 release",
-  role: "product",
-}]
-```
-
-Resolve searched media before generation and pass the approved result through
-`suppliedMedia`. See [media providers](media-and-audio.md#media-providers).
-
-## Soundtrack audio
-
-Pass `audio: { src }` for a specific track, omit `audio` to let the server choose
-synchronously from a preloaded catalog, or pass `audio: false` for silence.
-VanillaSky infers deterministic duration, volume, beat, and fade-out metadata.
-The soundtrack should continue across visual generation gaps and finish with
-the final scene. `VideoChat` separately owns narration, TTS integration, browser
-voice fallback, and speech synchronization for conversational responses.
+Configure `searchMedia`, `generateVideo`, and `generateSpeech` on the server
+handler. They progressively enhance the same chat; failed optional providers
+fall back to templates or browser voice. See [Media and voice](media-and-audio.md).
 
 ## Custom templates
 

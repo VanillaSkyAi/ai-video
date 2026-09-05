@@ -1,4 +1,4 @@
-[← Documentation home](../README.md) · [Previous: Getting started](getting-started.md) · [Next: Branding and personalization →](branding-and-personalization.md)
+[← Documentation home](../README.md) · [Previous: Getting started](getting-started.md) · [Next: Customization →](customization.md)
 
 # Provider integration
 

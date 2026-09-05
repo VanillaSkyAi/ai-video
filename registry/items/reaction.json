@@ -82,7 +82,7 @@
           "reactionTag": {
             "type": "string",
             "title": "Reaction tag",
-            "description": "Pexels meme search intent. Pick from the punchline/problem copy first, then the overall video topic.",
+            "description": "Stock-media search intent. Pick from the punchline/problem copy first, then the overall video topic.",
             "enum": [
               "launch",
               "productLaunch",
@@ -123,7 +123,7 @@
           "mediaUrl": {
             "type": "string",
             "title": "Reaction clip",
-            "description": "Resolved Pexels MP4 URL.",
+            "description": "Resolved stock-video URL.",
             "format": "uri",
             "default": ""
           },

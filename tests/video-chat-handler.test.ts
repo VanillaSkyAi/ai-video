@@ -21,6 +21,30 @@ function plannedResponse() {
 }
 
 describe("createVideoChatHandler", () => {
+  it("does not forward obsolete generation options from JavaScript callers", async () => {
+    const createVideoChatHandler = await loadCreateVideoChatHandler();
+    let selectedAudio = false;
+    let createdRun = false;
+    const handler = createVideoChatHandler({
+      authorize: "none",
+      heartbeatMs: false,
+      streamText: plannedResponse(),
+      generateText: async () => "unused",
+      selectAudio: () => { selectedAudio = true; return undefined; },
+      createRunId: () => { createdRun = true; return "obsolete-run"; },
+    });
+    const response = await handler(new Request("https://app.example/api/video-chat?action=response", {
+      method: "POST",
+      body: JSON.stringify({ prompt: "A useful answer", opening: "Start here" }),
+    }));
+    const events = [];
+    for await (const event of decodeVideoSse(response.body!)) events.push(event);
+    expect(events.at(-1)?.type).toBe("response.complete");
+    expect(selectedAudio).toBe(false);
+    expect(createdRun).toBe(false);
+    expect(JSON.stringify(events)).not.toContain("obsolete");
+  });
+
   it("preserves non-enumerable provider lifecycle fields while intercepting the opening", async () => {
     const createVideoChatHandler = await loadCreateVideoChatHandler();
     const warningCodes: string[] = [];

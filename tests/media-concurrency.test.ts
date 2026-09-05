@@ -30,7 +30,7 @@ function plan(sceneCount: number) {
 }
 
 async function run(options: { mediaConcurrency?: number; scenes: number }) {
-  const { createVideoHandler } = await import("../src/server");
+  const { createVideoHandler } = await import("../src/server/create-video-handler");
   const started: number[] = [];
   const handler = createVideoHandler({
     authorize: "none",
@@ -79,7 +79,7 @@ describe("media resolution concurrency", () => {
   });
 
   it("emits the first resolved scene while the planner is still producing the rest", async () => {
-    const { createVideoHandler } = await import("../src/server");
+    const { createVideoHandler } = await import("../src/server/create-video-handler");
     let releaseRemainder!: () => void;
     const remainder = new Promise<void>((resolve) => { releaseRemainder = resolve; });
     let sawFirstScene!: () => void;

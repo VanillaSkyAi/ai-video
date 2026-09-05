@@ -164,7 +164,7 @@
           "mediaKeyword": {
             "type": "string",
             "title": "Background search keyword",
-            "description": "2-4 word English term for Pexels stock-footage search (auto-fills mediaUrl).",
+            "description": "2-4 word English term for stock-media search (auto-fills mediaUrl).",
             "format": "stock-media-keyword",
             "default": ""
           },
@@ -183,7 +183,7 @@
           "mediaPoster": {
             "type": "string",
             "title": "Background poster image",
-            "description": "Still image URL shown while a video backdrop is decoding its first frame. Auto-filled from Pexels' thumbnail when fillPexelsUrls sets a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
+            "description": "Still image URL shown while a video backdrop is decoding its first frame. A media resolver can supply a poster alongside a video mediaUrl. Hides the gradient flash that would otherwise appear in the ~50–400ms gap between a <video> mounting and decoding its first frame.",
             "format": "uri",
             "default": ""
           },

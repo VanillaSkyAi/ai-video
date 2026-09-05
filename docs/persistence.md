@@ -3,9 +3,12 @@
 # Persistence and replay
 
 A completed `Video` is ordinary JSON owned by your application. VanillaSky
-does not provide a database or hosted media store. Save the value returned by
-`await video.generate(...)` with the platform-native `JSON.stringify`; there is
-no SDK serializer.
+does not provide a database or hosted media store. For a custom interface, observe `useVideoChat().turns` and save a turn’s
+`video` only when `turn.completed` is true and `turn.video` is present. Use
+`JSON.stringify(turn.video)` and deduplicate writes by `turn.id`; there is no
+SDK serializer. An interrupted turn can remain visible without qualifying as
+completed conversation history. The default `VideoChat` keeps history in memory;
+use the headless hook when the application needs durable storage.
 
 Every stored video has `schemaVersion: "0.1"`. This storage version is separate
 from streaming protocol `0.5`. The 0.1 policy supports the current storage
@@ -48,31 +51,13 @@ runs; it never renders a partial future document.
 
 ## Retention
 
-By default, completed snapshots omit raw source, creative instructions, and
-the supplied-media URL index. A customer-owned route may retain individual
-fields only when its privacy and deletion policy allows it:
+Completed snapshots omit raw source, creative instructions, and the supplied-media
+URL index. Store an authorized prompt separately with the completed turn only
+when the host's privacy and deletion policy permits it. Saved-video replay does
+not rehydrate a chat session or its voice queue.
 
-```ts
-createVideoHandler({
-  authorize: verifySession,
-  streamText,
-  snapshotRetention: {
-    source: true,
-    instructions: true,
-    suppliedMediaUrls: true,
-  },
-});
-```
-
-Opt-in values are bounded in the snapshot:
-
-- source: 16,384 characters;
-- instructions: 4,096 characters;
-- supplied-media index: 16 URLs, each at most 2,048 characters.
-
-These metadata limits do not replace a host retention policy. Renderable scene
-variables may still contain a media URL when that asset is necessary for
-replay. Store only approved assets and avoid signed URLs whose lifetime is
+Renderable scene variables may contain a media URL when that asset is necessary
+for replay. Store only approved assets and avoid signed URLs whose lifetime is
 shorter than the replay window.
 
 ## Storage ownership

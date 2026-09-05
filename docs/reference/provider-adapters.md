@@ -1,11 +1,11 @@
 # Secure LLM provider adapters
 
 This page covers the planner boundary. For Pexels and other visual providers,
-read [Media and audio](../media-and-audio.md#media-providers).
+read [Media and voice](../media-and-audio.md).
 
 VanillaSky deliberately does not depend on a model provider or AI framework.
-Your server owns the model and credentials; `createVideoHandler` accepts one
-small `streamText` callback. The recommended adapter is the [AI SDK](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text),
+Your server owns the model and credentials; `createVideoChatHandler` accepts
+`streamText` and `generateText` callbacks. The recommended adapter is the [AI SDK](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text),
 which gives the application one `LanguageModel` interface across official,
 community, AI Gateway, OpenAI-compatible, and custom providers.
 
@@ -19,14 +19,23 @@ npm install ai @ai-sdk/anthropic
 
 ```ts
 import { anthropic } from "@ai-sdk/anthropic";
-import { streamText } from "ai";
-import { createVideoHandler } from "@vanillaskyai/video/server";
+import { generateText, streamText } from "ai";
+import { createVideoChatHandler } from "@vanillaskyai/video/server";
 
 const modelId = process.env.ANTHROPIC_MODEL;
 if (!modelId) throw new Error("Set ANTHROPIC_MODEL in the server environment");
 
-export const POST = createVideoHandler({
+export const POST = createVideoChatHandler({
   authorize: verifySession,
+  generateText: async ({ systemPrompt, userPrompt, signal }) => {
+    const result = await generateText({
+      model: anthropic(modelId),
+      system: systemPrompt,
+      prompt: userPrompt,
+      abortSignal: signal,
+    });
+    return result.text;
+  },
   streamText: ({ systemPrompt, userPrompt, signal }) => streamText({
     model: anthropic(modelId),
     system: systemPrompt,
@@ -67,92 +76,22 @@ replace that per-line validator with whole-response structured output: motion
 streaming intentionally renders the first scene before the full composition is
 complete.
 
-## Advanced: native provider loops
+## Native or self-hosted providers
 
-Use the lower-level callback directly when the AI SDK does not expose a
-provider-specific feature you need. `streamText` may return either an
-`AsyncIterable<string>` or an object with `textStream` plus optional
-`finishReason`, `rawFinishReason`, `usage`, `providerMetadata`, and
-response/final-step metadata. Requested model IDs are read from the final
-step's `model.modelId`; resolved IDs are read from response metadata. Prefer the
-richer form when the native provider exposes completion metadata.
+The same chat contract supports a native provider without an AI SDK dependency.
+Return an `AsyncIterable<string>` from `streamText`, or an object with
+`textStream` and optional completion metadata. Implement `generateText` for the
+small welcome, suggestion, and fallback narration tasks and return its text.
+Infer each callback from `VideoChatHandlerOptions` so the adapter stays aligned
+with the public contract.
 
-Provider retries remain host-owned. Retry only within an explicit request and
-time budget, and never silently restart after visible output unless the host
-has validated durable resume storage.
+Forward the supplied signal, preserve both prompt strings, and keep provider
+errors and credentials on the server. Retry only within an explicit time and
+spend budget before output is visible. The chat does not expose a durable
+stream-reconnect contract.
 
-### OpenAI Responses API
+## Application retrieval
 
-```ts
-import OpenAI from "openai";
-import { createVideoHandler } from "@vanillaskyai/video/server";
-
-const apiKey = process.env.OPENAI_API_KEY;
-const model = process.env.OPENAI_MODEL;
-if (!apiKey || !model) throw new Error("Set OPENAI_API_KEY and OPENAI_MODEL");
-
-const openai = new OpenAI({ apiKey });
-
-export const POST = createVideoHandler({
-  authorize: verifySession,
-  streamText: async function* ({ systemPrompt, userPrompt, signal }) {
-    const stream = await openai.responses.create({
-      model,
-      input: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      stream: true,
-    }, { signal });
-
-    for await (const event of stream) {
-      if (event.type === "response.output_text.delta") yield event.delta;
-    }
-  },
-});
-```
-
-OpenAI documents the typed `response.output_text.delta` event in its
-[Responses streaming guide](https://developers.openai.com/api/docs/guides/streaming-responses).
-
-### Anthropic Messages API
-
-```ts
-import Anthropic from "@anthropic-ai/sdk";
-import { createVideoHandler } from "@vanillaskyai/video/server";
-
-const apiKey = process.env.ANTHROPIC_API_KEY;
-const model = process.env.ANTHROPIC_MODEL;
-if (!apiKey || !model) throw new Error("Set ANTHROPIC_API_KEY and ANTHROPIC_MODEL");
-
-const anthropic = new Anthropic({ apiKey });
-
-export const POST = createVideoHandler({
-  authorize: verifySession,
-  streamText: async function* ({ systemPrompt, userPrompt, signal }) {
-    const stream = anthropic.messages.stream({
-      model,
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    }, { signal });
-
-    for await (const event of stream) {
-      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-        yield event.delta.text;
-      }
-    }
-  },
-});
-```
-
-Anthropic documents `content_block_delta` and `text_delta` in its
-[Messages streaming guide](https://platform.claude.com/docs/en/build-with-claude/streaming).
-
-## Optional web fetch and other tools
-
-Keep tools server-side and outside the SDK core. Fetch or search before motion
-generation, append only the approved grounded result to `input`, and
-record provenance separately. Apply domain allowlists, SSRF protection,
-timeouts, redirect limits, and response-size limits. Do not give a model a
-general-purpose fetch tool unless the application truly needs one.
+Fetch or search approved context in the application before asking the chat.
+Include only authorized facts in the prompt or conversation and record
+provenance separately. Keep retrieval tools and private URLs server-side.

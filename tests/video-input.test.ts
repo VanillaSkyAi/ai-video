@@ -1,3 +1,4 @@
+import type { VideoInput } from "../src/protocol/types";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
@@ -5,7 +6,6 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type {
   VideoBackground,
   VideoBrand,
-  VideoInput,
   VideoStyle,
 } from "../src/index";
 import type { VideoAudio } from "../src/internal";

@@ -3,7 +3,6 @@ import {
   createVideo,
   createVideoRequest,
   decodeVideoSse,
-  streamVideo,
 } from "../src/internal";
 import { createVideoStreamHandler } from "../src/server/video-stream-handler";
 
@@ -179,31 +178,6 @@ describe("generated-part resilience", () => {
 });
 
 describe("remote consumption and credentials", () => {
-  it("settles result eagerly and replays buffered events to a delayed stream consumer", async () => {
-    const handler = createVideoStreamHandler({
-      authorize: "none",
-      heartbeatMs: false,
-      generate: async function* () { yield validScene("good"); yield { type: "plan.complete" as const }; },
-    });
-    let credentials: RequestCredentials | undefined;
-    const run = streamVideo({
-      endpoint: "https://api.test/motion",
-      input: { input: "facts" },
-      requestId: "request-remote",
-      credentials: "include",
-      fetcher: async (input, init) => {
-        credentials = init?.credentials;
-        return handler(new Request(input, init));
-      },
-    });
-    await expect(run.result).resolves.toMatchObject({ status: "complete" });
-    const events = [];
-    for await (const event of run.stream) events.push(event);
-    expect(events.map(({ type }) => type)).toEqual([
-      "response.start", "scene.add", "scene.add", "response.complete",
-    ]);
-    expect(credentials).toBe("include");
-  });
 
   it("emits credentialed CORS headers only for an allowed origin", async () => {
     const handler = createVideoStreamHandler({
@@ -218,37 +192,9 @@ describe("remote consumption and credentials", () => {
     expect(response.headers.get("access-control-allow-credentials")).toBe("true");
   });
 
-  it("propagates eager fetch failures to both result and stream", async () => {
-    const run = streamVideo({
-      endpoint: "https://api.test/motion",
-      input: { input: "facts" }, requestId: "request-error",
-      fetcher: async () => { throw new Error("network unavailable"); },
-    });
-    await expect(run.result).rejects.toThrow("Video response stream failed");
-    await expect(async () => { for await (const event of run.stream) void event; })
-      .rejects.toThrow("Video response stream failed");
-  });
 });
 
 describe("local consumption lifecycle", () => {
-  it("settles result eagerly and replays buffered events to delayed consumers", async () => {
-    const run = createVideo({ input: "facts" }, {
-      generate: async function* () {
-        yield validScene("good");
-        yield { type: "plan.complete" as const };
-      },
-    });
-
-    await expect(run.result).resolves.toMatchObject({ status: "complete" });
-    const first = [];
-    for await (const event of run.stream) first.push(event);
-    const replay = [];
-    for await (const event of run.stream) replay.push(event);
-    expect(first.map(({ type }) => type)).toEqual([
-      "response.start", "scene.add", "scene.add", "response.complete",
-    ]);
-    expect(replay).toEqual(first);
-  });
 
   it("resolves terminal protocol errors and aborts without a stream consumer", async () => {
     const failed = createVideo({ input: "facts" }, {

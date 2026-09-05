@@ -24,11 +24,11 @@ validation, streaming, and player.
 | Location | Purpose |
 | --- | --- |
 | `src/server/create-video-chat-handler.ts` | Complete chat endpoint and capability boundary |
-| `src/server/create-video-handler.ts` | Lower-level video composition and provider adapter boundary |
+| `src/server/create-video-handler.ts` | Internal composition and provider adapter boundary |
 | `src/server/prompts/` | System and user prompts sent to the app-owned model |
 | `src/server/model/` | Converts provider text deltas into typed video plan parts |
 | `src/protocol/` | Shared request, event, validation, checksum, and SSE contract |
-| `src/player/` | Browser stream client, `useVideo`, timeline, and React player |
+| `src/player/` | Internal stream client, timeline, and React player |
 | `src/video-chat/` | Default `VideoChat` interface and headless conversation/session engine |
 | `src/visual-system/catalog/` | Template metadata, schemas, loading, and planner catalog |
 | `src/visual-system/scene-templates/` | Complete scenes the model may select |
@@ -61,13 +61,13 @@ prompt/validation registry in `vanillasky/server.ts`.
 3. `createVideoChatHandler(...)` owns chat actions, suggestions, narration,
    capability discovery, and generated-video budgets. The application supplies
    provider callbacks and policy.
-4. Video answers flow into `createVideoHandler(...)`, which calls the
+4. Video answers flow into the internal composition pipeline, which calls the
    application's `streamText` adapter. This is where Anthropic, OpenAI, or
    another text model is connected.
 5. The system prompt combines the opening and composition rules with the trusted template
    catalog, including generated metadata for customer-owned templates. The user
-   prompt serializes the factual input, instructions,
-   personalization, brand, and approved media.
+   prompt serializes the prompt, completed conversation, instructions,
+   brand, and approved media.
 6. The model streams one host-consumed opening object followed by NDJSON plan
    parts. The server emits the opening event, then parses and validates complete
    scenes before emitting them.
@@ -75,8 +75,7 @@ prompt/validation registry in `vanillasky/server.ts`.
    loops or holds until its voice ends and the first playable scene is ready;
    the planned playback and narration then take over in one cut.
 
-The lower-level `useVideo` and `VideoPlayer` path skips chat actions and remains
-available for explicit one-shot video response integrations.
+`VideoPlayer` also replays completed chat videos parsed at the storage boundary.
 
 ## Where to change common behavior
 
@@ -93,7 +92,6 @@ available for explicit one-shot video response integrations.
 
 ## Public vocabulary
 
-Use `VideoChat`, `useVideoChat`, `createVideoChatHandler`, `Video`, `VideoInput`,
-`useVideo`, and `VideoPlayer` for the product API. Use “video response” when
+Use `VideoChat`, `useVideoChat`, `createVideoChatHandler`, `Video`, and `VideoPlayer` for the product API. Use “video response” when
 describing the lifecycle or output category. Use “motion” only for animation
 behavior inside the visual system.

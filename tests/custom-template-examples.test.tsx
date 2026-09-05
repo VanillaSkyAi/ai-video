@@ -8,10 +8,10 @@ import { TEST_VIDEO_STYLE } from "./semantic-brand-fixture";
 
 const root = resolve(import.meta.dirname, "..");
 const exampleRoot = join(root, "examples/custom-template");
-const exampleFiles = ["minimal-text.tsx", "structured-data.tsx", "supplied-media.tsx"] as const;
+const exampleFiles = ["minimal-text.tsx", "structured-data.tsx"] as const;
 
 describe("custom template reference journey", () => {
-  it("ships three source-owned, public-only reference templates in the package", () => {
+  it("ships source-owned, public-only reference templates in the package", () => {
     const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { files: string[] };
 
     expect(manifest.files).toContain("examples/custom-template");
@@ -75,15 +75,13 @@ describe("custom template reference journey", () => {
     expect(guide).not.toContain("Put a `default` on every property");
   });
 
-  it("makes the three references discoverable by their intended content shape", () => {
+  it("makes the references discoverable by their intended content shape", () => {
     const reference = readFileSync(join(exampleRoot, "README.md"), "utf8");
 
     expect(reference).toContain("Minimal text");
     expect(reference).toContain("Structured data");
-    expect(reference).toContain("Supplied media");
     expect(reference).toContain("minimal-text.tsx");
     expect(reference).toContain("structured-data.tsx");
-    expect(reference).toContain("supplied-media.tsx");
   });
 });
 
@@ -92,7 +90,6 @@ describe("custom template reference contracts", () => {
     const modules = await Promise.all([
       import("../examples/custom-template/minimal-text"),
       import("../examples/custom-template/structured-data"),
-      import("../examples/custom-template/supplied-media"),
     ]);
     const dimensions = [{ width: 1080, height: 1920 }, { width: 1920, height: 1080 }];
 
@@ -120,15 +117,6 @@ describe("custom template reference contracts", () => {
         }
       }
     }
-  });
-
-  it("uses supplied-image semantics for the media reference", async () => {
-    const { template } = await import("../examples/custom-template/supplied-media");
-    expect(template.schema.properties.imageUrl.format).toBe("supplied-image");
-    expect(template.schema.required).toContain("imageUrl");
-    expect(template.schema.properties.imageUrl.default).toMatch(/^data:image\/svg\+xml,/);
-    expect(template.examples?.[0].variables.imageUrl).toBe(template.schema.properties.imageUrl.default);
-    expect(template.schema.properties).not.toHaveProperty("destinationUrl");
   });
 
   it("describes grounded-stat as planner guidance rather than input comparison", () => {

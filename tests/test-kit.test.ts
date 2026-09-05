@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createVideoHandler } from "../src/server";
+import { createVideoHandler } from "../src/server/create-video-handler";
 import {
   createMockVideoPlanner,
   simulateVideoStream,

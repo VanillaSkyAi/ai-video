@@ -1,7 +1,7 @@
+import type { VideoInput } from "../protocol/types.js";
 import type {
   Video,
   VideoAudio,
-  VideoInput,
   VideoOrientation,
   VideoScene,
   VideoStyle,

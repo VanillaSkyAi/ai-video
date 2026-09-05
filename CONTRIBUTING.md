@@ -12,10 +12,10 @@ npm ci
 npm run lint
 npm run typecheck
 npm test
-npm run acceptance:replay
+npm run acceptance:chat
 npm run build
-npm run example:install
-npm run example:build
+npm run verify:package
+npm run verify:onboarding
 npm run browser:test
 ```
 
@@ -45,8 +45,8 @@ approval.
 
 ## Maintainer guides
 
-- [Acceptance](docs/maintainers/acceptance.md) defines the deterministic and live-provider
-  quality gates.
+- [Acceptance](docs/maintainers/acceptance.md) defines deterministic chat quality
+  and recovery gates.
 - [Releasing](docs/maintainers/releasing.md) defines versioning, publishing, verification,
   and the boundary with the separate site-owned adoption process.
 
@@ -59,7 +59,9 @@ test file.
 React 19 is the primary development runtime. CI also verifies React 18 source
 and runtime compatibility, plus Chromium, Firefox, and WebKit.
 
-Before a release candidate, run both provider harnesses in a server-only
-environment and review the rendered artifacts using the [acceptance guide](docs/maintainers/acceptance.md).
-Replay passing is necessary but is not evidence of live-provider latency or
-visual quality.
+Before a release candidate, verify the exact packed package and blank-folder
+starter. Run `npm run acceptance:chat` with mocked providers, then keep localhost
+available for one manual conversation check. Automated checks never use real
+provider credentials or spend generation credits. A mocked run proves behavior;
+only an explicitly authorized manual provider run measures live-provider latency
+and generated-media quality.

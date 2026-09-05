@@ -15,7 +15,7 @@ describe("VideoPlayer", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders nothing before useVideo starts a stream", async () => {
+  it("renders nothing before a stream starts", async () => {
     const { VideoPlayer } = await import("../src/player/video-player");
     const view = render(createElement(VideoPlayer, {
       templates: createRenderTemplateRegistry({ templates: [] }),
@@ -805,13 +805,13 @@ describe("VideoPlayer", () => {
     await waitFor(() => expect(player.getAttribute("data-status")).toBe("complete"));
     expect(onComplete).toHaveBeenCalledOnce();
     expect(onPlaybackEnd).not.toHaveBeenCalled();
-    nextFrame?.(performance.now() + 4_000);
+    act(() => nextFrame?.(performance.now() + 4_000));
     await waitFor(() => {
       expect(player.getAttribute("data-playing")).toBe("false");
       expect(player.getAttribute("data-ended")).toBe("true");
       expect(player.getAttribute("data-current-time")).toBe("4.000");
+      expect(onPlaybackEnd).toHaveBeenCalledOnce();
     });
-    expect(onPlaybackEnd).toHaveBeenCalledOnce();
 
     expect(view.getByTestId("video-ended-scrim")).toBeDefined();
     const replay = view.getByRole("button", { name: "Replay video response" });
