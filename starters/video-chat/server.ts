@@ -46,7 +46,8 @@ export const handleVideoChat = createVideoChatHandler({
     : undefined,
   ...providers,
   welcome: {
-    heroQuery: process.env.VIDEO_CHAT_WELCOME_KEYWORD ?? "underwater ocean sunlight",
+    // Omit the query to use the SDK's curated cloud welcome.
+    ...(process.env.VIDEO_CHAT_WELCOME_KEYWORD ? { heroQuery: process.env.VIDEO_CHAT_WELCOME_KEYWORD } : {}),
     prompts: [
       {
         prompt: "Why does the Moon always show one face?",

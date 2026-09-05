@@ -124,6 +124,10 @@ const handler = createVideoChatHandler({
 });
 const response = await handler(new Request("https://app.example/api?action=response", { method: "POST", body: JSON.stringify({ prompt: "Ocean", mode: "full", opening: "Watch the ocean" }) }));
 const events = await response.text();
+const welcome = await (await handler(new Request("https://app.example/api?action=welcome"))).json();
+if (welcome.hero.url !== "https://videos.pexels.com/video-files/11335959/11335959-hd_1920_1080_30fps.mp4" || welcome.hero.type !== "video") throw new Error("Packed default cloud welcome drifted");
+// Welcome still resolves four suggestion cards, but not its curated hero.
+searched -= 4;
 if (generated !== 0 || searched !== 1 || !events.includes("stock.mp4") || !events.includes("response.complete")) throw new Error("Packed generated-video budget did not preserve stock playback");
 `);
   execFileSync(process.execPath, [join(serverConsumer, "budget.mjs")], { cwd: serverConsumer, stdio: "inherit" });

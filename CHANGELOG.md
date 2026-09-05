@@ -4,6 +4,8 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Use a curated cloud timelapse for the default welcome screen, while preserving host-selected welcome searches.
+
 ## 0.8.3
 
 - Allow hosts to bound generated-video waiting up to two minutes, describe limited generated-video offerings in Settings, and opt into a dismissible media fallback notice.
