@@ -4,6 +4,11 @@ VanillaSky follows semantic versioning. This changelog begins with the 0.1 beta.
 
 ## Unreleased
 
+- Keeps Full AI video responses running when a text provider repeats narration
+  beside a scene that already owns the canonical line. The redundant copy is
+  discarded before strict plan validation instead of aborting after the first
+  generated clip.
+
 ## 0.7.0
 
 - Makes blank-folder onboarding one safe scoped command:

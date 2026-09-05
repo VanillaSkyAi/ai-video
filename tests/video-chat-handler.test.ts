@@ -303,7 +303,7 @@ describe("createVideoChatHandler", () => {
             })}\n`;
             plannerStarted();
             yield '{"type":"scene.add","placement":"closer","scene":{"id":"ending","templateId":"media","variables":{"texts":"Morning tastes different","mediaType":"video","mediaKeyword":"sunrise bakery customers"},"timing":{"fixedDuration":5},"narration":"By sunrise, every customer carries a little piece of impossible courage home."}}\n';
-            yield '{"type":"scene.add","scene":{"id":"body-2","templateId":"media","variables":{"texts":"Flour starts floating","mediaType":"video","mediaKeyword":"floating flour bakery"},"timing":{"fixedDuration":5},"narration":"Flour lifts from the counter as the baker watches gravity loosen its grip."}}\n';
+            yield '{"type":"scene.add","narration":"Redundant provider copy.","scene":{"id":"body-2","templateId":"media","variables":{"texts":"Flour starts floating","mediaType":"video","mediaKeyword":"floating flour bakery"},"timing":{"fixedDuration":5},"narration":"Flour lifts from the counter as the baker watches gravity loosen its grip."}}\n';
             yield '{"type":"scene.add","scene":{"id":"body-3","templateId":"media","variables":{"texts":"The town wakes","mediaType":"video","mediaKeyword":"town bakery dawn"},"timing":{"fixedDuration":5},"narration":"The warm scent rolls through town, drawing dreamers toward the glowing doorway."}}\n';
             yield '{"type":"scene.add","scene":{"id":"body-4","templateId":"media","variables":{"texts":"One brave bite","mediaType":"video","mediaKeyword":"child tasting bread"},"timing":{"fixedDuration":5},"narration":"One brave child takes a bite, and suddenly everyone remembers their boldest dream."}}\n';
             yield '{"type":"plan.complete"}\n';
