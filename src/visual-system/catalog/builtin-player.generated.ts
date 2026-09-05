@@ -85,7 +85,7 @@ export const GENERATED_BUILTIN_PLAYER_TEMPLATES = [
   {
     "id": "barChart",
     "defaults": {
-      "texts": "Revenue up 300%.",
+      "texts": "Quarterly revenue",
       "bars": [
         {
           "label": "Q1",
