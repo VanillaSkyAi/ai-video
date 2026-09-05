@@ -98,7 +98,7 @@ describe("VideoChat", () => {
     const { VideoChat } = await import("../src/react");
     render(<VideoChat options={{ fetcher: chatFetcher() }} />);
     fireEvent.change(screen.getByRole("textbox", { name: "Prompt" }), { target: { value: "Explain the ocean" } });
-    fireEvent.click(screen.getByRole("button", { name: "Ask", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }));
     expect((await screen.findByRole("status")).textContent).toBeTruthy();
   });
 
